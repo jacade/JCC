@@ -61,7 +61,7 @@ type
     property Background: TColor read FBackground write SetBackground default clWhite;
     property Font: TFont read FFont write SetFont;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
-    property Size: integer read FSize write SetSize;
+    property Size: integer read FSize write SetSize default 20;
     property Style: TBorderStyles read FStyle write SetStyle;
   end;
 
@@ -206,7 +206,7 @@ begin
   FFont.Color := clBlack;
   FFont.Style := FFont.Style + [fsBold];
   FFont.OnChange := @FFontChange;
-  FSize := 50;
+  FSize := 20;
   FStyle := [bsBottom, bsLeft, bsRight, bsTop];
 end;
 
@@ -228,19 +228,6 @@ end;
 
 procedure TBoard.FBorderChange(Sender: TObject);
 begin
-  InnerBoard := Rect(0, 0, Width, Height);
-  if bsLeft in Border.Style then
-    Inc(InnerBoard.Left, Border.Size);
-  if bsTop in Border.Style then
-    Inc(InnerBoard.Top, Border.Size);
-  if bsRight in Border.Style then
-    Dec(InnerBoard.Right, Border.Size);
-  if bsBottom in Border.Style then
-    Dec(InnerBoard.Bottom, Border.Size);
-  // Let's make it a square
-  InnerBoard := Rect(InnerBoard.Left, InnerBoard.Top, InnerBoard.Left +
-    FCurrentPosition.CountOfFiles * SizePerSquare, InnerBoard.Top +
-    FCurrentPosition.CountOfRanks * SizePerSquare);
   Invalidate;
 end;
 
@@ -417,6 +404,19 @@ var
   IsMoving: boolean;
 begin
   inherited Paint;
+  InnerBoard := Rect(0, 0, Width, Height);
+  if bsLeft in Border.Style then
+    Inc(InnerBoard.Left, Border.Size);
+  if bsTop in Border.Style then
+    Inc(InnerBoard.Top, Border.Size);
+  if bsRight in Border.Style then
+    Dec(InnerBoard.Right, Border.Size);
+  if bsBottom in Border.Style then
+    Dec(InnerBoard.Bottom, Border.Size);
+  // Let's make it a square
+  InnerBoard := Rect(InnerBoard.Left, InnerBoard.Top, InnerBoard.Left +
+    FCurrentPosition.CountOfFiles * SizePerSquare, InnerBoard.Top +
+    FCurrentPosition.CountOfRanks * SizePerSquare);
   Canvas.Brush.Color := Border.Background;
   Canvas.FillRect(0, 0, Width, Height);
   d := SizePerSquare;
@@ -550,7 +550,8 @@ begin
   FWhiteSquareColor := clWhite;
   ImagesAreLoaded := False;
   with GetControlClassDefaultSize do
-    SetInitialBounds(0, 0, CX, CY);
+    SetInitialBounds(0, 0, 250, 250);
+  FBorderChange(Self);
 end;
 
 destructor TBoard.Destroy;
