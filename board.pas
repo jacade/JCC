@@ -551,7 +551,6 @@ begin
   ImagesAreLoaded := False;
   with GetControlClassDefaultSize do
     SetInitialBounds(0, 0, 250, 250);
-  FBorderChange(Self);
 end;
 
 destructor TBoard.Destroy;
