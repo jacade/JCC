@@ -1,0 +1,23 @@
+{ This file was automatically created by Lazarus. Do not edit!
+  This source is only used to compile and install the package.
+ }
+
+unit ChessComponents;
+
+interface
+
+uses
+  Board, EngineView, ChessClock, LazarusPackageIntf;
+
+implementation
+
+procedure Register;
+begin
+  RegisterUnit('Board', @Board.Register);
+  RegisterUnit('EngineView', @EngineView.Register);
+  RegisterUnit('ChessClock', @ChessClock.Register);
+end;
+
+initialization
+  RegisterPackage('ChessComponents', @Register);
+end.
