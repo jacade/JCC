@@ -372,7 +372,7 @@ begin
         Start := 10 * (7 - ClickedRank) + (7 - ClickedFile) + 21;
         Dest := 10 * (7 - r) + (7 - f) + 21;
       end;
-      // Check for Promotion and request the user to choose a pieces
+      // Check for Promotion and request the user to choose a piece
       PromoPiece := ptEmpty;
       if (FCurrentPosition.Squares[Start] in [ptWPawn, ptBPawn]) and
         (Dest in Rank1 + Rank8) then
