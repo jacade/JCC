@@ -52,6 +52,7 @@ type
     FBlackWins: TNotifyEvent;
     FDraw: TNotifyEvent;
     FLegalMoves: TMoveList;
+    FMoveNumber: integer;
     FWhitesTurn: boolean;
     FWhiteWins: TNotifyEvent;
   const
@@ -74,6 +75,7 @@ type
     property CountOfFiles: byte read GetCountOfFiles;
     property CountOfRanks: byte read GetCountOfRanks;
     property LegalMoves: TMoveList read FLegalMoves;
+    property MoveNumber: integer read FMoveNumber write FMoveNumber;
     property OnBlackWins: TNotifyEvent read FBlackWins write FBlackWins;
     property OnDraw: TNotifyEvent read FDraw write FDraw;
     property OnWhiteWins: TNotifyEvent read FWhiteWins write FWhiteWins;
@@ -89,7 +91,6 @@ type
   var      // Note: If Variables are added, they need to be added to Assign, too
     FCastlingAbility: TCastlingAbility;
     FEnPassant: TSquare10x12;
-    FMoveNumber: integer;
     FOnChange: TNotifyEvent;
     FPliesSinceLastPawnMoveOrCapture: integer; // Important for 50 move rule
     FSquares: array[0..119] of TPieceType;
@@ -142,7 +143,6 @@ type
     property CastlingAbility: TCastlingAbility
       read FCastlingAbility write FCastlingAbility;
     property EnPassant: TSquare10x12 read FEnPassant write FEnPassant;
-    property MoveNumber: integer read FMoveNumber write FMoveNumber;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property PliesSinceLastPawnMoveOrCapture: integer
       read FPliesSinceLastPawnMoveOrCapture write FPliesSinceLastPawnMoveOrCapture;
@@ -1052,6 +1052,8 @@ procedure TStandardPosition.SetupInitialPosition;
 var
   i: byte;
 begin
+  for i in ValidSquares do
+    FSquares[i] := ptEmpty;
   FSquares[91] := ptWRook;
   FSquares[92] := ptWKnight;
   FSquares[93] := ptWBishop;
@@ -1072,6 +1074,12 @@ begin
   FSquares[26] := ptBBishop;
   FSquares[27] := ptBKnight;
   FSquares[28] := ptBRook;
+  FWhitesTurn := True;
+  FMoveNumber := 1;
+  FEnPassant := 0;
+  FPliesSinceLastPawnMoveOrCapture := 0;
+  FCastlingAbility := [ctWQueenside, ctWKingside, ctBQueenside, ctBKingside];
+  Changed;
 end;
 
 function TStandardPosition.ToFEN: string;
