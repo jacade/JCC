@@ -69,6 +69,8 @@ type
   public
     function IsLegal(AMove: TMove): boolean; virtual;
     procedure PlayMove(AMove: TMove); virtual; abstract;
+    procedure SetupInitialPosition; virtual; abstract;
+  public
     property CountOfFiles: byte read GetCountOfFiles;
     property CountOfRanks: byte read GetCountOfRanks;
     property LegalMoves: TMoveList read FLegalMoves;
@@ -134,7 +136,9 @@ type
       CaptureSymbol: TCaptureSymbol = csx;
       PromotionSymbol: TPromotionSymbol = psNone): string;
     procedure PlayMove(AMove: TMove); override;
+    procedure SetupInitialPosition; override;
     function ToFEN: string;
+  public
     property CastlingAbility: TCastlingAbility
       read FCastlingAbility write FCastlingAbility;
     property EnPassant: TSquare10x12 read FEnPassant write FEnPassant;
@@ -1042,6 +1046,32 @@ begin
       WhiteWins;
   if IsStaleMate then
     Draw;
+end;
+
+procedure TStandardPosition.SetupInitialPosition;
+var
+  i: byte;
+begin
+  FSquares[91] := ptWRook;
+  FSquares[92] := ptWKnight;
+  FSquares[93] := ptWBishop;
+  FSquares[94] := ptWQueen;
+  FSquares[95] := ptWKing;
+  FSquares[96] := ptWBishop;
+  FSquares[97] := ptWKnight;
+  FSquares[98] := ptWRook;
+  for i in Rank2 do
+    FSquares[i] := ptWPawn;
+  for i in Rank7 do
+    FSquares[i] := ptBPawn;
+  FSquares[21] := ptBRook;
+  FSquares[22] := ptBKnight;
+  FSquares[23] := ptBBishop;
+  FSquares[24] := ptBQueen;
+  FSquares[25] := ptBKing;
+  FSquares[26] := ptBBishop;
+  FSquares[27] := ptBKnight;
+  FSquares[28] := ptBRook;
 end;
 
 function TStandardPosition.ToFEN: string;
