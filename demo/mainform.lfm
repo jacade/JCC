@@ -20,6 +20,7 @@ object Form1: TForm1
     Border.Font.Style = [fsBold]
     Border.Style = [bsBottom, bsLeft, bsRight, bsTop]
     OnMovePlayed = Board1MovePlayed
+    OnMouseWheel = Board1MouseWheel
     OnPromotion = Board1Promotion
     WhiteSquareColor = 3307448
   end
@@ -95,5 +96,23 @@ object Form1: TForm1
     Caption = '>'
     OnClick = btForwardClick
     TabOrder = 6
+  end
+  object btInitial: TButton
+    Left = 128
+    Height = 25
+    Top = 480
+    Width = 48
+    Caption = '|<'
+    OnClick = btInitialClick
+    TabOrder = 7
+  end
+  object btLast: TButton
+    Left = 296
+    Height = 25
+    Top = 480
+    Width = 48
+    Caption = '>|'
+    OnClick = btLastClick
+    TabOrder = 8
   end
 end

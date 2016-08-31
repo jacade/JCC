@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls,
-  Board, MoveList, Pieces, Game;
+  Board, MoveList, Pieces, Game, Types;
 
 type
 
@@ -35,11 +35,17 @@ type
     Button2: TButton;
     btBackward: TButton;
     btForward: TButton;
+    btInitial: TButton;
+    btLast: TButton;
     ComboBox1: TComboBox;
     Label1: TLabel;
     Memo1: TMemo;
+    procedure Board1MouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
     procedure Board1MovePlayed(AMove: TMove);
     procedure Board1Promotion(var PromotionPiece: TPieceType);
+    procedure btInitialClick(Sender: TObject);
+    procedure btLastClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure btBackwardClick(Sender: TObject);
@@ -49,6 +55,7 @@ type
   private
     { private declarations }
     MyGame: TGame;
+    procedure UpdateButtons;
   public
     { public declarations }
   end;
@@ -67,6 +74,8 @@ begin
   MyGame := TStandardGame.Create(Board1);
   btBackward.Enabled := False;
   btForward.Enabled := False;
+  btInitial.Enabled := False;
+  btLast.Enabled := False;
   Board1.PieceDirectory := '../Pieces/';
   Board1.CurrentPosition.SetupInitialPosition;
 end;
@@ -74,6 +83,14 @@ end;
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(MyGame);
+end;
+
+procedure TForm1.UpdateButtons;
+begin
+  btBackward.Enabled := MyGame.CurrentPlyNumber > 0;
+  btForward.Enabled := MyGame.CurrentPlyNumber < MyGame.PlyList.Count;
+  btInitial.Enabled := MyGame.PlyList.Count > 0;
+  btLast.Enabled := MyGame.PlyList.Count > 0;
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);
@@ -92,17 +109,13 @@ end;
 procedure TForm1.btBackwardClick(Sender: TObject);
 begin
   MyGame.GoOneMoveBackward;
-  if MyGame.CurrentPlyNumber = 0 then
-    btBackward.Enabled := False;
-  btForward.Enabled := True;
+  UpdateButtons;
 end;
 
 procedure TForm1.btForwardClick(Sender: TObject);
 begin
   MyGame.GoOneMoveForward;
-  if MyGame.CurrentPlyNumber = MyGame.PlyList.Count then
-    btForward.Enabled := False;
-  btBackward.Enabled := True;
+  UpdateButtons;
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
@@ -132,9 +145,28 @@ begin
       else
         Memo1.Text := Memo1.Text + ' ' + MyGame.MoveToString(AMove) + LineEnding;
       MyGame.AddMove(AMove);
-      btBackward.Enabled := True;
+      UpdateButtons;
     end;
+  end;
+end;
 
+procedure TForm1.Board1MouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
+var
+  Delta: integer;
+begin
+  if MyGame.PlyList.Count > 0 then
+  begin
+    Delta := -WheelDelta div 120;
+    if (Delta < 0) and (Delta < -MyGame.CurrentPlyNumber) then
+      MyGame.GoToPositionAfterPlyNumber(0)
+    else
+    if (Delta > 0) and (Delta + MyGame.CurrentPlyNumber > MyGame.PlyList.Count) then
+      MyGame.GoToPositionAfterPlyNumber(MyGame.PlyList.Count)
+    else
+      MyGame.GoToPositionAfterPlyNumber(MyGame.CurrentPlyNumber + Delta);
+    Handled := True;
+    UpdateButtons;
   end;
 end;
 
@@ -158,6 +190,18 @@ begin
       else
         PromotionPiece := ptBBishop;
   end;
+end;
+
+procedure TForm1.btInitialClick(Sender: TObject);
+begin
+  MyGame.GoToPositionAfterPlyNumber(0);
+  UpdateButtons;
+end;
+
+procedure TForm1.btLastClick(Sender: TObject);
+begin
+  MyGame.GoToPositionAfterPlyNumber(MyGame.PlyList.Count);
+  UpdateButtons;
 end;
 
 end.
