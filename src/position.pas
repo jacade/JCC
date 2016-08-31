@@ -174,9 +174,14 @@ begin
 end;
 
 procedure TPosition.Copy(Source: TPosition);
+var
+  Move: TMove;
 begin
   FMoveNumber := Source.FMoveNumber;
   FWhitesTurn := Source.FWhitesTurn;
+  FLegalMoves.Clear;
+  for Move in Source.FLegalMoves do
+    FLegalMoves.Add(Move.Copy);
 end;
 
 function TPosition.IsLegal(AMove: TMove): boolean;

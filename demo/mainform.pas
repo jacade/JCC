@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls,
-  Board, MoveList, Position, Pieces, Game;
+  Board, MoveList, Pieces, Game;
 
 type
 
@@ -33,8 +33,8 @@ type
     Board1: TBoard;
     Button1: TButton;
     Button2: TButton;
-    Button3: TButton;
-    Button4: TButton;
+    btBackward: TButton;
+    btForward: TButton;
     ComboBox1: TComboBox;
     Label1: TLabel;
     Memo1: TMemo;
@@ -42,8 +42,8 @@ type
     procedure Board1Promotion(var PromotionPiece: TPieceType);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
-    procedure Button3Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
+    procedure btBackwardClick(Sender: TObject);
+    procedure btForwardClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
@@ -65,6 +65,8 @@ implementation
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   MyGame := TStandardGame.Create(Board1);
+  btBackward.Enabled := False;
+  btForward.Enabled := False;
   Board1.PieceDirectory := '../Pieces/';
   Board1.CurrentPosition.SetupInitialPosition;
 end;
@@ -87,27 +89,52 @@ begin
   Board1.Reversed := not Board1.Reversed;
 end;
 
-procedure TForm1.Button3Click(Sender: TObject);
+procedure TForm1.btBackwardClick(Sender: TObject);
 begin
   MyGame.GoOneMoveBackward;
+  if MyGame.CurrentPlyNumber = 0 then
+    btBackward.Enabled := False;
+  btForward.Enabled := True;
 end;
 
-procedure TForm1.Button4Click(Sender: TObject);
+procedure TForm1.btForwardClick(Sender: TObject);
 begin
   MyGame.GoOneMoveForward;
+  if MyGame.CurrentPlyNumber = MyGame.PlyList.Count then
+    btForward.Enabled := False;
+  btBackward.Enabled := True;
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
 begin
   if Board1.CurrentPosition.IsLegal(AMove) then
   begin
-    if Board1.CurrentPosition.WhitesTurn then
-      Memo1.Text := Memo1.Text + (IntToStr(Board1.CurrentPosition.MoveNumber) +
-        '. ' + TStandardPosition(Board1.CurrentPosition).MoveToSAN(AMove))
+    // TODO: Implement variations
+    // new move, where already one exists
+    if (MyGame.CurrentPlyNumber < MyGame.PlyList.Count) then
+    begin
+      // the new move is the same as the old one, so we can play it
+      if (AMove.IsEqual(MyGame.PlyList.Items[MyGame.CurrentPlyNumber].Move)) then
+      begin
+        btForwardClick(Self);
+      end
+      else
+      begin
+        Application.MessageBox('This feature is not implemented yet!', 'Error');
+      end;
+    end
     else
-      Memo1.Text := Memo1.Text + ' ' + TStandardPosition(
-        Board1.CurrentPosition).MoveToSAN(AMove) + LineEnding;
-    MyGame.AddMove(AMove);
+      // New move entered, play it
+    begin
+      if Board1.CurrentPosition.WhitesTurn then
+        Memo1.Text := Memo1.Text + (IntToStr(Board1.CurrentPosition.MoveNumber) +
+          '. ' + MyGame.MoveToString(AMove))
+      else
+        Memo1.Text := Memo1.Text + ' ' + MyGame.MoveToString(AMove) + LineEnding;
+      MyGame.AddMove(AMove);
+      btBackward.Enabled := True;
+    end;
+
   end;
 end;
 

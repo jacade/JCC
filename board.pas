@@ -115,6 +115,7 @@ type
     property Border: TBorder read FBorder write SetBorder;
     // is invoked, when the user moves a piece
     property OnMovePlayed: TMovePlayedEvent read FOnMovePlayed write FOnMovePlayed;
+//    property OnMouseWheel;
     { Specifies the Directory where vectorial images for the pieces can be found.
       They have to be named
         [b | w][b | k | n | p | q | r].svg
