@@ -354,7 +354,6 @@ end;
 procedure TBoard.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: integer);
 var
   f, r, Start, Dest: integer;
-  temp: TMove;
   PromoPiece: TPieceType;
 begin
   inherited MouseUp(Button, Shift, X, Y);
@@ -386,9 +385,7 @@ begin
       end;
       if Assigned(FOnMovePlayed) then
       begin
-        temp := TMove.Create(Start, Dest, PromoPiece);
-        FOnMovePlayed(temp);
-        temp.Free;
+        FOnMovePlayed(TMove.Create(Start, Dest, PromoPiece));
       end;
     end;
     ClickedDown := False;
@@ -545,7 +542,7 @@ begin
   FBorder := TBorder.Create;
   FBorder.OnChange := @FBorderChange;
   FBlackSquareColor := clBlack;
-  FCurrentPosition := TStandardPosition.Create;
+ // FCurrentPosition := TStandardPosition.Create;
   FReversed := False;
   FWhiteSquareColor := clWhite;
   ImagesAreLoaded := False;
