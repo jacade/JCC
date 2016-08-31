@@ -68,6 +68,8 @@ type
     function GetSquares(Index: integer): TPieceType; virtual; abstract;
     procedure WhiteWins;
   public
+    // Copies important values from Source to Self
+    procedure Copy(Source: TPosition); virtual;
     function IsLegal(AMove: TMove): boolean; virtual;
     procedure PlayMove(AMove: TMove); virtual; abstract;
     procedure SetupInitialPosition; virtual; abstract;
@@ -96,7 +98,6 @@ type
     FSquares: array[0..119] of TPieceType;
 
     procedure Changed;
-    procedure Copy(Source: TStandardPosition);
     function GenerateBishopMoves(Start: TSquare10x12): TMoveList;
     function GenerateCastlingMoves(Start: TSquare10x12): TMoveList;
     function GenerateKingMoves(Start: TSquare10x12): TMoveList;
@@ -120,6 +121,7 @@ type
     function GetSquares(Index: integer): TPieceType; override;
   public
     constructor Create;
+    procedure Copy(Source: TPosition); override;
     destructor Destroy; override;
     procedure FromFEN(AFEN: string);
     // Checks if the side to move is check
@@ -171,6 +173,12 @@ begin
     FWhiteWins(Self);
 end;
 
+procedure TPosition.Copy(Source: TPosition);
+begin
+  FMoveNumber := Source.FMoveNumber;
+  FWhitesTurn := Source.FWhitesTurn;
+end;
+
 function TPosition.IsLegal(AMove: TMove): boolean;
 begin
   Result := AMove in LegalMoves;
@@ -185,17 +193,20 @@ begin
     FOnChange(Self);
 end;
 
-procedure TStandardPosition.Copy(Source: TStandardPosition);
+procedure TStandardPosition.Copy(Source: TPosition);
 var
   i: integer;
 begin
-  FCastlingAbility := Source.FCastlingAbility;
-  FEnPassant := Source.FEnPassant;
-  FMoveNumber := Source.FMoveNumber;
-  FPliesSinceLastPawnMoveOrCapture := Source.FPliesSinceLastPawnMoveOrCapture;
-  for i := 0 to 119 do
-    FSquares[i] := Source.FSquares[i];
-  FWhitesTurn := Source.FWhitesTurn;
+  inherited Copy(Source);
+  if Source is TStandardPosition then
+  begin
+    FCastlingAbility := TStandardPosition(Source).FCastlingAbility;
+    FEnPassant := TStandardPosition(Source).FEnPassant;
+    FPliesSinceLastPawnMoveOrCapture :=
+      TStandardPosition(Source).FPliesSinceLastPawnMoveOrCapture;
+    for i := 0 to 119 do
+      FSquares[i] := TStandardPosition(Source).FSquares[i];
+  end;
 end;
 
 function TStandardPosition.GenerateBishopMoves(Start: TSquare10x12): TMoveList;
@@ -689,6 +700,7 @@ end;
 destructor TStandardPosition.Destroy;
 begin
   FreeAndNil(FLegalMoves);
+  inherited Destroy;
 end;
 
 procedure TStandardPosition.FromFEN(AFEN: string);
