@@ -28,7 +28,7 @@ object Form1: TForm1
     Height = 25
     Top = 408
     Width = 136
-    Caption = 'New game'
+    Caption = 'New Game'
     OnClick = Button1Click
     TabOrder = 1
   end
@@ -46,7 +46,7 @@ object Form1: TForm1
     Height = 25
     Top = 408
     Width = 112
-    Caption = 'Turn board'
+    Caption = 'Turn Board'
     OnClick = Button2Click
     TabOrder = 3
   end
@@ -78,22 +78,22 @@ object Form1: TForm1
     ParentColor = False
     ParentFont = False
   end
-  object Button3: TButton
+  object btBackward: TButton
     Left = 184
     Height = 25
     Top = 479
     Width = 48
     Caption = '<'
-    OnClick = Button3Click
+    OnClick = btBackwardClick
     TabOrder = 5
   end
-  object Button4: TButton
+  object btForward: TButton
     Left = 240
     Height = 25
     Top = 479
     Width = 48
     Caption = '>'
-    OnClick = Button4Click
+    OnClick = btForwardClick
     TabOrder = 6
   end
 end
