@@ -1,12 +1,13 @@
 object Form1: TForm1
   Left = 361
-  Height = 472
+  Height = 510
   Top = 204
   Width = 742
   Caption = 'Demo'
-  ClientHeight = 472
+  ClientHeight = 510
   ClientWidth = 742
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   LCLVersion = '1.6.0.4'
   object Board1: TBoard
     Left = 0
@@ -27,7 +28,7 @@ object Form1: TForm1
     Height = 25
     Top = 408
     Width = 136
-    Caption = 'Setup inital position'
+    Caption = 'New game'
     OnClick = Button1Click
     TabOrder = 1
   end
@@ -51,10 +52,10 @@ object Form1: TForm1
   end
   object ComboBox1: TComboBox
     Left = 624
-    Height = 26
+    Height = 23
     Top = 440
     Width = 112
-    ItemHeight = 0
+    ItemHeight = 15
     ItemIndex = 0
     Items.Strings = (
       'Queen'
@@ -68,13 +69,31 @@ object Form1: TForm1
   end
   object Label1: TLabel
     Left = 512
-    Height = 19
+    Height = 18
     Top = 440
-    Width = 95
+    Width = 81
     Caption = 'Promote to:'
     Font.Height = -16
     Font.Name = 'Sans'
     ParentColor = False
     ParentFont = False
+  end
+  object Button3: TButton
+    Left = 184
+    Height = 25
+    Top = 479
+    Width = 48
+    Caption = '<'
+    OnClick = Button3Click
+    TabOrder = 5
+  end
+  object Button4: TButton
+    Left = 240
+    Height = 25
+    Top = 479
+    Width = 48
+    Caption = '>'
+    OnClick = Button4Click
+    TabOrder = 6
   end
 end

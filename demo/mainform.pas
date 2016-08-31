@@ -22,8 +22,8 @@ unit MainForm;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  Board, MoveList, Position, Pieces;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls,
+  Board, MoveList, Position, Pieces, Game;
 
 type
 
@@ -33,6 +33,8 @@ type
     Board1: TBoard;
     Button1: TButton;
     Button2: TButton;
+    Button3: TButton;
+    Button4: TButton;
     ComboBox1: TComboBox;
     Label1: TLabel;
     Memo1: TMemo;
@@ -40,9 +42,13 @@ type
     procedure Board1Promotion(var PromotionPiece: TPieceType);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     { private declarations }
+    MyGame: TGame;
   public
     { public declarations }
   end;
@@ -58,13 +64,20 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  MyGame := TStandardGame.Create(Board1);
   Board1.PieceDirectory := '../Pieces/';
   Board1.CurrentPosition.SetupInitialPosition;
+end;
+
+procedure TForm1.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(MyGame);
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
   Memo1.Lines.Clear;
+  MyGame.Clear;
   Board1.CurrentPosition.SetupInitialPosition;
   Board1.Invalidate;
 end;
@@ -72,6 +85,16 @@ end;
 procedure TForm1.Button2Click(Sender: TObject);
 begin
   Board1.Reversed := not Board1.Reversed;
+end;
+
+procedure TForm1.Button3Click(Sender: TObject);
+begin
+  MyGame.GoOneMoveBackward;
+end;
+
+procedure TForm1.Button4Click(Sender: TObject);
+begin
+  MyGame.GoOneMoveForward;
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
@@ -84,7 +107,7 @@ begin
     else
       Memo1.Text := Memo1.Text + ' ' + TStandardPosition(
         Board1.CurrentPosition).MoveToSAN(AMove) + LineEnding;
-    Board1.CurrentPosition.PlayMove(AMove);
+    MyGame.AddMove(AMove);
   end;
 end;
 
