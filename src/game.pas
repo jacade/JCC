@@ -43,7 +43,7 @@ type
       write FCommenTextInBehind;
     property CommentTextInFront: string read FCommentTextInFront
       write FCommentTextInFront;
-    property ChessMove: TMove read FMove write FMove;
+    property Move: TMove read FMove write FMove;
     property NAG: byte read FNAG write FNAG;
     property VariationLevel: word read FVariationLevel write FVariationLevel;
   end;
@@ -69,7 +69,11 @@ type
     procedure GoOneMoveForward;
     // Setups position after the given ply number (0 is then the initial position)
     procedure GoToPositionAfterPlyNumber(Index: word);
+    // Converts the given move into a by human readable string
+    function MoveToString(AMove: TMove):string; virtual; abstract;
+  public
     property CurrentPlyNumber: word read FCurrentPlyNumber write FCurrentPlyNumber;
+    property PlyList: TPlyList read FPlyList;
   end;
 
   { TStandardGame }
@@ -77,6 +81,7 @@ type
   TStandardGame = class(TGame)
   public
     constructor Create(ABoard: TBoard); override;
+    function MoveToString(AMove: TMove): string; override;
   end;
 
 implementation
@@ -152,7 +157,7 @@ begin
   for i := 0 to Index - 1 do
   begin
     // TODO: Add support for variations
-    FBoard.CurrentPosition.PlayMove(FPlyList.Items[i].ChessMove);
+    FBoard.CurrentPosition.PlayMove(FPlyList.Items[i].Move);
   end;
   FCurrentPlyNumber := Index;
   FBoard.Invalidate;
@@ -164,6 +169,11 @@ constructor TStandardGame.Create(ABoard: TBoard);
 begin
   inherited Create(ABoard);
   FBoard.CurrentPosition := TStandardPosition.Create;
+end;
+
+function TStandardGame.MoveToString(AMove: TMove): string;
+begin
+  Result := TStandardPosition(FBoard.CurrentPosition).MoveToSAN(AMove);
 end;
 
 end.
