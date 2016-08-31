@@ -7,7 +7,7 @@ unit ChessComponents;
 interface
 
 uses
-  Board, EngineView, ChessClock, StrTools, LazarusPackageIntf;
+  Board, EngineView, ChessClock, StrTools, Game, LazarusPackageIntf;
 
 implementation
 
