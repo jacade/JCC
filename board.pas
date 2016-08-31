@@ -77,6 +77,8 @@ type
     ClickedFile, ClickedRank: integer;
     CurrentPos: TPoint;
     FBorder: TBorder;
+    FCountOfFiles: byte;
+    FCountOfRanks: byte;
     FCurrentPosition: TPosition;
     FPieceDirectory: string;
     FReversed: boolean;
@@ -104,6 +106,8 @@ type
     procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
+    property CountOfFiles: byte read FCountOfFiles;
+    property CountOfRanks: byte read FCountOfRanks;
     property CurrentPosition: TPosition read FCurrentPosition write SetCurrentPosition;
     destructor Destroy; override;
     // Length of an edge of a single square
@@ -235,9 +239,8 @@ function TBoard.GetSizePerSquare: integer;
 begin
  (* Result := Min(InnerBoard.Bottom - InnerBoard.Top, InnerBoard.Right -
     InnerBoard.Left) div 8;     *)
-  Result := Min((InnerBoard.Bottom - InnerBoard.Top) div
-    FCurrentPosition.CountOfRanks, (InnerBoard.Right - InnerBoard.Left) div
-    FCurrentPosition.CountOfFiles);
+  Result := Min((InnerBoard.Bottom - InnerBoard.Top) div FCountOfRanks,
+    (InnerBoard.Right - InnerBoard.Left) div FCountOfFiles);
 end;
 
 procedure TBoard.SetBorder(AValue: TBorder);
@@ -253,6 +256,8 @@ begin
   if FCurrentPosition = AValue then
     Exit;
   FCurrentPosition := AValue;
+  FCountOfFiles := FCurrentPosition.CountOfFiles;
+  FCountOfRanks := FCurrentPosition.CountOfRanks;
   Invalidate;
 end;
 
@@ -412,14 +417,13 @@ begin
     Dec(InnerBoard.Bottom, Border.Size);
   // Let's make it a square
   InnerBoard := Rect(InnerBoard.Left, InnerBoard.Top, InnerBoard.Left +
-    FCurrentPosition.CountOfFiles * SizePerSquare, InnerBoard.Top +
-    FCurrentPosition.CountOfRanks * SizePerSquare);
+    FCountOfFiles * SizePerSquare, InnerBoard.Top + FCountOfRanks * SizePerSquare);
   Canvas.Brush.Color := Border.Background;
   Canvas.FillRect(0, 0, Width, Height);
   d := SizePerSquare;
   // draw the 64 squares
-  for i := 0 to FCurrentPosition.CountOfFiles - 1 do
-    for j := 0 to FCurrentPosition.CountOfRanks - 1 do
+  for i := 0 to FCountOfFiles - 1 do
+    for j := 0 to FCountOfRanks - 1 do
     begin
       if ((i + j) mod 2 = 0) then
         Canvas.Brush.Color := FWhiteSquareColor
@@ -451,31 +455,34 @@ begin
     end;
     if bsTop in Border.Style then
     begin
-      for i := 0 to FCurrentPosition.CountOfFiles - 1 do
+      for i := 0 to FCountOfFiles - 1 do
         Canvas.TextRect(Rect(InnerBoard.Left + i * d, 0, InnerBoard.Left +
           (i + 1) * d, Border.Size), 0, 0, Chr(c1 + s * i), TextStyle);
     end;
     if bsBottom in Border.Style then
     begin
-      for i := 0 to FCurrentPosition.CountOfFiles - 1 do
+      for i := 0 to FCountOfFiles - 1 do
         Canvas.TextRect(Rect(InnerBoard.Left + i * d, InnerBoard.Bottom,
           InnerBoard.Left + (i + 1) * d, InnerBoard.Bottom + Border.Size), 0,
           0, Chr(c1 + s * i), TextStyle);
     end;
     if bsLeft in Border.Style then
     begin
-      for i := 0 to FCurrentPosition.CountOfRanks - 1 do
+      for i := 0 to FCountOfRanks - 1 do
         Canvas.TextRect(Rect(0, InnerBoard.Top + i * d, Border.Size,
           InnerBoard.Top + (i + 1) * d), 0, 0, Chr(c2 - s * i), TextStyle);
     end;
     if bsRight in Border.Style then
     begin
-      for i := 0 to FCurrentPosition.CountOfRanks - 1 do
+      for i := 0 to FCountOfRanks - 1 do
         Canvas.TextRect(Rect(InnerBoard.Right, InnerBoard.Top + i *
           d, InnerBoard.Right + Border.Size, InnerBoard.Top + (i + 1) * d),
           0, 0, Chr(c2 - s * i), TextStyle);
     end;
   end;
+  // in design-time we need to exit here
+  if not Assigned(FCurrentPosition) then
+    Exit;
   // draw the pieces
   if ImagesAreLoaded then
   begin
@@ -542,7 +549,9 @@ begin
   FBorder := TBorder.Create;
   FBorder.OnChange := @FBorderChange;
   FBlackSquareColor := clBlack;
- // FCurrentPosition := TStandardPosition.Create;
+  // FCurrentPosition := TStandardPosition.Create;
+  FCountOfFiles := 8;
+  FCountOfRanks := 8;
   FReversed := False;
   FWhiteSquareColor := clWhite;
   ImagesAreLoaded := False;
