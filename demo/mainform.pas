@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls,
-  Board, MoveList, Pieces, Game, Types;
+  Board, MoveList, Pieces, Game, Types, LCLType, Ply;
 
 type
 
@@ -88,9 +88,9 @@ end;
 procedure TForm1.UpdateButtons;
 begin
   btBackward.Enabled := MyGame.CurrentPlyNumber > 0;
-  btForward.Enabled := MyGame.CurrentPlyNumber < MyGame.PlyList.Count;
-  btInitial.Enabled := MyGame.PlyList.Count > 0;
-  btLast.Enabled := MyGame.PlyList.Count > 0;
+  btForward.Enabled := MyGame.CurrentPlyNode.Children.Size > 0;
+  btInitial.Enabled := MyGame.PlyTree.Count > 0;
+  btLast.Enabled := MyGame.PlyTree.Count > 0;
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);
@@ -119,33 +119,45 @@ begin
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
+var
+  i: integer;
+  Child: TPlyTreeNode;
 begin
   if Board1.CurrentPosition.IsLegal(AMove) then
   begin
-    // TODO: Implement variations
-    // new move, where already one exists
-    if (MyGame.CurrentPlyNumber < MyGame.PlyList.Count) then
+    if MyGame.CurrentPlyNode.Children.Size = 0 then
     begin
-      // the new move is the same as the old one, so we can play it
-      if (AMove.IsEqual(MyGame.PlyList.Items[MyGame.CurrentPlyNumber].Move)) then
-      begin
-        btForwardClick(Self);
-      end
-      else
-      begin
-        Application.MessageBox('This feature is not implemented yet!', 'Error');
-      end;
+      // New move at the end entered, play it
+      MyGame.AddMove(AMove);
+      Memo1.Text := MyGame.Notation;
+      UpdateButtons;
     end
     else
-      // New move entered, play it
     begin
-      if Board1.CurrentPosition.WhitesTurn then
-        Memo1.Text := Memo1.Text + (IntToStr(Board1.CurrentPosition.MoveNumber) +
-          '. ' + MyGame.MoveToString(AMove))
+      for Child in MyGame.CurrentPlyNode.Children do
+      begin
+        // the new move is the same as the old one, so we can play it
+        if (AMove.IsEqual(Child.Data.Move)) then
+        begin
+          btForwardClick(Self);
+          Exit;
+        end;
+      end;
+      if Application.MessageBox('Should the existing move be replaced?',
+        'Question', MB_YESNO) = idYes then
+      begin
+        MyGame.ReplaceMainLine(AMove);
+        Memo1.Text := MyGame.Notation;
+        UpdateButtons;
+      end
       else
-        Memo1.Text := Memo1.Text + ' ' + MyGame.MoveToString(AMove) + LineEnding;
-      MyGame.AddMove(AMove);
-      UpdateButtons;
+      if Application.MessageBox('Add as new variation?',
+        'Question', MB_YESNO) = idYes then
+      begin
+        MyGame.AddMoveAsSideLine(AMove);
+        Memo1.Text := MyGame.Notation;
+        UpdateButtons;
+      end;
     end;
   end;
 end;
@@ -155,19 +167,24 @@ procedure TForm1.Board1MouseWheel(Sender: TObject; Shift: TShiftState;
 var
   Delta: integer;
 begin
-  if MyGame.PlyList.Count > 0 then
-  begin
-    Delta := -WheelDelta div 120;
-    if (Delta < 0) and (Delta < -MyGame.CurrentPlyNumber) then
-      MyGame.GoToPositionAfterPlyNumber(0)
-    else
-    if (Delta > 0) and (Delta + MyGame.CurrentPlyNumber > MyGame.PlyList.Count) then
-      MyGame.GoToPositionAfterPlyNumber(MyGame.PlyList.Count)
-    else
-      MyGame.GoToPositionAfterPlyNumber(MyGame.CurrentPlyNumber + Delta);
-    Handled := True;
-    UpdateButtons;
-  end;
+  //  if MyGame.PlyTree.Count > 0 then
+  //  begin
+  //    Delta := -WheelDelta div 120;
+  //    // TODO: Add variation support
+
+  //    // Goto beginning
+  //    if (Delta < 0) and (Delta < -MyGame.CurrentPlyNumber) then
+  //      MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyTree.Root)
+  //    else
+  //    // Goto end
+  //    if (Delta > 0) and (Delta + MyGame.CurrentPlyNumber > MyGame.PlyList.Count) then
+  //      MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyList.Count)
+  //    else
+  //    // Goto middle
+  //      MyGame.GoToPositionAfterPlyTreeNode(MyGame.CurrentPlyNumber + Delta);
+  //    Handled := True;
+  //    UpdateButtons;
+  //  end;
 end;
 
 procedure TForm1.Board1Promotion(var PromotionPiece: TPieceType);
@@ -194,13 +211,13 @@ end;
 
 procedure TForm1.btInitialClick(Sender: TObject);
 begin
-  MyGame.GoToPositionAfterPlyNumber(0);
+  MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyTree.Root);
   UpdateButtons;
 end;
 
 procedure TForm1.btLastClick(Sender: TObject);
 begin
-  MyGame.GoToPositionAfterPlyNumber(MyGame.PlyList.Count);
+  // MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyList.Count);
   UpdateButtons;
 end;
 
