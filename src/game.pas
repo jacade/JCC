@@ -56,19 +56,12 @@ type
     procedure GoOneMoveForward;
     // Setups position after the given ply number (0 is then the initial position)
     procedure GoToPositionAfterPlyTreeNode(const APlyTreeNode: TPlyTreeNode);
-    // Inserts a move at the current ply number as new variation
-    procedure InsertAsNewVariation(AMove: TMove); deprecated;
-    // Inserts a move at the current ply number in the same variation
-    procedure InsertAsSubVariation(AMove: TMove); deprecated;
-    // Converts the given move into a by human readable string
-    function MoveToString(AMove: TMove): string; virtual; abstract; deprecated;
     // Similiar to AddMoveAsNewMainLine but current main line will be deleted
     procedure ReplaceMainLine(AMove: TMove);
   public
     property CurrentPlyNumber: word read GetCurrentPlyNumber;
     property CurrentPlyNode: TPlyTree.TTreeNodeType read FCurrentPlyNode;
     property Notation: string read GetNotation;
-    //  property PlyList: TPlyList read FPlyList;
     // NOTE: PlyTree.Root.Data will always be nil
     property PlyTree: TPlyTree read FPlyTree;
   end;
@@ -80,7 +73,6 @@ type
     function GetNotation: string; override;
   public
     constructor Create(ABoard: TBoard); override;
-    function MoveToString(AMove: TMove): string; override; deprecated;
   end;
 
 implementation
@@ -110,7 +102,6 @@ procedure TGame.AddMove(AMove: TMove);
 begin
   if FPlyTree.Root.Children.Size > 0 then
   begin
-    // FPlyList.Add(TPly.Create(AMove, FPlyList.Last.VariationLevel));
     FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
     FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
   end
@@ -118,12 +109,9 @@ begin
   begin
     // First move is done, so we expect this to be the start position
     StartPosition.Copy(FBoard.CurrentPosition);
-    // FPlyList.Add(TPly.Create(AMove, 0));
     FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
     FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
-    // FPlyTree.Root := TPlyTreeNode.Create(TPly.Create(AMove));
   end;
-  // Inc(FCurrentPlyNumber);
   FBoard.CurrentPosition.PlayMove(AMove);
 end;
 
@@ -143,10 +131,8 @@ end;
 
 constructor TGame.Create(ABoard: TBoard);
 begin
-  // FCurrentPlyNumber := 0;
   FBoard := ABoard;
   StartPosition := TStandardPosition.Create;
-  // FPlyList := TPlyList.Create(True);
   FPlyTree := TPlyTree.Create;
   FPlyTree.Root := TPlyTreeNode.Create(nil);
   FCurrentPlyNode := FPlyTree.Root;
@@ -154,8 +140,6 @@ end;
 
 procedure TGame.Clear;
 begin
-  // FCurrentPlyNumber := 0;
-  // FPlyList.Clear;
   // We need to delete all plies currently stored in the tree
   FPlyTree.DepthFirstTraverse(@DeletePly);
   FPlyTree.Root.Free;
@@ -165,7 +149,6 @@ end;
 
 destructor TGame.Destroy;
 begin
-  // FPlyList.Free;
   // We need to delete all plies currently stored in the tree
   FPlyTree.DepthFirstTraverse(@DeletePly);
   FPlyTree.Free;
@@ -190,7 +173,6 @@ var
 begin
   Temp := FPlyTree.GetPathTo(APlyTreeNode);
   if Temp = nil then
-    // if Index > FPlyList.Count then
     raise Exception.Create('The given node is not in the tree');
   FBoard.CurrentPosition.Copy(StartPosition);
   for Node in Temp do
@@ -199,21 +181,8 @@ begin
       FBoard.CurrentPosition.PlayMove(Node.Data.Move);
   end;
   temp.Free;
-  // FCurrentPlyNumber := Index;
   FCurrentPlyNode := APlyTreeNode;
   FBoard.Invalidate;
-end;
-
-procedure TGame.InsertAsNewVariation(AMove: TMove);
-begin
-  FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
-  FCurrentPlyNode := FCurrentPlyNode.Children.Back;
-  FBoard.CurrentPosition.PlayMove(AMove);
-end;
-
-procedure TGame.InsertAsSubVariation(AMove: TMove);
-begin
-  FBoard.CurrentPosition.PlayMove(AMove);
 end;
 
 procedure TGame.ReplaceMainLine(AMove: TMove);
@@ -290,7 +259,7 @@ var
     TempPos.Copy(StartPos);
     Ply := CurrentRoot.Children.Items[0].Data;
     TempPos.PlayMove(Ply.Move);
-    // Write t rest of main line
+    // Write the rest of main line
     Result := Result + RecursiveLineToString(CurrentRoot.Children.Items[0], TempPos);
     TempPos.Free;
   end;
@@ -309,11 +278,6 @@ constructor TStandardGame.Create(ABoard: TBoard);
 begin
   inherited Create(ABoard);
   FBoard.CurrentPosition := TStandardPosition.Create;
-end;
-
-function TStandardGame.MoveToString(AMove: TMove): string;
-begin
-  Result := TStandardPosition(FBoard.CurrentPosition).MoveToSAN(AMove);
 end;
 
 end.

@@ -120,7 +120,6 @@ end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
 var
-  i: integer;
   Child: TPlyTreeNode;
 begin
   if Board1.CurrentPosition.IsLegal(AMove) then
