@@ -50,12 +50,14 @@ type
     constructor Create(ABoard: TBoard); virtual;
     procedure Clear;
     destructor Destroy; override;
+    // This returns the last tree node of in the main line of CurrentPlyNode
+    function GetLastPlyNodeInCurrentVariation: TPlyTreeNode;
     // Setups position before last move on board
     procedure GoOneMoveBackward;
     // Setups position after next move on board
     procedure GoOneMoveForward;
-    // Setups position after the given ply number (0 is then the initial position)
-    procedure GoToPositionAfterPlyTreeNode(const APlyTreeNode: TPlyTreeNode);
+    // Setups position after the given tree node
+    procedure GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
     // Similiar to AddMoveAsNewMainLine but current main line will be deleted
     procedure ReplaceMainLine(AMove: TMove);
   public
@@ -156,17 +158,26 @@ begin
   inherited Destroy;
 end;
 
+function TGame.GetLastPlyNodeInCurrentVariation: TPlyTreeNode;
+begin
+  Result := FCurrentPlyNode;
+  while Result.Children.Size > 0 do
+  begin
+    Result := Result.Children.Items[0];
+  end;
+end;
+
 procedure TGame.GoOneMoveBackward;
 begin
-  GoToPositionAfterPlyTreeNode(FPlyTree.GetParentOf(FCurrentPlyNode));
+  GoToPositionAfterPlyNode(FPlyTree.GetParentOf(FCurrentPlyNode));
 end;
 
 procedure TGame.GoOneMoveForward;
 begin
-  GoToPositionAfterPlyTreeNode(FCurrentPlyNode.Children.Items[0]);
+  GoToPositionAfterPlyNode(FCurrentPlyNode.Children.Items[0]);
 end;
 
-procedure TGame.GoToPositionAfterPlyTreeNode(const APlyTreeNode: TPlyTreeNode);
+procedure TGame.GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
 var
   Temp: TPlyTreeNodeList;
   Node: TPlyTreeNode;
@@ -232,7 +243,6 @@ var
     Ply := CurrentRoot.Children.Items[0].Data;
     // Write first move of main line
     Result := Result + PlyToStr(Ply);
-    // TODO: Brackets and dots like ..Nf6 are missing
     if CurrentRoot.Children.Size > 1 then
     begin
       Inc(VarLevel);
@@ -269,7 +279,6 @@ begin
   if FPlyTree.Count > 0 then
   begin
     Varlevel := 0;
-    // TODO: Support for variations
     Result := RecursiveLineToString(FPlyTree.Root, StartPosition as TStandardPosition);
   end;
 end;

@@ -150,40 +150,50 @@ begin
         UpdateButtons;
       end
       else
-      if Application.MessageBox('Add as new variation?',
-        'Question', MB_YESNO) = idYes then
+      if Application.MessageBox('Add as new variation?', 'Question',
+        MB_YESNO) = idYes then
       begin
         MyGame.AddMoveAsSideLine(AMove);
         Memo1.Text := MyGame.Notation;
         UpdateButtons;
       end;
     end;
-  end;
+  end
+  else
+    AMove.Free;
 end;
 
 procedure TForm1.Board1MouseWheel(Sender: TObject; Shift: TShiftState;
   WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 var
-  Delta: integer;
+  Delta, i: integer;
+  temp: TPlyTreeNode;
 begin
-  //  if MyGame.PlyTree.Count > 0 then
-  //  begin
-  //    Delta := -WheelDelta div 120;
-  //    // TODO: Add variation support
-
-  //    // Goto beginning
-  //    if (Delta < 0) and (Delta < -MyGame.CurrentPlyNumber) then
-  //      MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyTree.Root)
-  //    else
-  //    // Goto end
-  //    if (Delta > 0) and (Delta + MyGame.CurrentPlyNumber > MyGame.PlyList.Count) then
-  //      MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyList.Count)
-  //    else
-  //    // Goto middle
-  //      MyGame.GoToPositionAfterPlyTreeNode(MyGame.CurrentPlyNumber + Delta);
-  //    Handled := True;
-  //    UpdateButtons;
-  //  end;
+  if MyGame.PlyTree.Count > 0 then
+  begin
+    Delta := -WheelDelta div 120;
+    i := 0;
+    if Delta < 0 then // Go back
+    begin
+      while (i > Delta) and (MyGame.CurrentPlyNode <> MyGame.PlyTree.Root) do
+      begin
+        MyGame.GoOneMoveBackward;
+        Dec(i);
+      end;
+    end
+    else
+    if Delta > 0 then // Go forth
+    begin
+      temp := MyGame.GetLastPlyNodeInCurrentVariation;
+      while (i < Delta) and (MyGame.CurrentPlyNode <> temp) do
+      begin
+        MyGame.GoOneMoveForward;
+        Inc(i);
+      end;
+    end;
+    Handled := True;
+    UpdateButtons;
+  end;
 end;
 
 procedure TForm1.Board1Promotion(var PromotionPiece: TPieceType);
@@ -210,13 +220,13 @@ end;
 
 procedure TForm1.btInitialClick(Sender: TObject);
 begin
-  MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyTree.Root);
+  MyGame.GoToPositionAfterPlyNode(MyGame.PlyTree.Root);
   UpdateButtons;
 end;
 
 procedure TForm1.btLastClick(Sender: TObject);
 begin
-  // MyGame.GoToPositionAfterPlyTreeNode(MyGame.PlyList.Count);
+  MyGame.GoToPositionAfterPlyNode(MyGame.GetLastPlyNodeInCurrentVariation);
   UpdateButtons;
 end;
 
