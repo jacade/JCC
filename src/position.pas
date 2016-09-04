@@ -1081,34 +1081,6 @@ var
   i: byte;
 begin
   FromFEN(InitialFEN);
-  //for i in ValidSquares do
-  //  FSquares[i] := ptEmpty;
-  //FSquares[91] := ptWRook;
-  //FSquares[92] := ptWKnight;
-  //FSquares[93] := ptWBishop;
-  //FSquares[94] := ptWQueen;
-  //FSquares[95] := ptWKing;
-  //FSquares[96] := ptWBishop;
-  //FSquares[97] := ptWKnight;
-  //FSquares[98] := ptWRook;
-  //for i in Rank2 do
-  //  FSquares[i] := ptWPawn;
-  //for i in Rank7 do
-  //  FSquares[i] := ptBPawn;
-  //FSquares[21] := ptBRook;
-  //FSquares[22] := ptBKnight;
-  //FSquares[23] := ptBBishop;
-  //FSquares[24] := ptBQueen;
-  //FSquares[25] := ptBKing;
-  //FSquares[26] := ptBBishop;
-  //FSquares[27] := ptBKnight;
-  //FSquares[28] := ptBRook;
-  //FWhitesTurn := True;
-  //FMoveNumber := 1;
-  //FEnPassant := 0;
-  //FPliesSinceLastPawnMoveOrCapture := 0;
-  //FCastlingAbility := [ctWQueenside, ctWKingside, ctBQueenside, ctBKingside];
-  //Changed;
 end;
 
 function TStandardPosition.ToFEN: string;
