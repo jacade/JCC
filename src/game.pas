@@ -22,7 +22,7 @@ unit Game;
 interface
 
 uses
-  Classes, SysUtils, MoveList, Board, Position, Ply;
+  Classes, SysUtils, MoveList, Position, Ply;
 
 type
 
@@ -30,13 +30,13 @@ type
 
   TGame = class
   private
-    FBoard: TBoard;
-    //  FCurrentPlyNumber: word;
+    //  FBoard: TBoard;
     FCurrentPlyNode: TPlyTreeNode;
-    //  FPlyList: TPlyList;
+    FCurrentPosition: TPosition;
+    FInitialPosition: TPosition;
     FPlyTree: TPlyTree;
-    StartPosition: TPosition;
     function GetCurrentPlyNumber: word;
+    procedure SetInitialPosition(AValue: TPosition);
   protected
     function GetNotation: string; virtual;
   public
@@ -47,7 +47,8 @@ type
     procedure AddMoveAsNewMainLine(AMove: TMove);
     // AMove will be the start of a new side line
     procedure AddMoveAsSideLine(AMove: TMove);
-    constructor Create(ABoard: TBoard); virtual;
+    constructor Create; virtual;
+    constructor Create(const AInitialPosition: TPosition); virtual; abstract;
     procedure Clear;
     destructor Destroy; override;
     // This returns the last tree node of in the main line of CurrentPlyNode
@@ -63,6 +64,8 @@ type
   public
     property CurrentPlyNumber: word read GetCurrentPlyNumber;
     property CurrentPlyNode: TPlyTree.TTreeNodeType read FCurrentPlyNode;
+    property CurrentPosition: TPosition read FCurrentPosition;
+    property InitialPosition: TPosition read FInitialPosition write SetInitialPosition;
     property Notation: string read GetNotation;
     // NOTE: PlyTree.Root.Data will always be nil
     property PlyTree: TPlyTree read FPlyTree;
@@ -74,7 +77,8 @@ type
   protected
     function GetNotation: string; override;
   public
-    constructor Create(ABoard: TBoard); override;
+    constructor Create; override;
+    constructor Create(const AInitialPosition: TPosition); override;
   end;
 
 implementation
@@ -95,6 +99,15 @@ begin
   Temp.Free;
 end;
 
+procedure TGame.SetInitialPosition(AValue: TPosition);
+begin
+  if FInitialPosition = AValue then
+    Exit;
+  if FPlyTree.Count > 0 then
+    raise Exception.Create('Game already began, cannot change initial position');
+  FInitialPosition := AValue;
+end;
+
 function TGame.GetNotation: string;
 begin
   Result := '';
@@ -102,39 +115,27 @@ end;
 
 procedure TGame.AddMove(AMove: TMove);
 begin
-  if FPlyTree.Root.Children.Size > 0 then
-  begin
-    FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
-    FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
-  end
-  else
-  begin
-    // First move is done, so we expect this to be the start position
-    StartPosition.Copy(FBoard.CurrentPosition);
-    FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
-    FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
-  end;
-  FBoard.CurrentPosition.PlayMove(AMove);
+  FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
+  FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
+  FCurrentPosition.PlayMove(AMove);
 end;
 
 procedure TGame.AddMoveAsNewMainLine(AMove: TMove);
 begin
   FCurrentPlyNode.Children.Insert(0, TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
-  FBoard.CurrentPosition.PlayMove(AMove);
+  FCurrentPosition.PlayMove(AMove);
 end;
 
 procedure TGame.AddMoveAsSideLine(AMove: TMove);
 begin
   FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := FCurrentPlyNode.Children.Back;
-  FBoard.CurrentPosition.PlayMove(AMove);
+  FCurrentPosition.PlayMove(AMove);
 end;
 
-constructor TGame.Create(ABoard: TBoard);
+constructor TGame.Create;
 begin
-  FBoard := ABoard;
-  StartPosition := TStandardPosition.Create;
   FPlyTree := TPlyTree.Create;
   FPlyTree.Root := TPlyTreeNode.Create(nil);
   FCurrentPlyNode := FPlyTree.Root;
@@ -147,6 +148,8 @@ begin
   FPlyTree.Root.Free;
   FPlyTree.Root := TPlyTreeNode.Create(nil);
   FCurrentPlyNode := FPlyTree.Root;
+  FCurrentPosition.SetupInitialPosition;
+  FInitialPosition.SetupInitialPosition;
 end;
 
 destructor TGame.Destroy;
@@ -154,7 +157,8 @@ begin
   // We need to delete all plies currently stored in the tree
   FPlyTree.DepthFirstTraverse(@DeletePly);
   FPlyTree.Free;
-  StartPosition.Free;
+  FInitialPosition.Free;
+  FCurrentPosition.Free;
   inherited Destroy;
 end;
 
@@ -185,15 +189,14 @@ begin
   Temp := FPlyTree.GetPathTo(APlyTreeNode);
   if Temp = nil then
     raise Exception.Create('The given node is not in the tree');
-  FBoard.CurrentPosition.Copy(StartPosition);
+  FCurrentPosition.Copy(FInitialPosition);
   for Node in Temp do
   begin
     if Node.Data <> nil then
-      FBoard.CurrentPosition.PlayMove(Node.Data.Move);
+      FCurrentPosition.PlayMove(Node.Data.Move);
   end;
   temp.Free;
   FCurrentPlyNode := APlyTreeNode;
-  FBoard.Invalidate;
 end;
 
 procedure TGame.ReplaceMainLine(AMove: TMove);
@@ -201,7 +204,7 @@ begin
   FCurrentPlyNode.Children.Erase(0);
   FCurrentPlyNode.Children.Insert(0, TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := CurrentPlyNode.Children.Items[0];
-  FBoard.CurrentPosition.PlayMove(AMove);
+  FCurrentPosition.PlayMove(AMove);
 end;
 
 { TStandardGame }
@@ -279,14 +282,23 @@ begin
   if FPlyTree.Count > 0 then
   begin
     Varlevel := 0;
-    Result := RecursiveLineToString(FPlyTree.Root, StartPosition as TStandardPosition);
+    Result := RecursiveLineToString(FPlyTree.Root, FInitialPosition as
+      TStandardPosition);
   end;
 end;
 
-constructor TStandardGame.Create(ABoard: TBoard);
+constructor TStandardGame.Create;
 begin
-  inherited Create(ABoard);
-  FBoard.CurrentPosition := TStandardPosition.Create;
+  Inherited Create;
+  FInitialPosition := TStandardPosition.Create;
+  FCurrentPosition := TStandardPosition.Create;
+end;
+
+constructor TStandardGame.Create(const AInitialPosition: TPosition);
+begin
+  Create;
+  FInitialPosition.Copy(AInitialPosition);
+  FCurrentPosition.Copy(AInitialPosition);
 end;
 
 end.
