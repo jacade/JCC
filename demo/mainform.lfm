@@ -1,10 +1,10 @@
 object Form1: TForm1
-  Left = 358
-  Height = 510
-  Top = 105
+  Left = 363
+  Height = 699
+  Top = 129
   Width = 742
   Caption = 'Demo'
-  ClientHeight = 510
+  ClientHeight = 699
   ClientWidth = 742
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -56,7 +56,7 @@ object Form1: TForm1
     Height = 23
     Top = 440
     Width = 112
-    ItemHeight = 15
+    ItemHeight = 0
     ItemIndex = 0
     Items.Strings = (
       'Queen'
@@ -70,9 +70,9 @@ object Form1: TForm1
   end
   object Label1: TLabel
     Left = 512
-    Height = 18
+    Height = 19
     Top = 440
-    Width = 81
+    Width = 95
     Caption = 'Promote to:'
     Font.Height = -16
     Font.Name = 'Sans'
@@ -114,5 +114,39 @@ object Form1: TForm1
     Caption = '>|'
     OnClick = btLastClick
     TabOrder = 8
+  end
+  object ListView1: TListView
+    Left = 0
+    Height = 187
+    Top = 512
+    Width = 744
+    Columns = <    
+      item
+        AutoSize = True
+        Caption = 'White'
+        Width = 52
+      end    
+      item
+        Caption = 'Black'
+        Width = 690
+      end>
+    ScrollBars = ssAutoVertical
+    TabOrder = 9
+    ViewStyle = vsReport
+    OnSelectItem = ListView1SelectItem
+  end
+  object Button3: TButton
+    Left = 480
+    Height = 25
+    Top = 472
+    Width = 136
+    Caption = 'Load PGN'
+    OnClick = Button3Click
+    TabOrder = 10
+  end
+  object OpenDialog1: TOpenDialog
+    Filter = 'Portable Game Notation (*.pgn)|*.pgn'
+    left = 640
+    top = 472
   end
 end

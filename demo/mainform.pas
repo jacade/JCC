@@ -22,8 +22,8 @@ unit MainForm;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls,
-  Board, MoveList, Pieces, Game, Types, LCLType, Ply;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
+  MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Ply, Position, PGNDbase, PGNGame;
 
 type
 
@@ -37,9 +37,12 @@ type
     btForward: TButton;
     btInitial: TButton;
     btLast: TButton;
+    Button3: TButton;
     ComboBox1: TComboBox;
     Label1: TLabel;
+    ListView1: TListView;
     Memo1: TMemo;
+    OpenDialog1: TOpenDialog;
     procedure Board1MouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
     procedure Board1MovePlayed(AMove: TMove);
@@ -50,11 +53,15 @@ type
     procedure Button2Click(Sender: TObject);
     procedure btBackwardClick(Sender: TObject);
     procedure btForwardClick(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure ListView1SelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
   private
     { private declarations }
     MyGame: TGame;
+    PGNDatabase: TPGNDatabase;
     procedure UpdateButtons;
   public
     { public declarations }
@@ -71,18 +78,32 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-  MyGame := TStandardGame.Create(Board1);
   btBackward.Enabled := False;
   btForward.Enabled := False;
   btInitial.Enabled := False;
   btLast.Enabled := False;
   Board1.PieceDirectory := '../Pieces/';
+  Board1.CurrentPosition := TStandardPosition.Create;
   Board1.CurrentPosition.SetupInitialPosition;
+  MyGame := TStandardGame.Create(Board1.CurrentPosition);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(MyGame);
+  PGNDatabase.Free;
+end;
+
+procedure TForm1.ListView1SelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+var
+  MyPGNGame: TPGNGame;
+begin
+  if Selected then
+  begin
+    MyPGNGame := PGNDatabase.Items[ListView1.Items.IndexOf(Item)];
+
+  end;
 end;
 
 procedure TForm1.UpdateButtons;
@@ -91,6 +112,7 @@ begin
   btForward.Enabled := MyGame.CurrentPlyNode.Children.Size > 0;
   btInitial.Enabled := MyGame.PlyTree.Count > 0;
   btLast.Enabled := MyGame.PlyTree.Count > 0;
+  Board1.Invalidate;
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);
@@ -98,7 +120,7 @@ begin
   Memo1.Lines.Clear;
   MyGame.Clear;
   Board1.CurrentPosition.SetupInitialPosition;
-  Board1.Invalidate;
+  UpdateButtons;
 end;
 
 procedure TForm1.Button2Click(Sender: TObject);
@@ -109,13 +131,33 @@ end;
 procedure TForm1.btBackwardClick(Sender: TObject);
 begin
   MyGame.GoOneMoveBackward;
+  Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   UpdateButtons;
 end;
 
 procedure TForm1.btForwardClick(Sender: TObject);
 begin
   MyGame.GoOneMoveForward;
+  Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   UpdateButtons;
+end;
+
+procedure TForm1.Button3Click(Sender: TObject);
+var
+  LItem: TListItem;
+  i: Integer;
+begin
+  if OpenDialog1.Execute then
+  begin
+    PGNDatabase := TPGNDatabase.Create(True);
+    PGNDatabase.LoadFromFile(OpenDialog1.FileName);
+    for i := 0 to PGNDatabase.Count - 1 do
+    begin
+      LItem := ListView1.Items.Add;
+      LItem.Caption := PGNDatabase.Items[i].White;
+      LItem.SubItems.Add(PGNDatabase.Items[i].Black);
+    end;
+  end;
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
@@ -128,8 +170,6 @@ begin
     begin
       // New move at the end entered, play it
       MyGame.AddMove(AMove);
-      Memo1.Text := MyGame.Notation;
-      UpdateButtons;
     end
     else
     begin
@@ -146,21 +186,20 @@ begin
         'Question', MB_YESNO) = idYes then
       begin
         MyGame.ReplaceMainLine(AMove);
-        Memo1.Text := MyGame.Notation;
-        UpdateButtons;
       end
       else
       if Application.MessageBox('Add as new variation?', 'Question',
         MB_YESNO) = idYes then
       begin
         MyGame.AddMoveAsSideLine(AMove);
-        Memo1.Text := MyGame.Notation;
-        UpdateButtons;
       end;
     end;
   end
   else
     AMove.Free;
+  Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
+  Memo1.Text := MyGame.Notation;
+  UpdateButtons;
 end;
 
 procedure TForm1.Board1MouseWheel(Sender: TObject; Shift: TShiftState;
@@ -192,7 +231,6 @@ begin
       end;
     end;
     Handled := True;
-    UpdateButtons;
   end;
 end;
 
@@ -221,12 +259,14 @@ end;
 procedure TForm1.btInitialClick(Sender: TObject);
 begin
   MyGame.GoToPositionAfterPlyNode(MyGame.PlyTree.Root);
+  Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   UpdateButtons;
 end;
 
 procedure TForm1.btLastClick(Sender: TObject);
 begin
   MyGame.GoToPositionAfterPlyNode(MyGame.GetLastPlyNodeInCurrentVariation);
+  Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   UpdateButtons;
 end;
 
