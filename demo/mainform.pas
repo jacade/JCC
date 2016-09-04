@@ -79,6 +79,7 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
   btForward.Enabled := False;
   btInitial.Enabled := False;
@@ -150,7 +151,6 @@ var
 begin
   if OpenDialog1.Execute then
   begin
-    PGNDatabase := TPGNDatabase.Create(True);
     PGNDatabase.LoadFromFile(OpenDialog1.FileName);
     for i := 0 to PGNDatabase.Count - 1 do
     begin

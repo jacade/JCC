@@ -1,12 +1,12 @@
-unit PGNDbase;
+unit PGNdbase;
 
 {$mode objfpc}{$H+}
 
 interface
 
-//  {$DEFINE LOGGING}
+// {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, pgngame, Position;
+  Classes, SysUtils, FileUtil, fgl, pgngame, Position, MoveList;
 
 type
   TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
@@ -337,13 +337,12 @@ begin
   AssignFile(F, APGNFile);
   Reset(F);
   s := '';
+  // TODO: in case we find a FEN tag, we need to handle this
+  temp := TStandardPosition.Create(TStandardPosition.InitialFEN);
   while not EOF(F) do
   begin
     EndOfGame := False;
-    // TODO: in case we find a FEN tag, we need to handle this
-    temp := TStandardPosition.Create(TStandardPosition.InitialFEN);
     TempPGNGame := TPGNGame.Create(temp);
-    temp.Free;
     AlreadyRead := 0;
     Index := 1;
     VariationLevel := 0;
@@ -363,6 +362,7 @@ begin
       TempPGNGame.Free;
     end;
   end;
+  temp.Free;
 end;
 
 end.

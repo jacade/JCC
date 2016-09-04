@@ -7,7 +7,7 @@ unit PGNGame;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position;
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Ply;
 // as in http://www.saremba.de/chessgml/standards/pgn/pgn-complete.htm
 
 const
@@ -55,12 +55,17 @@ var
 begin
   // NOTE: This is very strict and only works with pgn export format
   // However this should be sufficient in most of the cases
+  // This takes much too long  (up to 50 ms in worst case)
+  // TODO: Replace this with a direct method
   Result := nil;
   temp := FCurrentPosition as TStandardPosition;
-  for Move in temp.LegalMoves  do
+  for Move in temp.LegalMoves do
   begin
     if temp.MoveToSAN(Move, False, False, csx, psEqualSign) = APGNMove then
-      Result := Move;
+    begin
+      Result := Move.Copy;
+      Break;
+    end;
   end;
   if Result = nil then
     raise Exception.Create(APGNMove + ' is no valid move.');
