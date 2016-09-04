@@ -11,7 +11,7 @@
         <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="16">
+    <Files Count="18">
       <Item1>
         <Filename Value="board.pas"/>
         <HasRegisterProc Value="True"/>
@@ -86,8 +86,16 @@
       </Item15>
       <Item16>
         <Filename Value="src/ply.pas"/>
-        <UnitName Value="ply"/>
+        <UnitName Value="Ply"/>
       </Item16>
+      <Item17>
+        <Filename Value="src/pgndbase.pas"/>
+        <UnitName Value="pgndbase"/>
+      </Item17>
+      <Item18>
+        <Filename Value="src/pgngame.pas"/>
+        <UnitName Value="pgngame"/>
+      </Item18>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>
