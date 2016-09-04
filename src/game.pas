@@ -30,14 +30,14 @@ type
 
   TGame = class
   private
+    function GetCurrentPlyNumber: word;
+    procedure SetInitialPosition(AValue: TPosition);
+  protected
     //  FBoard: TBoard;
     FCurrentPlyNode: TPlyTreeNode;
     FCurrentPosition: TPosition;
     FInitialPosition: TPosition;
     FPlyTree: TPlyTree;
-    function GetCurrentPlyNumber: word;
-    procedure SetInitialPosition(AValue: TPosition);
-  protected
     function GetNotation: string; virtual;
   public
     // Simply adds a move at current position

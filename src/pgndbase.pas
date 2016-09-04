@@ -4,7 +4,7 @@ unit PGNDbase;
 
 interface
 
-  {$DEFINE LOGGING}
+//  {$DEFINE LOGGING}
 uses
   Classes, SysUtils, FileUtil, fgl, pgngame, Position;
 
@@ -213,6 +213,7 @@ var
   EndOfGame: boolean;
   TempPGNGame: TPGNGame;
   Tag: TPGNTag;
+  PGNMove: string;
 
   procedure ExtractLine;
   var
@@ -292,18 +293,17 @@ var
         end;
         'A'..'Z', 'a'..'z': // this could only be a move
         begin
+          PGNMove := ExtractMove;
         {$IFDEF LOGGING}
-          WriteLn('Found Move: ', ExtractMove);
-        {$ELSE}
-          ExtractMove;
+          WriteLn('Found Move: ', PGNMove);
         {$ENDIF LOGGING}
-
+          TempPGNGame.AddPGNMove(PGNMove);
         end;
         '(':
         begin
           Inc(VariationLevel);
           {$IFDEF Logging}
-          WriteLn('Current Variation Level: ',  VariationLevel);
+          WriteLn('Current Variation Level: ', VariationLevel);
           {$ENDIF}
           Inc(Index);
           ExtractLine;
@@ -314,7 +314,7 @@ var
             raise EPGNImportException.Create('Found invalid ")"');
           Dec(VariationLevel);
           {$IFDEF Logging}
-          WriteLn('Current Variation Level: ',  VariationLevel);
+          WriteLn('Current Variation Level: ', VariationLevel);
           {$ENDIF}
           Inc(Index);
           EndOfLine := True;

@@ -23,7 +23,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
-  MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Ply, Position, PGNDbase, PGNGame;
+  MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Grids, Ply,
+  Position, PGNDbase, PGNGame;
 
 type
 
@@ -57,7 +58,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure ListView1SelectItem(Sender: TObject; Item: TListItem;
-      Selected: Boolean);
+      Selected: boolean);
   private
     { private declarations }
     MyGame: TGame;
@@ -95,14 +96,14 @@ begin
 end;
 
 procedure TForm1.ListView1SelectItem(Sender: TObject; Item: TListItem;
-  Selected: Boolean);
+  Selected: boolean);
 var
   MyPGNGame: TPGNGame;
 begin
   if Selected then
   begin
     MyPGNGame := PGNDatabase.Items[ListView1.Items.IndexOf(Item)];
-
+    Memo1.Text := MyPGNGame.Notation;
   end;
 end;
 
@@ -145,7 +146,7 @@ end;
 procedure TForm1.Button3Click(Sender: TObject);
 var
   LItem: TListItem;
-  i: Integer;
+  i: integer;
 begin
   if OpenDialog1.Execute then
   begin

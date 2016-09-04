@@ -56,7 +56,7 @@ object Form1: TForm1
     Height = 23
     Top = 440
     Width = 112
-    ItemHeight = 0
+    ItemHeight = 15
     ItemIndex = 0
     Items.Strings = (
       'Queen'
@@ -70,9 +70,9 @@ object Form1: TForm1
   end
   object Label1: TLabel
     Left = 512
-    Height = 19
+    Height = 18
     Top = 440
-    Width = 95
+    Width = 81
     Caption = 'Promote to:'
     Font.Height = -16
     Font.Name = 'Sans'
@@ -119,17 +119,19 @@ object Form1: TForm1
     Left = 0
     Height = 187
     Top = 512
-    Width = 744
+    Width = 742
     Columns = <    
       item
-        AutoSize = True
         Caption = 'White'
-        Width = 52
+        MaxWidth = 300
+        Width = 43
       end    
       item
         Caption = 'Black'
-        Width = 690
+        MaxWidth = 300
+        Width = 697
       end>
+    ReadOnly = True
     ScrollBars = ssAutoVertical
     TabOrder = 9
     ViewStyle = vsReport
