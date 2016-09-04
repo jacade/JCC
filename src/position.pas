@@ -120,7 +120,10 @@ type
     function GetCountOfRanks: byte; override;
     function GetSquares(Index: integer): TPieceType; override;
   public
+    const
+      InitialFEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     constructor Create;
+    constructor Create(AFEN: string);
     procedure Copy(Source: TPosition); override;
     destructor Destroy; override;
     procedure FromFEN(AFEN: string);
@@ -702,6 +705,12 @@ begin
       FSquares[Coordinate] := ptEmpty;
 end;
 
+constructor TStandardPosition.Create(AFEN: string);
+begin
+  Create;
+  FromFEN(AFEN);
+end;
+
 destructor TStandardPosition.Destroy;
 begin
   FreeAndNil(FLegalMoves);
@@ -724,6 +733,8 @@ begin
   FreeAndNil(RegFEN);
   s := Split(AFEN, ' ');
   // Put Pieces on board
+  for i in ValidSquares do
+    FSquares[i] := ptEmpty;
   p := Split(s.Strings[0], '/');
   for rk := 0 to 7 do
   begin
@@ -1069,34 +1080,35 @@ procedure TStandardPosition.SetupInitialPosition;
 var
   i: byte;
 begin
-  for i in ValidSquares do
-    FSquares[i] := ptEmpty;
-  FSquares[91] := ptWRook;
-  FSquares[92] := ptWKnight;
-  FSquares[93] := ptWBishop;
-  FSquares[94] := ptWQueen;
-  FSquares[95] := ptWKing;
-  FSquares[96] := ptWBishop;
-  FSquares[97] := ptWKnight;
-  FSquares[98] := ptWRook;
-  for i in Rank2 do
-    FSquares[i] := ptWPawn;
-  for i in Rank7 do
-    FSquares[i] := ptBPawn;
-  FSquares[21] := ptBRook;
-  FSquares[22] := ptBKnight;
-  FSquares[23] := ptBBishop;
-  FSquares[24] := ptBQueen;
-  FSquares[25] := ptBKing;
-  FSquares[26] := ptBBishop;
-  FSquares[27] := ptBKnight;
-  FSquares[28] := ptBRook;
-  FWhitesTurn := True;
-  FMoveNumber := 1;
-  FEnPassant := 0;
-  FPliesSinceLastPawnMoveOrCapture := 0;
-  FCastlingAbility := [ctWQueenside, ctWKingside, ctBQueenside, ctBKingside];
-  Changed;
+  FromFEN(InitialFEN);
+  //for i in ValidSquares do
+  //  FSquares[i] := ptEmpty;
+  //FSquares[91] := ptWRook;
+  //FSquares[92] := ptWKnight;
+  //FSquares[93] := ptWBishop;
+  //FSquares[94] := ptWQueen;
+  //FSquares[95] := ptWKing;
+  //FSquares[96] := ptWBishop;
+  //FSquares[97] := ptWKnight;
+  //FSquares[98] := ptWRook;
+  //for i in Rank2 do
+  //  FSquares[i] := ptWPawn;
+  //for i in Rank7 do
+  //  FSquares[i] := ptBPawn;
+  //FSquares[21] := ptBRook;
+  //FSquares[22] := ptBKnight;
+  //FSquares[23] := ptBBishop;
+  //FSquares[24] := ptBQueen;
+  //FSquares[25] := ptBKing;
+  //FSquares[26] := ptBBishop;
+  //FSquares[27] := ptBKnight;
+  //FSquares[28] := ptBRook;
+  //FWhitesTurn := True;
+  //FMoveNumber := 1;
+  //FEnPassant := 0;
+  //FPliesSinceLastPawnMoveOrCapture := 0;
+  //FCastlingAbility := [ctWQueenside, ctWKingside, ctBQueenside, ctBKingside];
+  //Changed;
 end;
 
 function TStandardPosition.ToFEN: string;
