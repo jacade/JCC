@@ -23,6 +23,9 @@ interface
 
 type
   {$PACKENUM 1}
+  TBasicPieceType = (bptPawn, bptKnight, bptBishop, bptRook, bptQueen, bptKing);
+
+  {$PACKENUM 1}
   TPieceType = (ptEmpty = 0, // empty Square
     // White Pieces
     ptWPawn = 1, ptWKnight = 2, ptWBishop = 3, ptWRook = 4, ptWQueen = 5, ptWKing = 6,
@@ -38,6 +41,7 @@ const
   BlackPieces = [ptBPawn, ptBKnight, ptBBishop, ptBRook, ptBQueen, ptBKing];
 
 function IsWhite(Piece: TPieceType): boolean;
+function PieceType(ABasicPieceType: TBasicPieceType; WhiteColor: boolean): TPieceType;
 function SameColor(Piece1, Piece2: TPieceType): boolean;
 
 implementation
@@ -45,6 +49,36 @@ implementation
 function IsWhite(Piece: TPieceType): boolean;
 begin
   Result := (Ord(Piece) > 0) and (Ord(Piece) < 7);
+end;
+
+function PieceType(ABasicPieceType: TBasicPieceType; WhiteColor: boolean): TPieceType;
+begin
+  case ABasicPieceType of
+    bptPawn: if WhiteColor then
+        Result := ptWPawn
+      else
+        Result := ptBPawn;
+    bptKnight: if WhiteColor then
+        Result := ptWKnight
+      else
+        Result := ptBKnight;
+    bptBishop: if WhiteColor then
+        Result := ptWBishop
+      else
+        Result := ptBBishop;
+    bptRook: if WhiteColor then
+        Result := ptWRook
+      else
+        Result := ptBRook;
+    bptQueen: if WhiteColor then
+        Result := ptWQueen
+      else
+        Result := ptBQueen;
+    bptKing: if WhiteColor then
+        Result := ptWKing
+      else
+        Result := ptBKing;
+  end;
 end;
 
 function SameColor(Piece1, Piece2: TPieceType): boolean;
