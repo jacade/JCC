@@ -120,12 +120,17 @@ type
     function GetCountOfRanks: byte; override;
     function GetSquares(Index: integer): TPieceType; override;
   public
-    const
-      InitialFEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const
+    InitialFEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
     constructor Create;
     constructor Create(AFEN: string);
     procedure Copy(Source: TPosition); override;
     destructor Destroy; override;
+    // Returns a sub list of LegalMoves with those moves which fulfill the parameters
+    function FilterLegalMoves(APiece: TPieceType = ptEmpty;
+      StartSquare: TSquare10x12 = 0; DestSquare: TSquare10x12 = 0;
+      APromotionPiece: TPieceType = ptEmpty): TMoveList;
     procedure FromFEN(AFEN: string);
     // Checks if the side to move is check
     function IsCheck: boolean;
@@ -715,6 +720,28 @@ destructor TStandardPosition.Destroy;
 begin
   FreeAndNil(FLegalMoves);
   inherited Destroy;
+end;
+
+function TStandardPosition.FilterLegalMoves(APiece: TPieceType;
+  StartSquare: TSquare10x12; DestSquare: TSquare10x12;
+  APromotionPiece: TPieceType): TMoveList;
+var
+  NoFilterPiece, NoFilterStart, NoFilterDest, NoFilterPromo: boolean;
+  Move: TMove;
+begin
+  NoFilterPiece := APiece = ptEmpty;
+  NoFilterStart := StartSquare = 0;
+  NoFilterDest := DestSquare = 0;
+  NoFilterPromo := APromotionPiece = ptEmpty;
+  Result := TMoveList.Create(False);
+  for Move in FLegalMoves do
+  begin
+    if (NoFilterPiece or (FSquares[TSquare10x12(Move.Start)] = APiece)) and
+      (NoFilterStart or (Move.Start = StartSquare)) and
+      (NoFilterDest or (Move.Dest = DestSquare)) and
+      (NoFilterPromo or (Move.PromotionPiece = APromotionPiece)) then
+      Result.Add(Move);
+  end;
 end;
 
 procedure TStandardPosition.FromFEN(AFEN: string);
