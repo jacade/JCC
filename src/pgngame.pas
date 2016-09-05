@@ -7,7 +7,7 @@ unit PGNGame;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Ply;
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Ply, Pieces;
 // as in http://www.saremba.de/chessgml/standards/pgn/pgn-complete.htm
 
 const
@@ -50,22 +50,106 @@ implementation
 
 function TPGNGame.PGNToMove(const APGNMove: string): TMove;
 var
-  temp: TStandardPosition;
   Move: TMove;
+  Piece, PromoPiece: TPieceType;
+  AFile, ARank: byte;
+  Start: TSquare10x12;
+  s: string;
+  Dest: TAlgebraicSquare;
+  Temp: TMoveList;
 begin
+  Result := nil;
   // NOTE: This is very strict and only works with pgn export format
   // However this should be sufficient in most of the cases
-  // This takes much too long  (up to 50 ms in worst case)
-  // TODO: Replace this with a direct method
-  Result := nil;
-  temp := FCurrentPosition as TStandardPosition;
-  for Move in temp.LegalMoves do
+  s := APGNMove;
+  // We don't need signs for check, mate or a capture, so we delete them
+  if (s[Length(s)] = '+') or (s[Length(s)] = '+') then
+    Delete(s, Length(s), 1);
+  if Pos('x', s) > 0 then
+    Delete(s, Pos('x', s), 1);
+  // Now s should be O-O, O-O-O or like [N, B, R, Q, K]?[a-h]?[1-8]?[a-h][1-8](=[N, B, R, Q, K])?
+  if s = 'O-O' then
   begin
-    if temp.MoveToSAN(Move, False, False, csx, psEqualSign) = APGNMove then
-    begin
-      Result := Move.Copy;
-      Break;
+    if FCurrentPosition.WhitesTurn then
+      Result := TMove.Create(95, 97)
+    else
+      Result := TMove.Create(25, 27);
+  end
+  else
+  if s = 'O-O-O' then
+  begin
+    if FCurrentPosition.WhitesTurn then
+      Result := TMove.Create(95, 93)
+    else
+      Result := TMove.Create(25, 23);
+  end
+  else
+  begin
+    // Get the piece and delete it afterwards from s
+    case s[1] of
+      'N': Piece := PieceType(bptKnight, FCurrentPosition.WhitesTurn);
+      'B': Piece := PieceType(bptBishop, FCurrentPosition.WhitesTurn);
+      'R': Piece := PieceType(bptRook, FCurrentPosition.WhitesTurn);
+      'Q': Piece := PieceType(bptQueen, FCurrentPosition.WhitesTurn);
+      'K': Piece := PieceType(bptKing, FCurrentPosition.WhitesTurn);
+      'a'..'h', 'P': Piece := PieceType(bptPawn, FCurrentPosition.WhitesTurn);
     end;
+    if s[1] in ['B', 'K', 'N', 'P', 'Q', 'R'] then
+      Delete(s, 1, 1);
+    // Look whether the move is a promotion
+    if s[Length(s) - 1] = '=' then
+    begin
+      case s[Length(s)] of
+        'N': PromoPiece := PieceType(bptKnight, FCurrentPosition.WhitesTurn);
+        'B': PromoPiece := PieceType(bptBishop, FCurrentPosition.WhitesTurn);
+        'R': PromoPiece := PieceType(bptRook, FCurrentPosition.WhitesTurn);
+        'Q': PromoPiece := PieceType(bptQueen, FCurrentPosition.WhitesTurn);
+      end;
+      // Now we know the promotion piece and so we delete the last two chars
+      Delete(s, Length(s) - 1, 2);
+    end
+    else
+      PromoPiece := ptEmpty;
+    // Get the Destination square and delete it from s afterwards
+    Dest := AlgebraicSquare(s[Length(s) - 1], s[Length(s)]);
+    Delete(s, Length(s) - 1, 2);
+    // There is still some information left
+    AFile := 0;
+    Arank := 0;
+    Start := 0;
+    case Length(s) of
+      0: ;// Noting
+      1:
+      begin  // There is either a file or a rank left
+        if s[1] in ['a'..'h'] then
+        begin
+          AFile := Ord(s[1]) - 96;
+        end
+        else
+        if s[1] in ['1'..'8'] then
+        begin
+          ARank := Ord(s[1]) - 48;
+        end;
+      end;
+      2: Start := AlgebraicSquare(s[1], s[2]);
+      else
+        raise Exception.Create(APGNMove + ' is longer than expected');
+    end;
+    // Get all moves which match the extracted information
+    Temp := (FCurrentPosition as TStandardPosition).FilterLegalMoves(Piece,
+      Start, Dest, PromoPiece);
+    case Temp.Count of
+      0: raise Exception.Create(APGNMove + ' is no valid move.');
+      1: Result := temp.Items[0].Copy;
+      else // we need to extract more information from s
+        for Move in Temp do
+        begin
+          if ((AFile > 0) and (Move.Start.RFile = AFile)) or
+            ((ARank > 0) and (10 - (Move.Start.RRank div 10) = ARank)) then
+            Result := Move.Copy;
+        end;
+    end;
+    Temp.Free;
   end;
   if Result = nil then
     raise Exception.Create(APGNMove + ' is no valid move.');

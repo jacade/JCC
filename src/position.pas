@@ -334,6 +334,7 @@ var
   Clone: TStandardPosition;
   j: integer;
 begin
+  // The following takes up to 1 ms, could this be made faster?
   FLegalMoves.Clear;
   for i in ValidSquares do
   begin
@@ -1104,8 +1105,6 @@ begin
 end;
 
 procedure TStandardPosition.SetupInitialPosition;
-var
-  i: byte;
 begin
   FromFEN(InitialFEN);
 end;
