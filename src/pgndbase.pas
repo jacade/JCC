@@ -6,7 +6,7 @@ interface
 
 // {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, pgngame, Position, MoveList;
+  Classes, SysUtils, FileUtil, fgl, pgngame, Position;
 
 type
   TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
