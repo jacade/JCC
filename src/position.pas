@@ -523,6 +523,7 @@ begin
       begin
         if (FSquares[Dest] = ptEmpty) then
         begin
+          // Empty Square
           Result.Add(TMove.Create(Start, Dest));
           Dest := Dest + Sign * i;
         end
@@ -539,59 +540,123 @@ end;
 
 function TStandardPosition.IsAttacked(Square: TSquare10x12): boolean;
 var
-  temp: TMoveList;
-  Move: TMove;
-  i: integer;
-  Attackers: set of TPieceType;
+  dest: TSquare10x12;
+  i, j, n, Sign: integer;
+  LDiag, SDiag, LHorz, SHorz, Knights: set of TPieceType;
+  Flag: Boolean;
 begin
-  Result := False;
-  for i := 1 to 5 do
+  if FWhitesTurn then
   begin
-    case i of
-      1:
+    LDiag := [ptBQueen, ptBBishop];
+    SDiag := [ptBQueen, ptBBishop, ptBPawn, ptBKing];
+    LHorz := [ptBQueen, ptBRook];
+    SHorz := [ptBQueen, ptBRook, ptBKing];
+    Knights := [ptBKnight];
+  end
+  else
+  begin
+    LDiag := [ptWQueen, ptWBishop];
+    SDiag := [ptWQueen, ptWBishop, ptWPawn, ptWKing];
+    LHorz := [ptWQueen, ptWRook];
+    SHorz := [ptWQueen, ptWRook, ptWKing];
+    Knights := [ptWKnight];
+  end;
+  Result := False;
+  // Basically we go in all directions vertical/horizontal, diagonal
+  // and we check knight moves
+  for j := 1 to 2 do
+  begin
+    if j = 1 then
+      Sign := 1
+    else
+      Sign := -1;
+    for i in HorzVertMoves do
+    begin
+      n := 1;
+      Dest := Square + Sign * i;
+      Flag := False;
+      while (FSquares[Dest] <> ptOff) and not Flag do
       begin
-        temp := GenerateBishopMoves(Square);
-        if FWhitesTurn then
-          Attackers := [ptBBishop, ptBQueen]
+        if (FSquares[Dest] = ptEmpty) then
+        begin
+          Dest := Dest + Sign * i;
+          Inc(n);
+        end
         else
-          Attackers := [ptWBishop, ptWQueen];
-      end;
-      2:
-      begin
-        temp := GenerateKnightMoves(Square);
-        if FWhitesTurn then
-          Attackers := [ptBKnight]
-        else
-          Attackers := [ptWKnight];
-      end;
-      3:
-      begin
-        temp := GenerateKingMoves(Square);
-        if FWhitesTurn then
-          Attackers := [ptBKing]
-        else
-          Attackers := [ptWKing];
-      end;
-      4:
-      begin
-        temp := GenerateRookMoves(Square);
-        if FWhitesTurn then
-          Attackers := [ptBRook, ptBQueen]
-        else
-          Attackers := [ptWRook, ptWQueen];
-      end;
-      5:
-      begin
-        temp := GeneratePawnCaptureMoves(Square);
-        if FWhitesTurn then
-          Attackers := [ptBPawn]
-        else
-          Attackers := [ptWPawn];
+        begin
+          if not SameColor(FSquares[Square], FSquares[Dest]) then
+          begin
+            if n = 1 then
+            begin
+              Result := FSquares[Dest] in SHorz;
+            end
+            else
+              Result := FSquares[Dest] in LHorz;
+            if Result then
+              Exit;
+          end;
+          Flag := True;
+        end;
       end;
     end;
-    for Move in temp do
-      Result := Result or (FSquares[TSquare10x12(Move.Dest)] in Attackers);
-    temp.Free;
+  end;
+  for j := 1 to 2 do
+  begin
+    if j = 1 then
+      Sign := 1
+    else
+      Sign := -1;
+    for i in DiagonalMoves do
+    begin
+      n := 1;
+      Dest := Square + Sign * i;
+      Flag := False;
+      while (FSquares[Dest] <> ptOff) and not Flag do
+      begin
+        if (FSquares[Dest] = ptEmpty) then
+        begin
+          Dest := Dest + Sign * i;
+          Inc(n);
+        end
+        else
+        begin
+          if not SameColor(FSquares[Square], FSquares[Dest]) then
+          begin
+            if n = 1 then
+            begin
+              // make sure that the pawn goes in the right direction
+              if FWhitesTurn = (Sign = -1) then
+              begin
+                Result := FSquares[Dest] in SDiag;
+              end
+              else
+                Result := FSquares[Dest] in (SDiag - [ptBPawn, ptWPawn]);
+            end
+            else
+              Result := FSquares[Dest] in LDiag;
+            if Result then
+              Exit;
+          end;
+          Flag := True;
+        end;
+      end;
+    end;
+  end;
+  for j := 1 to 2 do
+  begin
+    if j = 1 then
+      Sign := 1
+    else
+      Sign := -1;
+    for i in KnightMoves do
+    begin
+      Dest := Square + Sign * i;
+      if (FSquares[Dest] <> ptOff) and not SameColor(FSquares[Square], FSquares[Dest]) then
+        begin
+          Result := FSquares[Dest] in Knights;
+          if Result then exit;
+        end;
+    end;
   end;
 end;
 
