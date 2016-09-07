@@ -160,7 +160,6 @@ end;
 
 destructor TPly.Destroy;
 begin
-  FMove.Free;
   inherited Destroy;
 end;
 

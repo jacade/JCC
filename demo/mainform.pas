@@ -23,8 +23,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
-  MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Grids, Ply,
-  Position, PGNDbase, PGNGame;
+  EngineView, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Grids,
+  Ply, Position, PGNDbase, PGNGame;
 
 type
 
@@ -177,7 +177,7 @@ begin
       for Child in MyGame.CurrentPlyNode.Children do
       begin
         // the new move is the same as the old one, so we can play it
-        if (AMove.IsEqual(Child.Data.Move)) then
+        if (AMove = Child.Data.Move) then
         begin
           btForwardClick(Self);
           Exit;
@@ -195,9 +195,7 @@ begin
         MyGame.AddMoveAsSideLine(AMove);
       end;
     end;
-  end
-  else
-    AMove.Free;
+  end;
   Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   Memo1.Text := MyGame.Notation;
   UpdateButtons;

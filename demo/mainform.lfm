@@ -1,7 +1,7 @@
 object Form1: TForm1
-  Left = 362
+  Left = 326
   Height = 699
-  Top = 96
+  Top = 143
   Width = 742
   Caption = 'Demo'
   ClientHeight = 699
@@ -56,7 +56,7 @@ object Form1: TForm1
     Height = 23
     Top = 440
     Width = 112
-    ItemHeight = 0
+    ItemHeight = 15
     ItemIndex = 0
     Items.Strings = (
       'Queen'
@@ -70,9 +70,9 @@ object Form1: TForm1
   end
   object Label1: TLabel
     Left = 512
-    Height = 19
+    Height = 18
     Top = 440
-    Width = 95
+    Width = 81
     Caption = 'Promote to:'
     Font.Height = -16
     Font.Name = 'Sans'
@@ -119,7 +119,7 @@ object Form1: TForm1
     Left = 0
     Height = 187
     Top = 512
-    Width = 742
+    Width = 744
     Columns = <    
       item
         Caption = 'White'
@@ -129,7 +129,7 @@ object Form1: TForm1
       item
         Caption = 'Black'
         MaxWidth = 300
-        Width = 697
+        Width = 300
       end>
     ReadOnly = True
     ScrollBars = ssAutoVertical

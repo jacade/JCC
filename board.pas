@@ -391,7 +391,7 @@ begin
       end;
       if Assigned(FOnMovePlayed) then
       begin
-        FOnMovePlayed(TMove.Create(Start, Dest, PromoPiece));
+        FOnMovePlayed(CreateMove(Start, Dest, PromoPiece));
       end;
     end;
     ClickedDown := False;

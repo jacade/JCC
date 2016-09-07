@@ -189,7 +189,7 @@ begin
   FWhitesTurn := Source.FWhitesTurn;
   FLegalMoves.Clear;
   for Move in Source.FLegalMoves do
-    FLegalMoves.Add(Move.Copy);
+    FLegalMoves.Add(Move);
 end;
 
 function TPosition.IsLegal(AMove: TMove): boolean;
@@ -243,13 +243,13 @@ begin
       begin
         if (FSquares[Dest] = ptEmpty) then
         begin
-          Result.Add(TMove.Create(Start, Dest));
+          Result.Add(CreateMove(Start, Dest));
           Dest := Dest + Sign * i;
         end
         else
         begin
           if not SameColor(FSquares[Start], FSquares[Dest]) then
-            Result.Add(TMove.Create(Start, Dest));
+            Result.Add(CreateMove(Start, Dest));
           Flag := True;
         end;
       end;
@@ -266,22 +266,22 @@ begin
     if (ctWKingside in FCastlingAbility) and not IsAttacked(Start) and
       (FSquares[96] = ptEmpty) and (FSquares[97] = ptEmpty) and not
       IsAttacked(96) and not IsAttacked(97) then
-      Result.Add(TMove.Create(Start, 97));
+      Result.Add(CreateMove(Start, 97));
     if (ctWQueenside in FCastlingAbility) and not IsAttacked(Start) and
       (Fsquares[94] = ptEmpty) and (FSquares[93] = ptEmpty) and
       (FSquares[92] = ptEmpty) and not IsAttacked(94) and not IsAttacked(93) then
-      Result.Add(TMove.Create(Start, 93));
+      Result.Add(CreateMove(Start, 93));
   end
   else
   begin
     if (ctBKingside in FCastlingAbility) and not IsAttacked(Start) and
       (FSquares[26] = ptEmpty) and (FSquares[27] = ptEmpty) and not
       IsAttacked(26) and not IsAttacked(27) then
-      Result.Add(TMove.Create(Start, 27));
+      Result.Add(CreateMove(Start, 27));
     if (ctBQueenside in FCastlingAbility) and not IsAttacked(Start) and
       (Fsquares[24] = ptEmpty) and (FSquares[23] = ptEmpty) and
       (FSquares[22] = ptEmpty) and not IsAttacked(24) and not IsAttacked(23) then
-      Result.Add(TMove.Create(Start, 23));
+      Result.Add(CreateMove(Start, 23));
   end;
 end;
 
@@ -301,7 +301,7 @@ begin
       Dest := Start + Sign * i;
       if (FSquares[Dest] <> ptOff) and ((FSquares[Dest] = ptEmpty) or
         not SameColor(FSquares[Start], FSquares[Dest])) then
-        Result.Add(TMove.Create(Start, Dest));
+        Result.Add(CreateMove(Start, Dest));
     end;
   end;
 end;
@@ -322,7 +322,7 @@ begin
       Dest := Start + Sign * i;
       if (FSquares[Dest] <> ptOff) and ((FSquares[Dest] = ptEmpty) or
         not SameColor(FSquares[Start], FSquares[Dest])) then
-        Result.Add(TMove.Create(Start, Dest));
+        Result.Add(CreateMove(Start, Dest));
     end;
   end;
 end;
@@ -412,11 +412,11 @@ begin
     Dest := Start + Sign * i;
     if not (FSquares[Dest] in [ptOff, ptEmpty]) and not
       SameColor(FSquares[Start], FSquares[Dest]) then
-      Result.Add(TMove.Create(Start, Dest));
+      Result.Add(CreateMove(Start, Dest));
   end;
   // En Passant
   if FEnPassant in [Start + Sign * 9, Start + Sign * 11] then
-    Result.Add(TMove.Create(Start, FEnPassant));
+    Result.Add(CreateMove(Start, FEnPassant));
   // Check for Promotion
   if (FWhitesTurn and (Start in Rank7)) or (not FWhitesTurn and (Start in Rank2)) then
     GeneratePawnPromotionMoves(Result);
@@ -433,11 +433,11 @@ begin
     Sign := 1;
   if FSquares[Start + Sign * 10] = ptEmpty then
   begin
-    Result.Add(TMove.Create(Start, Start + Sign * 10));
+    Result.Add(CreateMove(Start, Start + Sign * 10));
     // Pawn can go two?
     if ((FWhitesTurn and (Start in Rank2)) or (not FWhitesTurn and
       (Start in Rank7))) and (FSquares[Start + Sign * 20] = ptEmpty) then
-      Result.Add(TMove.Create(Start, Start + Sign * 20));
+      Result.Add(CreateMove(Start, Start + Sign * 20));
   end;
   // Check for Promotion
   if (FWhitesTurn and (Start in Rank7)) or (not FWhitesTurn and (Start in Rank2)) then
@@ -456,12 +456,12 @@ begin
     if FWhitesTurn then
     begin
       for Piece in [ptWRook, ptWKnight, ptWBishop, ptWQueen] do
-        temp.Add(TMove.Create(Move.Start, Move.Dest, Piece));
+        temp.Add(CreateMove(Move.Start, Move.Dest, Piece));
     end
     else
     begin
       for Piece in [ptBRook, ptBKnight, ptBBishop, ptBQueen] do
-        temp.Add(TMove.Create(Move.Start, Move.Dest, Piece));
+        temp.Add(CreateMove(Move.Start, Move.Dest, Piece));
     end;
   end;
   AMoveList.Clear;
@@ -489,13 +489,13 @@ begin
       begin
         if (FSquares[Dest] = ptEmpty) then
         begin
-          Result.Add(TMove.Create(Start, Dest));
+          Result.Add(CreateMove(Start, Dest));
           Dest := Dest + Sign * i;
         end
         else
         begin
           if not SameColor(FSquares[Start], FSquares[Dest]) then
-            Result.Add(TMove.Create(Start, Dest));
+            Result.Add(CreateMove(Start, Dest));
           Flag := True;
         end;
       end;
@@ -524,13 +524,13 @@ begin
         if (FSquares[Dest] = ptEmpty) then
         begin
           // Empty Square
-          Result.Add(TMove.Create(Start, Dest));
+          Result.Add(CreateMove(Start, Dest));
           Dest := Dest + Sign * i;
         end
         else
         begin
           if not SameColor(FSquares[Start], FSquares[Dest]) then
-            Result.Add(TMove.Create(Start, Dest));
+            Result.Add(CreateMove(Start, Dest));
           Flag := True;
         end;
       end;
@@ -543,7 +543,7 @@ var
   dest: TSquare10x12;
   i, j, n, Sign: integer;
   LDiag, SDiag, LHorz, SHorz, Knights: set of TPieceType;
-  Flag: Boolean;
+  Flag: boolean;
 begin
   if FWhitesTurn then
   begin
@@ -651,11 +651,13 @@ begin
     for i in KnightMoves do
     begin
       Dest := Square + Sign * i;
-      if (FSquares[Dest] <> ptOff) and not SameColor(FSquares[Square], FSquares[Dest]) then
-        begin
-          Result := FSquares[Dest] in Knights;
-          if Result then exit;
-        end;
+      if (FSquares[Dest] <> ptOff) and not SameColor(FSquares[Square],
+        FSquares[Dest]) then
+      begin
+        Result := FSquares[Dest] in Knights;
+        if Result then
+          exit;
+      end;
     end;
   end;
 end;
@@ -768,7 +770,7 @@ constructor TStandardPosition.Create;
 var
   Coordinate: integer;
 begin
-  FLegalMoves := TMoveList.Create(True);
+  FLegalMoves := TMoveList.Create;
   for Coordinate := 0 to 119 do
     if Coordinate in OffSquares then
       FSquares[Coordinate] := ptOff
@@ -799,7 +801,7 @@ begin
   NoFilterStart := StartSquare = 0;
   NoFilterDest := DestSquare = 0;
   NoFilterPromo := APromotionPiece = ptEmpty;
-  Result := TMoveList.Create(False);
+  Result := TMoveList.Create;
   for Move in FLegalMoves do
   begin
     if (NoFilterPiece or (FSquares[TSquare10x12(Move.Start)] = APiece)) and
@@ -973,15 +975,19 @@ end;
 function TStandardPosition.MoveFromSAN(ASAN: string): TMove;
 var
   i: integer;
+  NotValid: boolean;
 begin
+  NotValid := True;
   // This is one way, but SAN is not unique
-  Result := nil;
   for i := 0 to FLegalMoves.Count - 1 do
   begin
     if MoveToSAN(FLegalMoves.Items[i]) = ASAN then
+    begin
       Result := FLegalMoves.Items[i];
+      NotValid := False;
+    end;
   end;
-  if Result = nil then
+  if NotValid then
     raise Exception.Create(ASAN + ' is no valid move.');
 end;
 
@@ -1037,7 +1043,7 @@ var
   Castling: boolean;
   AppendColon: boolean;
 begin
-  SameDest := TMoveList.Create(False);
+  SameDest := TMoveList.Create;
   Clone := TStandardPosition.Create;
   Piece := FSquares[TSquare10x12(AMove.Start)];
   Castling := False;

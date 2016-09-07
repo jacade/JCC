@@ -229,7 +229,6 @@ begin
   {$ENDIF}
   for i := 1 to 2 do
   begin
-    Moves[i] := nil;
     if Length(bp[i]) > 3 then
     begin
       Start.RFile := bp[i][1];
@@ -252,10 +251,10 @@ begin
             'n': Piece := ptBKnight;
             'q': Piece := ptBQueen;
           end;
-        Moves[i] := TMove.Create(Start, Dest, Piece);
+        Moves[i] := CreateMove(Start, Dest, Piece);
       end
       else
-        Moves[i] := TMove.Create(Start, Dest);
+        Moves[i] := CreateMove(Start, Dest);
     end;
   end;
   FOnBestMove(Self, Moves[1], Moves[2]);

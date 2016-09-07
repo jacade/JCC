@@ -18,6 +18,7 @@
 unit MoveList;
 
 {$mode objfpc}{$H+}
+{$modeswitch advancedrecords}
 
 interface
 
@@ -83,24 +84,17 @@ type
 
   { TMove }
 
-  TMove = class
-  private
-    FStart, FDest: TSquare10x12;
-    FPromotionPiece: TPieceType;
-    function GetDest: TSquare8x8;
-    function GetStart: TSquare8x8;
+  TMove = record
+    Start: TSquare8x8;
+    Dest: TSquare8x8;
+    PromotionPiece: TPieceType;
   public
-    constructor Create(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType = ptEmpty);
-    function IsEqual(AMove: TMove): boolean;
-    function Copy: TMove;
-    property Dest: TSquare8x8 read GetDest;
-    property PromotionPiece: TPieceType read FPromotionPiece;
-    property Start: TSquare8x8 read GetStart;
+    class operator = (Move1, Move2: TMove): Boolean;
   end;
 
   { TMoveList }
 
-  TMoveList = specialize TFPGObjectList<TMove>;
+  TMoveList = specialize TFPGList<TMove>;
 
   { TMoveListHelper }
 
@@ -127,6 +121,8 @@ operator in (AMove: TMove; AMoveList: TMoveList): Boolean;
 
 function AlgebraicSquare(AAlgebraicFile: TAlgebraicFile;
   AAlgebraicRank: TAlgebraicRank): TAlgebraicSquare;
+
+function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType=ptEmpty):TMove;
 
 const
   OffSquares = [0..20, 29, 30, 39, 40, 49, 50, 59, 60, 69, 70, 79,
@@ -213,7 +209,7 @@ var
 begin
   Result := False;
   for i := 0 to AMoveList.Count - 1 do
-    Result := Result or AMoveList.Items[i].IsEqual(AMove);
+    Result := Result or (AMoveList.Items[i] = AMove);
 end;
 
 function AlgebraicSquare(AAlgebraicFile: TAlgebraicFile;
@@ -223,6 +219,22 @@ begin
   Result.RRank := AAlgebraicRank;
 end;
 
+function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType
+  ): TMove;
+begin
+  Result.Start:=AStart;
+  Result.Dest:=ADest;
+  Result.PromotionPiece := APromotionPiece;
+end;
+
+{ TMove }
+
+class operator TMove.=(Move1, Move2: TMove): Boolean;
+begin
+  Result := (Move1.Start = Move2.Start) and (Move1.Dest = Move2.Dest) and
+              (Move1.PromotionPiece = Move2.PromotionPiece);
+end;
+
 { TMoveListHelper }
 
 procedure TMoveListHelper.AddList(AnotherMoveList: TMoveList);
@@ -230,7 +242,7 @@ var
   Move: TMove;
 begin
   for Move in AnotherMoveList do
-    Add(Move.Copy);
+    Add(Move);
 end;
 
 function TMoveListHelper.ToStringList: TStringList;
@@ -240,36 +252,6 @@ begin
   Result := TStringList.Create;
   for i := 0 to Count - 1 do
     Result.Add(AlgebraicMoveToString(Items[i]));
-end;
-
-{ TMove }
-
-function TMove.GetDest: TSquare8x8;
-begin
-  Result := FDest;
-end;
-
-function TMove.GetStart: TSquare8x8;
-begin
-  Result := FStart;
-end;
-
-constructor TMove.Create(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType);
-begin
-  FStart := AStart;
-  fDest := ADest;
-  FPromotionPiece := APromotionPiece;
-end;
-
-function TMove.IsEqual(AMove: TMove): boolean;
-begin
-  Result := (FStart = AMove.Start) and (FDest = AMove.Dest) and
-    (FPromotionPiece = AMove.PromotionPiece);
-end;
-
-function TMove.Copy: TMove;
-begin
-  Result := TMove.Create(FStart, FDest, FPromotionPiece);
 end;
 
 end.

@@ -57,8 +57,8 @@ var
   s: string;
   Dest: TAlgebraicSquare;
   Temp: TMoveList;
+  NotValid: Boolean;
 begin
-  Result := nil;
   // NOTE: This is very strict and only works with pgn export format
   // However this should be sufficient in most of the cases
   s := APGNMove;
@@ -71,17 +71,17 @@ begin
   if s = 'O-O' then
   begin
     if FCurrentPosition.WhitesTurn then
-      Result := TMove.Create(95, 97)
+      Result := CreateMove(95, 97)
     else
-      Result := TMove.Create(25, 27);
+      Result := CreateMove(25, 27);
   end
   else
   if s = 'O-O-O' then
   begin
     if FCurrentPosition.WhitesTurn then
-      Result := TMove.Create(95, 93)
+      Result := CreateMove(95, 93)
     else
-      Result := TMove.Create(25, 23);
+      Result := CreateMove(25, 23);
   end
   else
   begin
@@ -140,19 +140,19 @@ begin
       Start, Dest, PromoPiece);
     case Temp.Count of
       0: raise Exception.Create(APGNMove + ' is no valid move.');
-      1: Result := temp.Items[0].Copy;
+      1: Result := temp.Items[0];
       else // we need to extract more information from s
         for Move in Temp do
         begin
           if ((AFile > 0) and (Move.Start.RFile = AFile)) or
             ((ARank > 0) and (10 - (Move.Start.RRank div 10) = ARank)) then
-            Result := Move.Copy;
+            Result := Move;
         end;
     end;
     Temp.Free;
   end;
-  if Result = nil then
-    raise Exception.Create(APGNMove + ' is no valid move.');
+  //if Result = nil then
+  //  raise Exception.Create(APGNMove + ' is no valid move.');
 end;
 
 procedure TPGNGame.AddPGNMove(const APGNMove: string);
