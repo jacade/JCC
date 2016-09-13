@@ -30,7 +30,7 @@ type
 
   TPly = class
   private
-    FCommenTextInBehind: string;
+    FCommentTextInBehind: string;
     FCommentTextInFront: string;
     FMove: TMove;
     FNAG: byte;      // numeric Annotation Glyph
@@ -39,8 +39,8 @@ type
     constructor Create(const AMove: TMove; AVariationLevel: word = 0; ANAG: byte = 0);
     destructor Destroy; override;
   public
-    property CommenTextInBehind: string read FCommenTextInBehind
-      write FCommenTextInBehind;
+    property CommentTextInBehind: string read FCommentTextInBehind
+      write FCommentTextInBehind;
     property CommentTextInFront: string read FCommentTextInFront
       write FCommentTextInFront;
     property Move: TMove read FMove write FMove;
