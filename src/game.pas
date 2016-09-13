@@ -63,7 +63,7 @@ type
     procedure ReplaceMainLine(AMove: TMove);
   public
     property CurrentPlyNumber: word read GetCurrentPlyNumber;
-    property CurrentPlyNode: TPlyTree.TTreeNodeType read FCurrentPlyNode;
+    property CurrentPlyNode: TPlyTreeNode read FCurrentPlyNode;
     property CurrentPosition: TPosition read FCurrentPosition;
     property InitialPosition: TPosition read FInitialPosition write SetInitialPosition;
     property Notation: string read GetNotation;

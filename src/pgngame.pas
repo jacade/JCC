@@ -7,7 +7,10 @@ unit PGNGame;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces;
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces
+  {$IFDEF Logging}
+  , Ply
+  {$ENDIF}  ;
 // as in http://www.saremba.de/chessgml/standards/pgn/pgn-complete.htm
 
 const
@@ -57,7 +60,7 @@ var
   s: string;
   Dest: TAlgebraicSquare;
   Temp: TMoveList;
-  NotValid: Boolean;
+  NotValid: boolean;
 begin
   // NOTE: This is very strict and only works with pgn export format
   // However this should be sufficient in most of the cases
@@ -67,6 +70,11 @@ begin
     Delete(s, Length(s), 1);
   if Pos('x', s) > 0 then
     Delete(s, Pos('x', s), 1);
+  // TODO: For now we ignore question and exclamation marks
+  while Pos('!', s) > 0 do
+    Delete(s, Pos('!', s), 1);
+  while Pos('?', s) > 0 do
+    Delete(s, Pos('?', s), 1);
   // Now s should be O-O, O-O-O or like [N, B, R, Q, K]?[a-h]?[1-8]?[a-h][1-8](=[N, B, R, Q, K])?
   if s = 'O-O' then
   begin
@@ -155,6 +163,15 @@ begin
   //  raise Exception.Create(APGNMove + ' is no valid move.');
 end;
 
+{$IFDEF Logging}
+procedure PrintTree(const AData: TPly);
+begin
+  if AData <> nil then
+    Write(SquareToString(AData.Move.Start), SquareToString(AData.Move.Dest), '|');
+end;
+
+{$ENDIF}
+
 procedure TPGNGame.AddPGNMove(const APGNMove: string);
 var
   temp: TMove;
@@ -164,11 +181,19 @@ begin
   WriteLn(SquareToString(temp.Start), SquareToString(temp.Dest));
   {$ENDIF}
   AddMove(temp);
+  {$IFDEF Logging}
+  FPlyTree.DepthFirstTraverse(@PrintTree);
+  WriteLn;
+  {$ENDIF}
 end;
 
 procedure TPGNGame.AddPGNMoveAsSideLine(const APGNMove: string);
 begin
   AddMoveAsSideLine(PGNToMove(APGNMove));
+{$IFDEF Logging}
+  FPlyTree.DepthFirstTraverse(@PrintTree);
+  WriteLn;
+{$ENDIF}
 end;
 
 end.
