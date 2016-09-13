@@ -1,12 +1,29 @@
+{ JCC (Jan's Chess Componenents) - This file contains a class to import/export pgn files
+  Copyright (C) 2016  Jan Dette
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+}
+
 unit PGNdbase;
 
 {$mode objfpc}{$H+}
 
 interface
 
-// {$DEFINE LOGGING}
+ {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, pgngame, Position;
+  Classes, SysUtils, FileUtil, fgl, pgngame, Position, Ply;
 
 type
   TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
@@ -210,10 +227,11 @@ var
   end;
 
 var
-  EndOfGame: boolean;
+  EndOfGame, NewVariation: boolean;
   TempPGNGame: TPGNGame;
   Tag: TPGNTag;
   PGNMove: string;
+  VariationPlies: TPlyTreeNodeStack;
 
   procedure ExtractLine;
   var
@@ -297,7 +315,15 @@ var
         {$IFDEF LOGGING}
           WriteLn('Found Move: ', PGNMove);
         {$ENDIF LOGGING}
-          TempPGNGame.AddPGNMove(PGNMove);
+          if NewVariation then
+          begin
+            VariationPlies.Push(TempPGNGame.CurrentPlyNode);
+            TempPGNGame.GoOneMoveBackward;
+            TempPGNGame.AddPGNMoveAsSideLine(PGNMove);
+            NewVariation := False;
+          end
+          else
+            TempPGNGame.AddPGNMove(PGNMove);
         end;
         '(':
         begin
@@ -306,6 +332,7 @@ var
           WriteLn('Current Variation Level: ', VariationLevel);
           {$ENDIF}
           Inc(Index);
+          NewVariation := True;
           ExtractLine;
         end;
         ')':
@@ -318,6 +345,8 @@ var
           {$ENDIF}
           Inc(Index);
           EndOfLine := True;
+          TempPGNGame.GoToPositionAfterPlyNode(VariationPlies.Top);
+          VariationPlies.Pop;
         end;
         else
           Inc(Index);
@@ -337,11 +366,13 @@ begin
   AssignFile(F, APGNFile);
   Reset(F);
   s := '';
+  VariationPlies := TPlyTreeNodeStack.Create;
   // TODO: in case we find a FEN tag, we need to handle this
   temp := TStandardPosition.Create(TStandardPosition.InitialFEN);
   while not EOF(F) do
   begin
     EndOfGame := False;
+    NewVariation := False;
     TempPGNGame := TPGNGame.Create(temp);
     AlreadyRead := 0;
     Index := 1;
@@ -363,6 +394,7 @@ begin
     end;
   end;
   temp.Free;
+  VariationPlies.Free;
 end;
 
 end.
