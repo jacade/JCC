@@ -2,12 +2,12 @@ unit PGNGame;
 
 {$mode objfpc}{$H+}
 
-{$DEFINE LOGGING}
+//{$DEFINE LOGGING}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Ply, Pieces;
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces;
 // as in http://www.saremba.de/chessgml/standards/pgn/pgn-complete.htm
 
 const
@@ -145,7 +145,7 @@ begin
         for Move in Temp do
         begin
           if ((AFile > 0) and (Move.Start.RFile = AFile)) or
-            ((ARank > 0) and (10 - (Move.Start.RRank div 10) = ARank)) then
+            ((ARank > 0) and (Move.Start.RRank = ARank)) then
             Result := Move;
         end;
     end;
@@ -156,8 +156,14 @@ begin
 end;
 
 procedure TPGNGame.AddPGNMove(const APGNMove: string);
+var
+  temp: TMove;
 begin
-  AddMove(PGNToMove(APGNMove));
+  temp := PGNToMove(APGNMove);
+  {$IFDEF Logging}
+  WriteLn(SquareToString(temp.Start), SquareToString(temp.Dest));
+  {$ENDIF}
+  AddMove(temp);
 end;
 
 procedure TPGNGame.AddPGNMoveAsSideLine(const APGNMove: string);

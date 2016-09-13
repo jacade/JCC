@@ -17,12 +17,14 @@
 
 unit Position;
 
+//{$DEFINE LOGGING}
+
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools;
+  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools, EpikTimer;
 
 {$INCLUDE ChessPieceLetters.inc}
 
@@ -96,6 +98,9 @@ type
     FOnChange: TNotifyEvent;
     FPliesSinceLastPawnMoveOrCapture: integer; // Important for 50 move rule
     FSquares: array[0..119] of TPieceType;
+    {$IFDEF Logging}
+    ET: TEpikTimer;
+    {$ENDIF Logging}
 
     procedure Changed;
     function GenerateBishopMoves(Start: TSquare10x12): TMoveList;
@@ -330,10 +335,15 @@ end;
 procedure TStandardPosition.GenerateLegalMoves;
 var
   i: byte;
-  temp, t: TMoveList;
+  temp: TMoveList;
   Clone: TStandardPosition;
   j: integer;
+  //a, b, c, tb, tc, d: extended;
+  //test: Boolean;
 begin
+  //a := ET.Elapsed;
+  //tb := 0;
+  //tc := 0;
   // The following takes up to 1 ms, could this be made faster?
   FLegalMoves.Clear;
   for i in ValidSquares do
@@ -347,40 +357,71 @@ begin
       ptWPawn, ptBPawn:
       begin
         temp := GeneratePawnCaptureMoves(i);
-        t := GeneratePawnForwardMoves(i);
-        temp.AddList(t);
-        t.Free;
+        FLegalMoves.AddList(temp);
+        temp.Free;
+        temp := GeneratePawnForwardMoves(i);
+        FLegalMoves.AddList(temp);
+        temp.Free;
       end;
-      ptWKnight, ptBKnight: temp := GenerateKnightMoves(i);
-      ptWBishop, ptBBishop: temp := GenerateBishopMoves(i);
-      ptWRook, ptBRook: temp := GenerateRookMoves(i);
-      ptWQueen, ptBQueen: temp := GenerateQueenMoves(i);
+      ptWKnight, ptBKnight:
+      begin
+        temp := GenerateKnightMoves(i);
+        FLegalMoves.AddList(temp);
+        temp.Free;
+      end;
+      ptWBishop, ptBBishop:
+      begin
+        temp := GenerateBishopMoves(i);
+        FLegalMoves.AddList(temp);
+        temp.Free;
+      end;
+      ptWRook, ptBRook:
+      begin
+        temp := GenerateRookMoves(i);
+        FLegalMoves.AddList(temp);
+        temp.Free;
+      end;
+      ptWQueen, ptBQueen:
+      begin
+        temp := GenerateQueenMoves(i);
+        FLegalMoves.AddList(temp);
+        temp.Free;
+      end;
       ptWKing, ptBKing:
       begin
         temp := GenerateKingMoves(i);
-        t := GenerateCastlingMoves(i);
-        temp.AddList(t);
-        t.Free;
+        FLegalMoves.AddList(temp);
+        temp.Free;
+        temp := GenerateCastlingMoves(i);
+        FLegalMoves.AddList(temp);
+        temp.Free;
       end;
     end;
-    // Copy Position, Play Move, Position Valid?
-    Clone := TStandardPosition.Create;
-    j := 0;
-    while j < temp.Count do
-    begin
-      Clone.Copy(Self);
-      Clone.SilentPlayMove(temp.Items[j]);
-      if Clone.IsValid then
-        Inc(j)
-      else
-      begin
-        temp.Delete(j);
-      end;
-    end;
-    FreeAndNil(Clone);
-    FLegalMoves.AddList(temp);
-    temp.Free;
   end;
+  // Copy Position, Play Move, Position Valid?
+  Clone := TStandardPosition.Create;
+  j := 0;
+  while j < FLegalMoves.Count do
+  begin
+    Clone.Copy(Self);
+    Clone.SilentPlayMove(FLegalMoves.Items[j]);
+    //b := et.Elapsed;
+    //test := Clone.IsValid;
+    //d := et.Elapsed;
+    //tb := d - b + tb;
+    //c := et.Elapsed;
+    if Clone.IsValid then
+      Inc(j)
+    else
+    begin
+      FLegalMoves.Delete(j);
+    end;
+    //tc := et.Elapsed - c + tc;
+  end;
+  FreeAndNil(Clone);
+  //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
+  //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
+  //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
 end;
 
 function TStandardPosition.GetCountOfFiles: byte;
@@ -770,6 +811,10 @@ constructor TStandardPosition.Create;
 var
   Coordinate: integer;
 begin
+  {$IFDEF Logging}
+  ET := TEpikTimer.Create(nil);
+  ET.Start;
+    {$ENDIF Logging}
   FLegalMoves := TMoveList.Create;
   for Coordinate := 0 to 119 do
     if Coordinate in OffSquares then
@@ -786,6 +831,10 @@ end;
 
 destructor TStandardPosition.Destroy;
 begin
+  {$IFDEF Logging}
+  ET.Stop;
+  ET.Free;
+    {$ENDIF Logging}
   FreeAndNil(FLegalMoves);
   inherited Destroy;
 end;

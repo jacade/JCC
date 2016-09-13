@@ -90,20 +90,23 @@
       </Item16>
       <Item17>
         <Filename Value="src/pgndbase.pas"/>
-        <UnitName Value="pgndbase"/>
+        <UnitName Value="PGNdbase"/>
       </Item17>
       <Item18>
         <Filename Value="src/pgngame.pas"/>
-        <UnitName Value="pgngame"/>
+        <UnitName Value="PGNGame"/>
       </Item18>
     </Files>
-    <RequiredPkgs Count="2">
+    <RequiredPkgs Count="3">
       <Item1>
-        <PackageName Value="LCL"/>
+        <PackageName Value="etpackage"/>
       </Item1>
       <Item2>
-        <PackageName Value="FCL"/>
+        <PackageName Value="LCL"/>
       </Item2>
+      <Item3>
+        <PackageName Value="FCL"/>
+      </Item3>
     </RequiredPkgs>
     <UsageOptions>
       <UnitPath Value="$(PkgOutDir)"/>
