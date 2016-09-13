@@ -61,6 +61,8 @@ type
     procedure GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
     // Similiar to AddMoveAsNewMainLine but current main line will be deleted
     procedure ReplaceMainLine(AMove: TMove);
+    procedure SetCommentAfterCurrentPly(const AComment: string);
+    procedure SetCommentBeforeCurrentPly(const AComment: string);
   public
     property CurrentPlyNumber: word read GetCurrentPlyNumber;
     property CurrentPlyNode: TPlyTreeNode read FCurrentPlyNode;
@@ -207,6 +209,16 @@ begin
   FCurrentPosition.PlayMove(AMove);
 end;
 
+procedure TGame.SetCommentAfterCurrentPly(const AComment: string);
+begin
+  FCurrentPlyNode.Data.CommentTextInBehind := AComment;
+end;
+
+procedure TGame.SetCommentBeforeCurrentPly(const AComment: string);
+begin
+  FCurrentPlyNode.Data.CommentTextInFront := AComment;
+end;
+
 { TStandardGame }
 
 function TStandardGame.GetNotation: string;
@@ -222,9 +234,9 @@ var
     begin
       if TempPos.WhitesTurn then
         Result := (IntToStr(TempPos.MoveNumber) + '.' +
-          TempPos.MoveToSAN(APly.Move))
+          TempPos.MoveToSAN(APly.Move)) + ' '
       else
-        Result := ' ' + TempPos.MoveToSAN(APly.Move) + ' ';
+        Result := TempPos.MoveToSAN(APly.Move) + ' ';
     end;
 
   var
@@ -246,6 +258,7 @@ var
     Ply := CurrentRoot.Children.Items[0].Data;
     // Write first move of main line
     Result := Result + PlyToStr(Ply);
+    Result := Result + Ply.CommentTextInBehind + ' ';
     if CurrentRoot.Children.Size > 1 then
     begin
       Inc(VarLevel);
@@ -254,6 +267,7 @@ var
         TempPos.Copy(StartPos);
         Ply := CurrentRoot.Children.Items[i].Data;
         // Write side lines
+        Result := Result + Ply.CommentTextInFront + ' ';
         if VarLevel = 1 then
           Result := Result + LineEnding + StringOfChar(' ', 2 * VarLevel) + '['
         else
@@ -264,6 +278,7 @@ var
         else
           Result := Result + IntToStr(TempPos.MoveNumber) + '...';
         Result := Result + TempPos.MoveToSAN(Ply.Move) + ' ';
+        Result := Result + Ply.CommentTextInBehind + ' ';
         TempPos.PlayMove(Ply.Move);
         Result := Result + RecursiveLineToString(CurrentRoot.Children.Items[i], TempPos);
       end;
@@ -289,7 +304,7 @@ end;
 
 constructor TStandardGame.Create;
 begin
-  Inherited Create;
+  inherited Create;
   FInitialPosition := TStandardPosition.Create;
   FCurrentPosition := TStandardPosition.Create;
 end;
