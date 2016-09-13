@@ -230,7 +230,7 @@ var
   EndOfGame, NewVariation: boolean;
   TempPGNGame: TPGNGame;
   Tag: TPGNTag;
-  PGNMove: string;
+  PGNMove, Comment: string;
   VariationPlies: TPlyTreeNodeStack;
 
   procedure ExtractLine;
@@ -273,7 +273,15 @@ var
         end;
         '{', ';':
         begin
-          ExtractComment;
+          Comment := ExtractComment;
+          {$IFDEF Logging}
+          WriteLn('Found Comment: ', Comment);
+          {$ENDIF}
+          if not NewVariation then
+          begin
+            TempPGNGame.SetCommentAfterCurrentPly(Comment);
+            Comment := '';
+          end;
         end;
         '$':
         begin
@@ -320,6 +328,8 @@ var
             VariationPlies.Push(TempPGNGame.CurrentPlyNode);
             TempPGNGame.GoOneMoveBackward;
             TempPGNGame.AddPGNMoveAsSideLine(PGNMove);
+            if Length(Comment) > 0 then
+            TempPGNGame.SetCommentBeforeCurrentPly(Comment);
             NewVariation := False;
           end
           else
@@ -366,6 +376,7 @@ begin
   AssignFile(F, APGNFile);
   Reset(F);
   s := '';
+  Comment := '';
   VariationPlies := TPlyTreeNodeStack.Create;
   // TODO: in case we find a FEN tag, we need to handle this
   temp := TStandardPosition.Create(TStandardPosition.InitialFEN);
