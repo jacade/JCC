@@ -22,7 +22,7 @@ unit Ply;
 interface
 
 uses
-  Classes, SysUtils, gtree, MoveList;
+  Classes, SysUtils, gtree, gstack, MoveList;
 
 type
 
@@ -48,10 +48,10 @@ type
     property VariationLevel: word read FVariationLevel write FVariationLevel;
   end;
 
-  // TPlyList = specialize TFPGObjectList<TPly>;
   TPlyTree = specialize TTree<TPly>;
   TPlyTreeNode = TPlyTree.TTreeNodeType;
   TPlyTreeNodeList = TPlyTreeNode.TTreeNodeList;
+  TPlyTreeNodeStack  = specialize TStack<TPlyTreeNode>;
 
   { TPlyTreeHelper }
 
