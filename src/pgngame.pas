@@ -70,11 +70,6 @@ begin
     Delete(s, Length(s), 1);
   if Pos('x', s) > 0 then
     Delete(s, Pos('x', s), 1);
-  // TODO: For now we ignore question and exclamation marks
-  while Pos('!', s) > 0 do
-    Delete(s, Pos('!', s), 1);
-  while Pos('?', s) > 0 do
-    Delete(s, Pos('?', s), 1);
   // Now s should be O-O, O-O-O or like [N, B, R, Q, K]?[a-h]?[1-8]?[a-h][1-8](=[N, B, R, Q, K])?
   if s = 'O-O' then
   begin
