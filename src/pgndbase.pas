@@ -21,9 +21,9 @@ unit PGNdbase;
 
 interface
 
- {$DEFINE LOGGING}
+// {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, pgngame, Position, Ply;
+  Classes, SysUtils, FileUtil, fgl, PGNGame, Position, Ply;
 
 type
   TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
@@ -236,6 +236,7 @@ var
   procedure ExtractLine;
   var
     EndOfLine: boolean;
+    NAG: TNAG;
   begin
     EndOfLine := False;
     while (not EndOfLine) and (not EndOfGame) {and (not EOF(F))} do
@@ -277,7 +278,7 @@ var
           {$IFDEF Logging}
           WriteLn('Found Comment: ', Comment);
           {$ENDIF}
-          if not NewVariation then
+          if (not NewVariation) and (TempPGNGame.PlyTree.Count > 1) then
           begin
             TempPGNGame.SetCommentAfterCurrentPly(Comment);
             Comment := '';
@@ -285,7 +286,21 @@ var
         end;
         '$':
         begin
-          ExtractNAG;
+          NAG := StrToInt(ExtractNAG);
+          {$IFDEF Logging}
+          WriteLn('Found NAG: ', NAG);
+          {$ENDIF}
+          if NAG in MoveAssessments then
+            TempPGNGame.CurrentPlyNode.Data.MoveAssessment := NAG
+          else
+          if NAG in PositionalAssessments then
+            TempPGNGame.CurrentPlyNode.Data.PositionalAssessment := NAG
+          else
+          if NAG in TimePressureComments then
+            TempPGNGame.CurrentPlyNode.Data.TimePressureCommentary := NAG
+          else
+          if NAG in NonStandardGlyphs then
+            TempPGNGame.CurrentPlyNode.Data.NonStandardGlyph := NAG;
         end;
         '0'..'9', '*':
         begin
@@ -323,17 +338,57 @@ var
         {$IFDEF LOGGING}
           WriteLn('Found Move: ', PGNMove);
         {$ENDIF LOGGING}
+          NAG := 0;
+          if Pos('!!', PGNMove) > 0 then
+          begin
+            NAG := 3;
+             System.Delete(PGNMove, Pos('!!', PGNMove), 2);
+          end
+          else
+          if Pos('!?', PGNMove) > 0 then
+          begin
+            NAG := 5;
+            System.Delete(PGNMove, Pos('!?', PGNMove), 2);
+          end
+          else
+          if Pos('?!', PGNMove) > 0 then
+          begin
+            NAG := 6;
+            System.Delete(PGNMove, Pos('?!', PGNMove), 2);
+          end
+          else
+          if Pos('??', PGNMove) > 0 then
+          begin
+            NAG := 4;
+            System.Delete(PGNMove, Pos('??', PGNMove), 2);
+          end
+          else
+          if Pos('!', PGNMove) > 0 then
+          begin
+            NAG := 1;
+            System.Delete(PGNMove, Pos('!', PGNMove), 1);
+          end
+          else
+          if Pos('?', PGNMove) > 0 then
+          begin
+            NAG := 2;
+            System.Delete(PGNMove, Pos('?', PGNMove), 1);
+          end;
+
           if NewVariation then
           begin
             VariationPlies.Push(TempPGNGame.CurrentPlyNode);
             TempPGNGame.GoOneMoveBackward;
             TempPGNGame.AddPGNMoveAsSideLine(PGNMove);
-            if Length(Comment) > 0 then
-            TempPGNGame.SetCommentBeforeCurrentPly(Comment);
             NewVariation := False;
           end
           else
             TempPGNGame.AddPGNMove(PGNMove);
+          if NAG > 0 then
+            TempPGNGame.CurrentPlyNode.Data.MoveAssessment := NAG;
+          if Length(Comment) > 0 then
+            TempPGNGame.SetCommentBeforeCurrentPly(Comment);
+          Comment := '';
         end;
         '(':
         begin
