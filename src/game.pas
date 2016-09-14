@@ -230,13 +230,27 @@ var
   var
     TempPos: TStandardPosition;
 
-    function PlyToStr(APly: TPly): string;
+    function PlyToStr(APly: TPly; FirstMoveInVariation: Boolean): string;
     begin
+      Result := '';
+      if Length(APly.CommentTextInFront) > 0 then
+        Result := Result + APly.CommentTextInFront + ' ';
+      if APly.NonStandardGlyph > 0 then
+        Result := Result + NAGToStr(APly.NonStandardGlyph) + ' ';
       if TempPos.WhitesTurn then
-        Result := (IntToStr(TempPos.MoveNumber) + '.' +
-          TempPos.MoveToSAN(APly.Move)) + ' '
+        Result := Result + IntToStr(TempPos.MoveNumber) + '.'
       else
-        Result := TempPos.MoveToSAN(APly.Move) + ' ';
+      if FirstMoveInVariation then
+        Result := Result + IntToStr(TempPos.MoveNumber) + '...';
+      Result := Result + TempPos.MoveToSAN(APly.Move);
+      if APly.MoveAssessment > 0 then
+        Result := Result + NAGToStr(APly.MoveAssessment) + ' ';
+      if APly.PositionalAssessment > 0 then
+        Result := Result + NAGToStr(APly.PositionalAssessment) + ' ';
+      if Result[Length(Result)] <> ' ' then
+        Result := Result + ' ';
+      if Length(APly.CommentTextInBehind) > 0 then
+        Result := Result + APly.CommentTextInBehind + ' ';
     end;
 
   var
@@ -257,8 +271,9 @@ var
     TempPos.Copy(StartPos);
     Ply := CurrentRoot.Children.Items[0].Data;
     // Write first move of main line
-    Result := Result + PlyToStr(Ply);
-    Result := Result + Ply.CommentTextInBehind + ' ';
+    Result := Result + PlyToStr(Ply, False);
+    //if Length(Ply.CommentTextInBehind) > 0 then
+    //  Result := Result + Ply.CommentTextInBehind + ' ';
     if CurrentRoot.Children.Size > 1 then
     begin
       Inc(VarLevel);
@@ -267,18 +282,19 @@ var
         TempPos.Copy(StartPos);
         Ply := CurrentRoot.Children.Items[i].Data;
         // Write side lines
-        Result := Result + Ply.CommentTextInFront + ' ';
         if VarLevel = 1 then
           Result := Result + LineEnding + StringOfChar(' ', 2 * VarLevel) + '['
         else
         if VarLevel > 1 then
           Result := Result + '(';
-        if TempPos.WhitesTurn then
-          Result := Result + IntToStr(TempPos.MoveNumber) + '.'
-        else
-          Result := Result + IntToStr(TempPos.MoveNumber) + '...';
-        Result := Result + TempPos.MoveToSAN(Ply.Move) + ' ';
-        Result := Result + Ply.CommentTextInBehind + ' ';
+        //Result := Result + Ply.CommentTextInFront + ' ';
+        //if TempPos.WhitesTurn then
+        //  Result := Result + IntToStr(TempPos.MoveNumber) + '.'
+        //else
+        //  Result := Result + IntToStr(TempPos.MoveNumber) + '...';
+        //Result := Result + TempPos.MoveToSAN(Ply.Move) + ' ';
+        //Result := Result + Ply.CommentTextInBehind + ' ';
+        Result := Result + PlyToStr(Ply, True);
         TempPos.PlayMove(Ply.Move);
         Result := Result + RecursiveLineToString(CurrentRoot.Children.Items[i], TempPos);
       end;
