@@ -66,7 +66,7 @@ begin
   // However this should be sufficient in most of the cases
   s := APGNMove;
   // We don't need signs for check, mate or a capture, so we delete them
-  if (s[Length(s)] = '+') or (s[Length(s)] = '+') then
+  if (s[Length(s)] = '+') or (s[Length(s)] = '#') then
     Delete(s, Length(s), 1);
   if Pos('x', s) > 0 then
     Delete(s, Pos('x', s), 1);
