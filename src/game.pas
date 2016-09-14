@@ -272,8 +272,6 @@ var
     Ply := CurrentRoot.Children.Items[0].Data;
     // Write first move of main line
     Result := Result + PlyToStr(Ply, False);
-    //if Length(Ply.CommentTextInBehind) > 0 then
-    //  Result := Result + Ply.CommentTextInBehind + ' ';
     if CurrentRoot.Children.Size > 1 then
     begin
       Inc(VarLevel);
@@ -287,13 +285,6 @@ var
         else
         if VarLevel > 1 then
           Result := Result + '(';
-        //Result := Result + Ply.CommentTextInFront + ' ';
-        //if TempPos.WhitesTurn then
-        //  Result := Result + IntToStr(TempPos.MoveNumber) + '.'
-        //else
-        //  Result := Result + IntToStr(TempPos.MoveNumber) + '...';
-        //Result := Result + TempPos.MoveToSAN(Ply.Move) + ' ';
-        //Result := Result + Ply.CommentTextInBehind + ' ';
         Result := Result + PlyToStr(Ply, True);
         TempPos.PlayMove(Ply.Move);
         Result := Result + RecursiveLineToString(CurrentRoot.Children.Items[i], TempPos);
