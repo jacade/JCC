@@ -26,6 +26,8 @@ uses
 
 type
 
+  TGameResult = (grNone, grWhiteWins, grBlackWins, grDraw);
+
   { TGame }
 
   TGame = class
@@ -77,10 +79,12 @@ type
 
   TStandardGame = class(TGame)
   protected
+    FGameResult: TGameResult;
     function GetNotation: string; override;
   public
     constructor Create; override;
     constructor Create(const AInitialPosition: TPosition); override;
+    property GameResult: TGameResult read FGameResult write FGameResult;
   end;
 
 implementation
@@ -230,7 +234,7 @@ var
   var
     TempPos: TStandardPosition;
 
-    function PlyToStr(APly: TPly; FirstMoveInVariation: Boolean): string;
+    function PlyToStr(APly: TPly; FirstMoveInVariation: boolean): string;
     begin
       Result := '';
       if Length(APly.CommentTextInFront) > 0 then
@@ -307,6 +311,12 @@ begin
     Result := RecursiveLineToString(FPlyTree.Root, FInitialPosition as
       TStandardPosition);
   end;
+  case FGameResult of
+    grNone: Result := Result + '*';
+    grWhiteWins: Result := Result + '1-0';
+    grBlackWins: Result := Result + '0-1';
+    grDraw: Result := Result + '½-½';
+  end;
 end;
 
 constructor TStandardGame.Create;
@@ -314,6 +324,7 @@ begin
   inherited Create;
   FInitialPosition := TStandardPosition.Create;
   FCurrentPosition := TStandardPosition.Create;
+  FGameResult := grNone;
 end;
 
 constructor TStandardGame.Create(const AInitialPosition: TPosition);

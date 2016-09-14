@@ -23,7 +23,7 @@ interface
 
 // {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, PGNGame, Position, Ply;
+  Classes, SysUtils, FileUtil, fgl, Game, PGNGame, Position, Ply;
 
 type
   TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
@@ -237,6 +237,7 @@ var
   var
     EndOfLine: boolean;
     NAG: TNAG;
+    GameResult: string;
   begin
     EndOfLine := False;
     while (not EndOfLine) and (not EndOfGame) {and (not EOF(F))} do
@@ -309,11 +310,17 @@ var
           // Peek to decide whether this is a move number or a game result
           if (c = '*') or (getChar(Index + 1) in ['-', '/']) then
           begin
-        {$IFDEF LOGGING}
-            WriteLn('Found Game result: ', ExtractGameResult);
-        {$ELSE}
-            ExtractGameResult;
-        {$ENDIF LOGGING}
+            GameResult := ExtractGameResult;
+            {$IFDEF LOGGING}
+            WriteLn('Found Game result: ', GameResult);
+            {$ENDIF LOGGING}
+            case GameResult of
+              '1-0': TempPGNGame.GameResult := grWhiteWins;
+              '0-1': TempPGNGame.GameResult := grBlackWins;
+              '1/2-1/2': TempPGNGame.GameResult := grDraw;
+              else
+                TempPGNGame.GameResult := grNone;
+            end;
             EndOfGame := True;
             // We do not expect anything more to come, so we skip into the next line
             while (c <> #10) do
@@ -342,7 +349,7 @@ var
           if Pos('!!', PGNMove) > 0 then
           begin
             NAG := 3;
-             System.Delete(PGNMove, Pos('!!', PGNMove), 2);
+            System.Delete(PGNMove, Pos('!!', PGNMove), 2);
           end
           else
           if Pos('!?', PGNMove) > 0 then
