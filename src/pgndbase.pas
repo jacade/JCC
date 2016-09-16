@@ -25,6 +25,10 @@ interface
 uses
   Classes, SysUtils, FileUtil, fgl, Game, PGNGame, Position, Ply;
 
+const
+  TabCharacters = [#9, #11];
+  ContinuationCharacters = ['A'..'Z', 'a'..'z', '0'..'9', '-', '=', '+', '#', ':'];
+
 type
   TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
 
@@ -35,7 +39,17 @@ type
     procedure LoadFromFile(APGNFile: string);
   end;
 
+function StrToRating(const s: string): integer;
+
 implementation
+
+function StrToRating(const s: string): integer;
+begin
+  if s = '-' then
+    Result := NO_RATING
+  else
+    Result := StrToInt(s);
+end;
 
 { TPGNDatabaseHelper }
 
@@ -251,13 +265,58 @@ var
           Writeln('Found Tag: ', Tag.Name, ' ', Tag.Value);
         {$ENDIF LOGGING}
           case Lowercase(Tag.Name) of
+            // Seven Tag Roster
             'event': TempPGNGame.Event := Tag.Value;
             'site': TempPGNGame.Site := Tag.Value;
             'date': TempPGNGame.Date := Tag.Value;
             'round': TempPGNGame.Round := Tag.Value;
             'white': TempPGNGame.White := Tag.Value;
             'black': TempPGNGame.Black := Tag.Value;
-            'result': TempPGNGame.Result := tag.Value;
+            'result': TempPGNGame.Result := Tag.Value;
+            // Player related
+            'BlackELO': TempPGNGame.BlackELO := StrToRating(Tag.Value);
+            'BlackNA': TempPGNGame.BlackNA := Tag.Value;
+            'BlackTitle': TempPGNGame.BlackTitle := StrToFIDETitle(Tag.Value);
+            'BlackType': TempPGNGame.BlackType := StrToPlayerType(Tag.Value);
+            'BlackUSCF': TempPGNGame.BlackUSCF := StrToRating(Tag.Value);
+            'WhiteELO': TempPGNGame.WhiteELO := StrToRating(Tag.Value);
+            'WhiteNA': TempPGNGame.WhiteNA := Tag.Value;
+            'WhiteTitle': TempPGNGame.WhiteTitle := StrToFIDETitle(Tag.Value);
+            'WhiteType': TempPGNGame.WhiteType := StrToPlayerType(Tag.Value);
+            'WhiteUSCF': TempPGNGame.WhiteUSCF := StrToRating(Tag.Value);
+            // Event related
+            'Board': TempPGNGame.Board := StrToInt(Tag.Value);
+            'EventDate': TempPGNGame.EventDate := Tag.Value;
+            'EventSponsor': TempPGNGame.EventSponsor := Tag.Value;
+            'Section': TempPGNGame.Section := Tag.Value;
+            'Stage': TempPGNGame.Stage := Tag.Value;
+            // Opening information (locale)
+            'Opening': TempPGNGame.Opening := Tag.Value;
+            'SubVariation': TempPGNGame.SubVariation := Tag.Value;
+            'Variation': TempPGNGame.Variation := Tag.Value;
+            // Opening information (3rd party)
+            'ECO': TempPGNGame.ECO := Tag.Value;
+            'NIC': TempPGNGame.NIC := Tag.Value;
+            // Time and date information
+            'Time': TempPGNGame.Time := Tag.Value;
+            'UTCDate': TempPGNGame.UTCDate := Tag.Value;
+            'UTCTime': TempPGNGame.UTCTime := Tag.Value;
+            // Time control
+            // TODO': Replace string with own format, when chessclock is TempPGNGamey
+            'TimeControl': TempPGNGame.TimeControl := Tag.Value;
+            // Alternative starting position
+            'FEN':
+            begin
+              TempPGNGame.FEN := Tag.Value;
+              (TempPGNGame.CurrentPosition as TStandardPosition).FromFEN(Tag.Value);
+            end;
+            'SetUp': TempPGNGame.SetUp := Tag.Value = '1';
+            // Game conclusion
+            'Termination': TempPGNGame.Termination := StrToTerminationType(Tag.Value);
+            // Miscellanous
+            'Annotator': TempPGNGame.Annotator := Tag.Value;
+            'Mode': TempPGNGame.Mode := StrToModeType(Tag.Value);
+            'PlyCount': TempPGNGame.PlyCount := StrToInt(tag.Value);
           end;
         end;
         '%':
