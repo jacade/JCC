@@ -27,6 +27,14 @@ uses
 type
 
   TGameResult = (grNone, grWhiteWins, grBlackWins, grDraw);
+  // TODO: These have to be moved somewhere else
+  TFIDETitle = (ftNone, ftCM, ftFM, ftIM, ftGM, ftWCM, ftWFM, ftWIM, ftWGM);
+  TPlayerType = (ptNone, ptHuman, ptProgram);
+  // The following two needs to be extended
+  TTerminationType = (ttNone, ttNormal, ttAbandoned, ttAdjucation, ttDeath, ttEmergency,
+    ttRulesInfraction, ttTimeForfeit, ttUnterminated);
+  TModeType = (mtNone, mtOverTheBoard, mtPaperMail, mtElectronicMail, mtICS,
+    mtGeneralTelecommunication);
 
   { TGame }
 
@@ -87,11 +95,82 @@ type
     property GameResult: TGameResult read FGameResult write FGameResult;
   end;
 
+function GameResultToStr(const AGameResult: TGameResult): string;
+function StrToFIDETitle(const s: string): TFIDETitle;
+function StrToPlayerType(const s: string): TPlayerType;
+function StrToModeType(const s: string): TModeType;
+function StrToTerminationType(const s: string): TTerminationType;
+
 implementation
 
 procedure DeletePly(const AData: TPly);
 begin
   AData.Free;
+end;
+
+function GameResultToStr(const AGameResult: TGameResult): string;
+begin
+  case AGameResult of
+    grNone: Result := '*';
+    grWhiteWins: Result := '1-0';
+    grBlackWins: Result := '0-1';
+    grDraw: Result := '½-½';
+  end;
+end;
+
+function StrToFIDETitle(const s: string): TFIDETitle;
+begin
+  case s of
+    'CM': Result := ftCM;
+    'FM': Result := ftFM;
+    'IM': Result := ftIM;
+    'GM': Result := ftGM;
+    'WCM': Result := ftWCM;
+    'WFM': Result := ftWFM;
+    'WIM': Result := ftWIM;
+    'WGM': Result := ftWGM;
+    else
+      Result := ftNone;
+  end;
+end;
+
+function StrToPlayerType(const s: string): TPlayerType;
+begin
+  case LowerCase(s) of
+    'human': Result := ptHuman;
+    'program': Result := ptProgram;
+    else
+      Result := ptNone;
+  end;
+end;
+
+function StrToModeType(const s: string): TModeType;
+begin
+  case LowerCase(s) of
+    'otb': Result := mtNone;
+    'pm': Result := mtPaperMail;
+    'em': Result := mtElectronicMail;
+    'ics': Result := mtICS;
+    'tc': Result := mtGeneralTelecommunication;
+    else
+      Result := mtNone;
+  end;
+end;
+
+function StrToTerminationType(const s: string): TTerminationType;
+begin
+  case Lowercase(s) of
+    'abandoned': Result := ttAbandoned;
+    'adjudication': Result := ttAdjucation;
+    'death': Result := ttDeath;
+    'emergency': Result := ttEmergency;
+    'normal': Result := ttNormal;
+    'rules infraction': Result := ttRulesInfraction;
+    'time forfeit': Result := ttTimeForfeit;
+    'unterminated': Result := ttUnterminated;
+    else
+      Result := ttNone;
+  end;
 end;
 
 { TGame }
@@ -311,12 +390,7 @@ begin
     Result := RecursiveLineToString(FPlyTree.Root, FInitialPosition as
       TStandardPosition);
   end;
-  case FGameResult of
-    grNone: Result := Result + '*';
-    grWhiteWins: Result := Result + '1-0';
-    grBlackWins: Result := Result + '0-1';
-    grDraw: Result := Result + '½-½';
-  end;
+  Result := Result + GameResultToStr(FGameResult);
 end;
 
 constructor TStandardGame.Create;
