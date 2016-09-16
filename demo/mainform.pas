@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
-  EngineView, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Grids,
+  MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs,
   Ply, Position, PGNDbase, PGNGame;
 
 type
@@ -157,6 +157,11 @@ begin
       LItem := ListView1.Items.Add;
       LItem.Caption := PGNDatabase.Items[i].White;
       LItem.SubItems.Add(PGNDatabase.Items[i].Black);
+      LItem.SubItems.Add(PGNDatabase.Items[i].Date);
+      LItem.SubItems.Add(PGNDatabase.Items[i].Event);
+      LItem.SubItems.Add(PGNDatabase.Items[i].Site);
+      LItem.SubItems.Add(PGNDatabase.Items[i].Round);
+      LItem.SubItems.Add(GameResultToStr(PGNDatabase.Items[i].GameResult));
     end;
   end;
 end;
