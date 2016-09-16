@@ -24,7 +24,9 @@ unit Position;
 interface
 
 uses
-  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools, EpikTimer;
+  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools
+  {$IFDEF Logging} , EpikTimer {$ENDIF}
+  ;
 
 {$INCLUDE ChessPieceLetters.inc}
 
