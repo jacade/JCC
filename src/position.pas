@@ -233,10 +233,10 @@ begin
       TStandardPosition(Source).FPliesSinceLastPawnMoveOrCapture;
     for i := 0 to 119 do
       FSquares[i] := TStandardPosition(Source).FSquares[i];
+    FBlackKing:=TStandardPosition(Source).FBlackKing;
+    FWhiteKing:=TStandardPosition(Source).FWhiteKing;
   end;
 end;
-
-
 
 procedure TStandardPosition.GenerateLegalMoves;
 
@@ -447,6 +447,8 @@ var
   BCastlingAbility: TCastlingAbility;
   BEnPassant: TSquare10x12;
   BPliesSinceLastPawnMoveOrCapture: integer;
+  BMoveNumer: integer;
+  BBlackKing, BWhiteKing: TSquare10x12;
   b, c, tb, tc: extended;
   {$IFDEF Logging}
   a: extended;
@@ -506,6 +508,9 @@ begin
   BEnPassant := FEnPassant;
   BPliesSinceLastPawnMoveOrCapture := FPliesSinceLastPawnMoveOrCapture;
   BCastlingAbility := FCastlingAbility;
+  BMoveNumer := FMoveNumber;
+  BBlackKing := FBlackKing;
+  BWhiteKing := FWhiteKing;
   for i := 0 to 119 do
     BSquares[i] := FSquares[i];
   while j < FLegalMoves.Count do
@@ -523,11 +528,14 @@ begin
     FCastlingAbility := BCastlingAbility;
     for i := 0 to 119 do
       FSquares[i] := BSquares[i];
+    FMoveNumber := BMoveNumer;
+    FBlackKing := BBlackKing;
+    FWhiteKing := BWhiteKing;
     FWhitesTurn := not FWhitesTurn;
   end;
-  Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
-  Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
-  Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
+  //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
+  //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
+  //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
 
   // TODO: Replace pawn moves with actual promotion moves
   GeneratePawnPromotionMoves(FLegalMoves);
@@ -712,32 +720,21 @@ begin
         'n': FSquares[Coordinate] := ptBKnight;
         'b': FSquares[Coordinate] := ptBBishop;
         'q': FSquares[Coordinate] := ptBQueen;
-        'k': FSquares[Coordinate] := ptBKing;
-        'P': FSquares[Coordinate] := ptWPawn;
-        'R': FSquares[Coordinate] := ptWRook;
-        'N': FSquares[Coordinate] := ptWKnight;
-        'B': FSquares[Coordinate] := ptWBishop;
-        'Q': FSquares[Coordinate] := ptWQueen;
-        'K': FSquares[Coordinate] := ptWKing;
-      end;
-      case temp[i] of
-        //   '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
-        'p':
+        'k':
         begin
-          FBitBoards[1] := FBitBoards[1] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FSquares[Coordinate] := ptBKing;
+          FBlackKing := Coordinate;
         end;
-        'r': FSquares[Coordinate] := ptBRook;
-        'n': FSquares[Coordinate] := ptBKnight;
-        'b': FSquares[Coordinate] := ptBBishop;
-        'q': FSquares[Coordinate] := ptBQueen;
-        'k': FSquares[Coordinate] := ptBKing;
         'P': FSquares[Coordinate] := ptWPawn;
         'R': FSquares[Coordinate] := ptWRook;
         'N': FSquares[Coordinate] := ptWKnight;
         'B': FSquares[Coordinate] := ptWBishop;
         'Q': FSquares[Coordinate] := ptWQueen;
-        'K': FSquares[Coordinate] := ptWKing;
+        'K':
+        begin
+          FSquares[Coordinate] := ptWKing;
+          FWhiteKing := Coordinate;
+        end;
       end;
       Inc(fl);
     end;
@@ -826,10 +823,7 @@ begin
   else
   begin
     // King moves
-    if FSquares[Start] in WhitePieces then
-      CastlingRook := ptWRook
-    else
-      CastlingRook := ptBRook;
+    CastlingRook := PieceType(bptRook, FSquares[Start] in WhitePieces);
     // Kingside castling
     if ((Dest > Start) and (Dest - Start = 2)) then
     begin
@@ -852,6 +846,10 @@ begin
       FSquares[Dest] := FSquares[Start];
       FSquares[Start] := ptEmpty;
     end;
+    if WhitesTurn then
+      FWhiteKing := Dest
+    else
+      FBlackKing := Dest;
   end;
   if (ctWKingside in FCastlingAbility) and ((FSquares[95] <> ptWKing) or
     (FSquares[98] <> ptWRook)) then
@@ -923,21 +921,11 @@ begin
 end;
 
 function TStandardPosition.IsCheck: boolean;
-var
-  King: TPieceType;
-  i: integer;
 begin
   if FWhitesTurn then
-    King := ptWKing
+    Result := IsAttacked(FWhiteKing)
   else
-    King := ptBKing;
-  for i in ValidSquares do
-  begin
-    if Squares[i] = King then
-    begin
-      Result := IsAttacked(i);
-    end;
-  end;
+    Result := IsAttacked(FBlackKing);
 end;
 
 function TStandardPosition.IsIllegalCheck: boolean;
@@ -962,7 +950,6 @@ var
   // Count white and black pieces in order p, r, n, b, q, k
   WhitePieces, BlackPieces: array[1..6] of integer;
   i: integer;
-  temp: boolean;
 begin
   Result := True;
   for i := 1 to 6 do
