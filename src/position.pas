@@ -94,25 +94,18 @@ type
   TStandardPosition = class(TPosition)//(TPersistent)
   private
   var      // Note: If Variables are added, they need to be added to Assign, too
+    FBlackKing: TSquare10x12;
     FCastlingAbility: TCastlingAbility;
     FEnPassant: TSquare10x12;
     FOnChange: TNotifyEvent;
     FPliesSinceLastPawnMoveOrCapture: integer; // Important for 50 move rule
     FSquares: array[0..119] of TPieceType;
+    FWhiteKing: TSquare10x12;
+    // BitBoards
+    // Pawns, Rooks, Knights, Bishops, Queens, Kings, White, Black
+    FBitBoards: array[1..8] of QWord;
 
     procedure Changed;
-    function GenerateBishopMoves(Start: TSquare10x12): TMoveList;
-    function GenerateCastlingMoves(Start: TSquare10x12): TMoveList;
-    function GenerateKingMoves(Start: TSquare10x12): TMoveList;
-    function GenerateKnightMoves(Start: TSquare10x12): TMoveList;
-    // This generates only capture moves
-    function GeneratePawnCaptureMoves(Start: TSquare10x12): TMoveList;
-    // This generates only forward moves
-    function GeneratePawnForwardMoves(Start: TSquare10x12): TMoveList;
-    // The moves in AMoveList are replaced by promoting moves.
-    procedure GeneratePawnPromotionMoves(AMoveList: TMoveList);
-    function GenerateQueenMoves(Start: TSquare10x12): TMoveList;
-    function GenerateRookMoves(Start: TSquare10x12): TMoveList;
     // Checks if the side not to move is attacking the given square
     function IsAttacked(Square: TSquare10x12): boolean;
     procedure SilentFromFEN(const AFEN: string);
@@ -169,10 +162,18 @@ var
   Zuege: longword = 0;
   Zeit: extended = 0;
   ET: TEpikTimer;
+
     {$ENDIF}
 
+// Returns a Bitboard with zeroes and a 1 at the given position
+function TSquare8x8ToBitBoard(const ASquare: TSquare8x8): QWord;
 
 implementation
+
+function TSquare8x8ToBitBoard(const ASquare: TSquare8x8): QWord;
+begin
+  Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
+end;
 
 { TPosition }
 
@@ -235,115 +236,212 @@ begin
   end;
 end;
 
-function TStandardPosition.GenerateBishopMoves(Start: TSquare10x12): TMoveList;
-var
-  i, j, Dest: integer;
-  Sign: integer;
-  Flag: boolean;
-begin
-  Result := TMoveList.Create;
-  for j := 1 to 2 do
+
+
+procedure TStandardPosition.GenerateLegalMoves;
+
+  procedure GenerateBishopMoves(Start: TSquare10x12);
+  var
+    i, j, Dest: integer;
+    Sign: integer;
+    Flag: boolean;
   begin
-    if j = 1 then
-      Sign := 1
-    else
-      Sign := -1;
-    for i in DiagonalMoves do
+    for j := 1 to 2 do
     begin
-      Dest := Start + Sign * i;
-      Flag := False;
-      while (FSquares[Dest] <> ptOff) and not Flag do
+      if j = 1 then
+        Sign := 1
+      else
+        Sign := -1;
+      for i in DiagonalMoves do
       begin
-        if (FSquares[Dest] = ptEmpty) then
+        Dest := Start + Sign * i;
+        Flag := False;
+        while (FSquares[Dest] <> ptOff) and not Flag do
         begin
-          Result.Add(CreateMove(Start, Dest));
-          Dest := Dest + Sign * i;
-        end
-        else
-        begin
-          if not SameColor(FSquares[Start], FSquares[Dest]) then
-            Result.Add(CreateMove(Start, Dest));
-          Flag := True;
+          if (FSquares[Dest] = ptEmpty) then
+          begin
+            FLegalMoves.Add(CreateMove(Start, Dest));
+            Dest := Dest + Sign * i;
+          end
+          else
+          begin
+            if not SameColor(FSquares[Start], FSquares[Dest]) then
+              FLegalMoves.Add(CreateMove(Start, Dest));
+            Flag := True;
+          end;
         end;
       end;
     end;
   end;
-end;
 
-function TStandardPosition.GenerateCastlingMoves(Start: TSquare10x12): TMoveList;
-begin
-  Result := TMoveList.Create;
-  // Check Castlings
-  if FWhitesTurn then
+  procedure GenerateCastlingMoves(Start: TSquare10x12);
   begin
-    if (ctWKingside in FCastlingAbility) and not IsAttacked(Start) and
-      (FSquares[96] = ptEmpty) and (FSquares[97] = ptEmpty) and not
-      IsAttacked(96) and not IsAttacked(97) then
-      Result.Add(CreateMove(Start, 97));
-    if (ctWQueenside in FCastlingAbility) and not IsAttacked(Start) and
-      (Fsquares[94] = ptEmpty) and (FSquares[93] = ptEmpty) and
-      (FSquares[92] = ptEmpty) and not IsAttacked(94) and not IsAttacked(93) then
-      Result.Add(CreateMove(Start, 93));
-  end
-  else
-  begin
-    if (ctBKingside in FCastlingAbility) and not IsAttacked(Start) and
-      (FSquares[26] = ptEmpty) and (FSquares[27] = ptEmpty) and not
-      IsAttacked(26) and not IsAttacked(27) then
-      Result.Add(CreateMove(Start, 27));
-    if (ctBQueenside in FCastlingAbility) and not IsAttacked(Start) and
-      (Fsquares[24] = ptEmpty) and (FSquares[23] = ptEmpty) and
-      (FSquares[22] = ptEmpty) and not IsAttacked(24) and not IsAttacked(23) then
-      Result.Add(CreateMove(Start, 23));
-  end;
-end;
-
-function TStandardPosition.GenerateKingMoves(Start: TSquare10x12): TMoveList;
-var
-  i, j, Sign, Dest: integer;
-begin
-  Result := TMoveList.Create;
-  for j := 1 to 2 do
-  begin
-    if j = 1 then
-      Sign := 1
-    else
-      Sign := -1;
-    for i in (HorzVertMoves + DiagonalMoves) do
+    // Check Castlings
+    if FWhitesTurn then
     begin
-      Dest := Start + Sign * i;
-      if (FSquares[Dest] <> ptOff) and ((FSquares[Dest] = ptEmpty) or
-        not SameColor(FSquares[Start], FSquares[Dest])) then
-        Result.Add(CreateMove(Start, Dest));
+      if (ctWKingside in FCastlingAbility) and not IsAttacked(Start) and
+        (FSquares[96] = ptEmpty) and (FSquares[97] = ptEmpty) and not
+        IsAttacked(96) and not IsAttacked(97) then
+        FLegalMoves.Add(CreateMove(Start, 97));
+      if (ctWQueenside in FCastlingAbility) and not IsAttacked(Start) and
+        (Fsquares[94] = ptEmpty) and (FSquares[93] = ptEmpty) and
+        (FSquares[92] = ptEmpty) and not IsAttacked(94) and not IsAttacked(93) then
+        FLegalMoves.Add(CreateMove(Start, 93));
+    end
+    else
+    begin
+      if (ctBKingside in FCastlingAbility) and not IsAttacked(Start) and
+        (FSquares[26] = ptEmpty) and (FSquares[27] = ptEmpty) and not
+        IsAttacked(26) and not IsAttacked(27) then
+        FLegalMoves.Add(CreateMove(Start, 27));
+      if (ctBQueenside in FCastlingAbility) and not IsAttacked(Start) and
+        (Fsquares[24] = ptEmpty) and (FSquares[23] = ptEmpty) and
+        (FSquares[22] = ptEmpty) and not IsAttacked(24) and not IsAttacked(23) then
+        FLegalMoves.Add(CreateMove(Start, 23));
     end;
   end;
-end;
 
-function TStandardPosition.GenerateKnightMoves(Start: TSquare10x12): TMoveList;
-var
-  i, j, Sign, Dest: integer;
-begin
-  Result := TMoveList.Create;
-  for j := 1 to 2 do
+  procedure GenerateKingMoves(Start: TSquare10x12);
+  var
+    i, j, Sign, Dest: integer;
   begin
-    if j = 1 then
-      Sign := 1
-    else
-      Sign := -1;
-    for i in KnightMoves do
+    for j := 1 to 2 do
     begin
-      Dest := Start + Sign * i;
-      if (FSquares[Dest] <> ptOff) and ((FSquares[Dest] = ptEmpty) or
-        not SameColor(FSquares[Start], FSquares[Dest])) then
-        Result.Add(CreateMove(Start, Dest));
+      if j = 1 then
+        Sign := 1
+      else
+        Sign := -1;
+      for i in (HorzVertMoves + DiagonalMoves) do
+      begin
+        Dest := Start + Sign * i;
+        if (FSquares[Dest] <> ptOff) and ((FSquares[Dest] = ptEmpty) or
+          not SameColor(FSquares[Start], FSquares[Dest])) then
+          FLegalMoves.Add(CreateMove(Start, Dest));
+      end;
     end;
   end;
-end;
 
-procedure TStandardPosition.GenerateLegalMoves;
+  procedure GenerateKnightMoves(Start: TSquare10x12);
+  var
+    i, j, Sign, Dest: integer;
+  begin
+    for j := 1 to 2 do
+    begin
+      if j = 1 then
+        Sign := 1
+      else
+        Sign := -1;
+      for i in KnightMoves do
+      begin
+        Dest := Start + Sign * i;
+        if (FSquares[Dest] <> ptOff) and ((FSquares[Dest] = ptEmpty) or
+          not SameColor(FSquares[Start], FSquares[Dest])) then
+          FLegalMoves.Add(CreateMove(Start, Dest));
+      end;
+    end;
+  end;
+
+  procedure GeneratePawnPromotionMoves(AMoveList: TMoveList);
+  var
+    temp: TMoveList;
+    Piece: TBasicPieceType;
+    i: integer;
+    Start, Dest: TSquare10x12;
+  begin
+    temp := TMoveList.Create;
+    i := 0;
+    while i < AMoveList.Count do
+    begin
+      Start := AMoveList.Items[i].Start;
+      Dest := AMoveList.Items[i].Dest;
+      if (FWhitesTurn and (Start in Rank7) and (FSquares[Start] = ptWPawn)) or
+        (not FWhitesTurn and (Start in Rank2) and (FSquares[Start] = ptBPawn)) then
+      begin
+        for Piece in [bptRook, bptKnight, bptBishop, bptQueen] do
+          temp.Add(CreateMove(Start, Dest, PieceType(Piece, FWhitesTurn)));
+        AMoveList.Delete(i);
+      end
+      else
+        Inc(i);
+    end;
+    AMoveList.AddList(temp);
+    FreeAndNil(temp);
+  end;
+
+  procedure GeneratePawnCaptureMoves(Start: TSquare10x12);
+  var
+    i, Sign, Dest: integer;
+  begin
+    if FWhitesTurn then
+      Sign := -1
+    else
+      Sign := 1;
+    for i in [9, 11] do
+    begin
+      Dest := Start + Sign * i;
+      if not (FSquares[Dest] in [ptOff, ptEmpty]) and not
+        SameColor(FSquares[Start], FSquares[Dest]) then
+        FLegalMoves.Add(CreateMove(Start, Dest));
+    end;
+    // En Passant
+    if FEnPassant in [Start + Sign * 9, Start + Sign * 11] then
+      FLegalMoves.Add(CreateMove(Start, FEnPassant));
+  end;
+
+  procedure GeneratePawnForwardMoves(Start: TSquare10x12);
+  var
+    Sign: integer;
+  begin
+    if FWhitesTurn then
+      Sign := -1
+    else
+      Sign := 1;
+    if FSquares[Start + Sign * 10] = ptEmpty then
+    begin
+      FLegalMoves.Add(CreateMove(Start, Start + Sign * 10));
+      // Pawn can go two?
+      if ((FWhitesTurn and (Start in Rank2)) or (not FWhitesTurn and
+        (Start in Rank7))) and (FSquares[Start + Sign * 20] = ptEmpty) then
+        FLegalMoves.Add(CreateMove(Start, Start + Sign * 20));
+    end;
+  end;
+
+  procedure GenerateRookMoves(Start: TSquare10x12);
+  var
+    i, j, Dest, Sign: integer;
+    Flag: boolean;
+  begin
+    for j := 1 to 2 do
+    begin
+      if j = 1 then
+        Sign := 1
+      else
+        Sign := -1;
+      for i in HorzVertMoves do
+      begin
+        Dest := Start + Sign * i;
+        Flag := False;
+        while (FSquares[Dest] <> ptOff) and not Flag do
+        begin
+          if (FSquares[Dest] = ptEmpty) then
+          begin
+            // Empty Square
+            FLegalMoves.Add(CreateMove(Start, Dest));
+            Dest := Dest + Sign * i;
+          end
+          else
+          begin
+            if not SameColor(FSquares[Start], FSquares[Dest]) then
+              FLegalMoves.Add(CreateMove(Start, Dest));
+            Flag := True;
+          end;
+        end;
+      end;
+    end;
+  end;
+
 var
   i: byte;
-  temp: TMoveList;
   j: integer;
   BSquares: array[0..119] of TPieceType;
   BCastlingAbility: TCastlingAbility;
@@ -362,6 +460,7 @@ begin
   ET.Start;
   a := ET.Elapsed;
 {$ENDIF}
+  b := ET.Elapsed;
   FLegalMoves.Clear;
   for i in ValidSquares do
   begin
@@ -373,48 +472,34 @@ begin
     case FSquares[i] of
       ptWPawn, ptBPawn:
       begin
-        temp := GeneratePawnCaptureMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
-        temp := GeneratePawnForwardMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
+        GeneratePawnCaptureMoves(i);
+        GeneratePawnForwardMoves(i);
       end;
       ptWKnight, ptBKnight:
       begin
-        temp := GenerateKnightMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
+        GenerateKnightMoves(i);
       end;
       ptWBishop, ptBBishop:
       begin
-        temp := GenerateBishopMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
+        GenerateBishopMoves(i);
       end;
       ptWRook, ptBRook:
       begin
-        temp := GenerateRookMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
+        GenerateRookMoves(i);
       end;
       ptWQueen, ptBQueen:
       begin
-        temp := GenerateQueenMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
+        GenerateRookMoves(i);
+        GenerateBishopMoves(i);
       end;
       ptWKing, ptBKing:
       begin
-        temp := GenerateKingMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
-        temp := GenerateCastlingMoves(i);
-        FLegalMoves.AddList(temp);
-        temp.Free;
+        GenerateKingMoves(i);
+        GenerateCastlingMoves(i);
       end;
     end;
   end;
+  tb := tb + ET.Elapsed - b;
   // Backup Position, Play Move, Position Valid?
   j := 0;
   // Backup current Position
@@ -425,11 +510,9 @@ begin
     BSquares[i] := FSquares[i];
   while j < FLegalMoves.Count do
   begin
-    b := ET.Elapsed;
     Self.SilentPlayMove(FLegalMoves.Items[j]);
-    tb := tb + ET.Elapsed - b;
     c := ET.Elapsed;
-    if Self.IsValid then
+    if not Self.IsIllegalCheck then
       Inc(j)
     else
       FLegalMoves.Delete(j);
@@ -446,6 +529,8 @@ begin
   Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
   Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
 
+  // TODO: Replace pawn moves with actual promotion moves
+  GeneratePawnPromotionMoves(FLegalMoves);
   {$IFDEF Logging}
   Inc(Zuege, FLegalMoves.Count);
   Zeit := Zeit + (ET.Elapsed - a);
@@ -466,146 +551,6 @@ end;
 function TStandardPosition.GetSquares(Index: integer): TPieceType;
 begin
   Result := FSquares[Index];
-end;
-
-function TStandardPosition.GeneratePawnCaptureMoves(Start: TSquare10x12): TMoveList;
-var
-  i, Sign, Dest: integer;
-begin
-  Result := TMoveList.Create;
-  if FWhitesTurn then
-    Sign := -1
-  else
-    Sign := 1;
-  for i in [9, 11] do
-  begin
-    Dest := Start + Sign * i;
-    if not (FSquares[Dest] in [ptOff, ptEmpty]) and not
-      SameColor(FSquares[Start], FSquares[Dest]) then
-      Result.Add(CreateMove(Start, Dest));
-  end;
-  // En Passant
-  if FEnPassant in [Start + Sign * 9, Start + Sign * 11] then
-    Result.Add(CreateMove(Start, FEnPassant));
-  // Check for Promotion
-  if (FWhitesTurn and (Start in Rank7)) or (not FWhitesTurn and (Start in Rank2)) then
-    GeneratePawnPromotionMoves(Result);
-end;
-
-function TStandardPosition.GeneratePawnForwardMoves(Start: TSquare10x12): TMoveList;
-var
-  Sign: integer;
-begin
-  Result := TMoveList.Create;
-  if FWhitesTurn then
-    Sign := -1
-  else
-    Sign := 1;
-  if FSquares[Start + Sign * 10] = ptEmpty then
-  begin
-    Result.Add(CreateMove(Start, Start + Sign * 10));
-    // Pawn can go two?
-    if ((FWhitesTurn and (Start in Rank2)) or (not FWhitesTurn and
-      (Start in Rank7))) and (FSquares[Start + Sign * 20] = ptEmpty) then
-      Result.Add(CreateMove(Start, Start + Sign * 20));
-  end;
-  // Check for Promotion
-  if (FWhitesTurn and (Start in Rank7)) or (not FWhitesTurn and (Start in Rank2)) then
-    GeneratePawnPromotionMoves(Result);
-end;
-
-procedure TStandardPosition.GeneratePawnPromotionMoves(AMoveList: TMoveList);
-var
-  temp: TMoveList;
-  Move: TMove;
-  Piece: TPieceType;
-begin
-  temp := TMoveList.Create;
-  for Move in AMoveList do
-  begin
-    if FWhitesTurn then
-    begin
-      for Piece in [ptWRook, ptWKnight, ptWBishop, ptWQueen] do
-        temp.Add(CreateMove(Move.Start, Move.Dest, Piece));
-    end
-    else
-    begin
-      for Piece in [ptBRook, ptBKnight, ptBBishop, ptBQueen] do
-        temp.Add(CreateMove(Move.Start, Move.Dest, Piece));
-    end;
-  end;
-  AMoveList.Clear;
-  AMoveList.AddList(temp);
-  FreeAndNil(temp);
-end;
-
-function TStandardPosition.GenerateQueenMoves(Start: TSquare10x12): TMoveList;
-var
-  i, j, Dest, Sign: integer;
-  Flag: boolean;
-begin
-  Result := TMoveList.Create;
-  for j := 1 to 2 do
-  begin
-    if j = 1 then
-      Sign := 1
-    else
-      Sign := -1;
-    for i in (HorzVertMoves + DiagonalMoves) do
-    begin
-      Dest := Start + Sign * i;
-      Flag := False;
-      while (FSquares[Dest] <> ptOff) and not Flag do
-      begin
-        if (FSquares[Dest] = ptEmpty) then
-        begin
-          Result.Add(CreateMove(Start, Dest));
-          Dest := Dest + Sign * i;
-        end
-        else
-        begin
-          if not SameColor(FSquares[Start], FSquares[Dest]) then
-            Result.Add(CreateMove(Start, Dest));
-          Flag := True;
-        end;
-      end;
-    end;
-  end;
-end;
-
-function TStandardPosition.GenerateRookMoves(Start: TSquare10x12): TMoveList;
-var
-  i, j, Dest, Sign: integer;
-  Flag: boolean;
-begin
-  Result := TMoveList.Create;
-  for j := 1 to 2 do
-  begin
-    if j = 1 then
-      Sign := 1
-    else
-      Sign := -1;
-    for i in HorzVertMoves do
-    begin
-      Dest := Start + Sign * i;
-      Flag := False;
-      while (FSquares[Dest] <> ptOff) and not Flag do
-      begin
-        if (FSquares[Dest] = ptEmpty) then
-        begin
-          // Empty Square
-          Result.Add(CreateMove(Start, Dest));
-          Dest := Dest + Sign * i;
-        end
-        else
-        begin
-          if not SameColor(FSquares[Start], FSquares[Dest]) then
-            Result.Add(CreateMove(Start, Dest));
-          Flag := True;
-        end;
-      end;
-    end;
-  end;
 end;
 
 function TStandardPosition.IsAttacked(Square: TSquare10x12): boolean;
@@ -736,7 +681,7 @@ procedure TStandardPosition.SilentFromFEN(const AFEN: string);
 var
   c: char;
   s, p: TStringList;
-  rk, fl, i, Coordinate: integer;
+  rk, fl, i, Coordinate: TSquare10x12;
   temp: string;
   RegFEN: TRegExpr;
 begin
@@ -763,6 +708,25 @@ begin
       case temp[i] of
         '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
         'p': FSquares[Coordinate] := ptBPawn;
+        'r': FSquares[Coordinate] := ptBRook;
+        'n': FSquares[Coordinate] := ptBKnight;
+        'b': FSquares[Coordinate] := ptBBishop;
+        'q': FSquares[Coordinate] := ptBQueen;
+        'k': FSquares[Coordinate] := ptBKing;
+        'P': FSquares[Coordinate] := ptWPawn;
+        'R': FSquares[Coordinate] := ptWRook;
+        'N': FSquares[Coordinate] := ptWKnight;
+        'B': FSquares[Coordinate] := ptWBishop;
+        'Q': FSquares[Coordinate] := ptWQueen;
+        'K': FSquares[Coordinate] := ptWKing;
+      end;
+      case temp[i] of
+        //   '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
+        'p':
+        begin
+          FBitBoards[1] := FBitBoards[1] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+        end;
         'r': FSquares[Coordinate] := ptBRook;
         'n': FSquares[Coordinate] := ptBKnight;
         'b': FSquares[Coordinate] := ptBBishop;
