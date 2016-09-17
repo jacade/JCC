@@ -138,6 +138,8 @@ type
     procedure FromFEN(const AFEN: string);
     // Checks if the side to move is check
     function IsCheck: boolean;
+    // Checks if the side not to move is in check
+    function IsIllegalCheck: boolean;
     function IsMate: boolean;
     function IsStaleMate: boolean;
     function IsValid: boolean;
@@ -347,15 +349,14 @@ var
   BCastlingAbility: TCastlingAbility;
   BEnPassant: TSquare10x12;
   BPliesSinceLastPawnMoveOrCapture: integer;
-  //a, b, c, tb, tc, d: extended;
-  //test: Boolean;
+  b, c, tb, tc: extended;
   {$IFDEF Logging}
   a: extended;
   {$ENDIF}
 begin
   //a := ET.Elapsed;
-  //tb := 0;
-  //tc := 0;
+  tb := 0;
+  tc := 0;
   // The following takes up to 1 ms, could this be made faster?
   {$IFDEF Logging}
   ET.Start;
@@ -424,11 +425,15 @@ begin
     BSquares[i] := FSquares[i];
   while j < FLegalMoves.Count do
   begin
+    b := ET.Elapsed;
     Self.SilentPlayMove(FLegalMoves.Items[j]);
+    tb := tb + ET.Elapsed - b;
+    c := ET.Elapsed;
     if Self.IsValid then
       Inc(j)
     else
       FLegalMoves.Delete(j);
+    tc := tc + ET.Elapsed - c;
     // Restore inital values
     FEnPassant := BEnPassant;
     FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;
@@ -437,16 +442,15 @@ begin
       FSquares[i] := BSquares[i];
     FWhitesTurn := not FWhitesTurn;
   end;
-  // FreeAndNil(Clone);
+  Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
+  Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
+  Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
 
   {$IFDEF Logging}
   Inc(Zuege, FLegalMoves.Count);
   Zeit := Zeit + (ET.Elapsed - a);
   ET.Stop;
 {$ENDIF}
-  //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
-  //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
-  //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
 end;
 
 function TStandardPosition.GetCountOfFiles: byte;
@@ -972,6 +976,13 @@ begin
   end;
 end;
 
+function TStandardPosition.IsIllegalCheck: boolean;
+begin
+  FWhitesTurn := not FWhitesTurn;
+  Result := IsCheck;
+  FWhitesTurn := not FWhitesTurn;
+end;
+
 function TStandardPosition.IsMate: boolean;
 begin
   Result := (FLegalMoves.Count = 0) and IsCheck;
@@ -1024,23 +1035,7 @@ begin
   if ctBQueenside in FCastlingAbility then
     Result := Result and (FSquares[25] = ptBKing) and (FSquares[21] = ptBRook);
   // Check if a king is in illegal check
-  for i in ValidSquares do
-  begin
-    if FSquares[i] = ptWKing then
-    begin
-      temp := FWhitesTurn;
-      FWhitesTurn := True;
-      Result := Result and not (not temp and IsAttacked(i));
-      FWhitesTurn := temp;
-    end;
-    if FSquares[i] = ptBKing then
-    begin
-      temp := FWhitesTurn;
-      FWhitesTurn := False;
-      Result := Result and not (temp and IsAttacked(i));
-      FWhitesTurn := temp;
-    end;
-  end;
+  Result := Result and not IsIllegalCheck;
 end;
 
 function TStandardPosition.MoveFromSAN(ASAN: string): TMove;
