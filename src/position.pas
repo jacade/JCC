@@ -17,7 +17,7 @@
 
 unit Position;
 
-//{$DEFINE LOGGING}
+{$DEFINE LOGGING}
 
 {$mode objfpc}{$H+}
 
@@ -25,8 +25,7 @@ interface
 
 uses
   Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools
-  {$IFDEF Logging} , EpikTimer {$ENDIF}
-  ;
+  {$IFDEF Logging} , EpikTimer {$ENDIF}  ;
 
 {$INCLUDE ChessPieceLetters.inc}
 
@@ -100,9 +99,6 @@ type
     FOnChange: TNotifyEvent;
     FPliesSinceLastPawnMoveOrCapture: integer; // Important for 50 move rule
     FSquares: array[0..119] of TPieceType;
-    {$IFDEF Logging}
-    ET: TEpikTimer;
-    {$ENDIF Logging}
 
     procedure Changed;
     function GenerateBishopMoves(Start: TSquare10x12): TMoveList;
@@ -119,6 +115,7 @@ type
     function GenerateRookMoves(Start: TSquare10x12): TMoveList;
     // Checks if the side not to move is attacking the given square
     function IsAttacked(Square: TSquare10x12): boolean;
+    procedure SilentFromFEN(const AFEN: string);
     // Plays the move without triggering Changed
     procedure SilentPlayMove(AMove: TMove);
   protected
@@ -138,7 +135,7 @@ type
     function FilterLegalMoves(APiece: TPieceType = ptEmpty;
       StartSquare: TSquare10x12 = 0; DestSquare: TSquare10x12 = 0;
       APromotionPiece: TPieceType = ptEmpty): TMoveList;
-    procedure FromFEN(AFEN: string);
+    procedure FromFEN(const AFEN: string);
     // Checks if the side to move is check
     function IsCheck: boolean;
     function IsMate: boolean;
@@ -164,6 +161,13 @@ type
     property PliesSinceLastPawnMoveOrCapture: integer
       read FPliesSinceLastPawnMoveOrCapture write FPliesSinceLastPawnMoveOrCapture;
   end;
+
+    {$IFDEF Logging}
+var
+  Zuege: longword = 0;
+  Zeit: extended = 0;
+  ET: TEpikTimer;
+    {$ENDIF}
 
 
 implementation
@@ -338,15 +342,25 @@ procedure TStandardPosition.GenerateLegalMoves;
 var
   i: byte;
   temp: TMoveList;
-  Clone: TStandardPosition;
   j: integer;
+  BSquares: array[0..119] of TPieceType;
+  BCastlingAbility: TCastlingAbility;
+  BEnPassant: TSquare10x12;
+  BPliesSinceLastPawnMoveOrCapture: integer;
   //a, b, c, tb, tc, d: extended;
   //test: Boolean;
+  {$IFDEF Logging}
+  a: extended;
+  {$ENDIF}
 begin
   //a := ET.Elapsed;
   //tb := 0;
   //tc := 0;
   // The following takes up to 1 ms, could this be made faster?
+  {$IFDEF Logging}
+  ET.Start;
+  a := ET.Elapsed;
+{$ENDIF}
   FLegalMoves.Clear;
   for i in ValidSquares do
   begin
@@ -400,27 +414,36 @@ begin
       end;
     end;
   end;
-  // Copy Position, Play Move, Position Valid?
-  Clone := TStandardPosition.Create;
+  // Backup Position, Play Move, Position Valid?
   j := 0;
+  // Backup current Position
+  BEnPassant := FEnPassant;
+  BPliesSinceLastPawnMoveOrCapture := FPliesSinceLastPawnMoveOrCapture;
+  BCastlingAbility := FCastlingAbility;
+  for i := 0 to 119 do
+    BSquares[i] := FSquares[i];
   while j < FLegalMoves.Count do
   begin
-    Clone.Copy(Self);
-    Clone.SilentPlayMove(FLegalMoves.Items[j]);
-    //b := et.Elapsed;
-    //test := Clone.IsValid;
-    //d := et.Elapsed;
-    //tb := d - b + tb;
-    //c := et.Elapsed;
-    if Clone.IsValid then
+    Self.SilentPlayMove(FLegalMoves.Items[j]);
+    if Self.IsValid then
       Inc(j)
     else
-    begin
       FLegalMoves.Delete(j);
-    end;
-    //tc := et.Elapsed - c + tc;
+    // Restore inital values
+    FEnPassant := BEnPassant;
+    FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;
+    FCastlingAbility := BCastlingAbility;
+    for i := 0 to 119 do
+      FSquares[i] := BSquares[i];
+    FWhitesTurn := not FWhitesTurn;
   end;
-  FreeAndNil(Clone);
+  // FreeAndNil(Clone);
+
+  {$IFDEF Logging}
+  Inc(Zuege, FLegalMoves.Count);
+  Zeit := Zeit + (ET.Elapsed - a);
+  ET.Stop;
+{$ENDIF}
   //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
   //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
   //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
@@ -705,6 +728,76 @@ begin
   end;
 end;
 
+procedure TStandardPosition.SilentFromFEN(const AFEN: string);
+var
+  c: char;
+  s, p: TStringList;
+  rk, fl, i, Coordinate: integer;
+  temp: string;
+  RegFEN: TRegExpr;
+begin
+  RegFEN := TRegExpr.Create;
+  RegFEN.Expression := '(([prnbqkPRNBQK1-8]){1,8}\/){7}([prnbqkPRNBQK1-8]){1,8} ' +
+    '(w|b) (KQ?k?q?|Qk?q?|kq?|q|-) (-|([a-h][36])) (0|[1-9][0-9]*) [1-9][0-9]*';
+  if not RegFEN.Exec(AFEN) then
+    raise EInvalidFEN.Create('FEN is invalid');
+  FreeAndNil(RegFEN);
+  s := Split(AFEN, ' ');
+  // Put Pieces on board
+  for i in ValidSquares do
+    FSquares[i] := ptEmpty;
+  p := Split(s.Strings[0], '/');
+  for rk := 0 to 7 do
+  begin
+    temp := p.Strings[rk];
+    fl := 1;
+    for i := 1 to Length(temp) do
+    begin
+      Coordinate := rk * 10 + 20 + fl;
+      if FSquares[Coordinate] = ptOff then
+        raise EInvalidFEN.Create('FEN is invalid');
+      case temp[i] of
+        '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
+        'p': FSquares[Coordinate] := ptBPawn;
+        'r': FSquares[Coordinate] := ptBRook;
+        'n': FSquares[Coordinate] := ptBKnight;
+        'b': FSquares[Coordinate] := ptBBishop;
+        'q': FSquares[Coordinate] := ptBQueen;
+        'k': FSquares[Coordinate] := ptBKing;
+        'P': FSquares[Coordinate] := ptWPawn;
+        'R': FSquares[Coordinate] := ptWRook;
+        'N': FSquares[Coordinate] := ptWKnight;
+        'B': FSquares[Coordinate] := ptWBishop;
+        'Q': FSquares[Coordinate] := ptWQueen;
+        'K': FSquares[Coordinate] := ptWKing;
+      end;
+      Inc(fl);
+    end;
+  end;
+  FreeAndNil(p);
+  // Determine who's to play
+  FWhitesTurn := s.Strings[1] = 'w';
+  // Determine allowed Castlings
+  FCastlingAbility := [];
+  for c in s.Strings[2] do
+    case c of
+      'K': FCastlingAbility := FCastlingAbility + [ctWKingside];
+      'Q': FCastlingAbility := FCastlingAbility + [ctWQueenside];
+      'k': FCastlingAbility := FCastlingAbility + [ctBKingside];
+      'q': FCastlingAbility := FCastlingAbility + [ctBQueenside];
+    end;
+  // Is en passant possible?
+  if s.Strings[3] = '-' then
+    FEnPassant := 0
+  else
+    FEnPassant := AlgebraicSquare(s.Strings[3][1], s.Strings[3][2]);
+  // Get plies
+  FPliesSinceLastPawnMoveOrCapture := StrToInt(s.Strings[4]);
+  // Get start move number
+  FMoveNumber := StrToInt(s.Strings[5]);
+  FreeAndNil(s);
+end;
+
 procedure TStandardPosition.SilentPlayMove(AMove: TMove);
 var
   Start, Dest: TSquare10x12;
@@ -813,10 +906,6 @@ constructor TStandardPosition.Create;
 var
   Coordinate: integer;
 begin
-  {$IFDEF Logging}
-  ET := TEpikTimer.Create(nil);
-  ET.Start;
-    {$ENDIF Logging}
   FLegalMoves := TMoveList.Create;
   for Coordinate := 0 to 119 do
     if Coordinate in OffSquares then
@@ -833,10 +922,6 @@ end;
 
 destructor TStandardPosition.Destroy;
 begin
-  {$IFDEF Logging}
-  ET.Stop;
-  ET.Free;
-    {$ENDIF Logging}
   FreeAndNil(FLegalMoves);
   inherited Destroy;
 end;
@@ -863,74 +948,9 @@ begin
   end;
 end;
 
-procedure TStandardPosition.FromFEN(AFEN: string);
-var
-  c: char;
-  s, p: TStringList;
-  rk, fl, i, Coordinate: integer;
-  temp: string;
-  RegFEN: TRegExpr;
+procedure TStandardPosition.FromFEN(const AFEN: string);
 begin
-  RegFEN := TRegExpr.Create;
-  RegFEN.Expression := '(([prnbqkPRNBQK1-8]){1,8}/){7}([prnbqkPRNBQK]){1,8} ' +
-    '(w|b) (KQ?k?q?|Qk?q?|kq?|q|-) (-|([a-h][36])) (0|[1..9][0..9]*) [1..9][0..9]*';
-  if not RegFEN.Exec(AFEN) then
-    raise EInvalidFEN.Create('FEN is invalid');
-  FreeAndNil(RegFEN);
-  s := Split(AFEN, ' ');
-  // Put Pieces on board
-  for i in ValidSquares do
-    FSquares[i] := ptEmpty;
-  p := Split(s.Strings[0], '/');
-  for rk := 0 to 7 do
-  begin
-    temp := p.Strings[rk];
-    fl := 1;
-    for i := 1 to Length(temp) do
-    begin
-      Coordinate := rk * 10 + 20 + fl;
-      if FSquares[Coordinate] = ptOff then
-        raise EInvalidFEN.Create('FEN is invalid');
-      case temp[i] of
-        '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
-        'p': FSquares[Coordinate] := ptBPawn;
-        'r': FSquares[Coordinate] := ptBRook;
-        'n': FSquares[Coordinate] := ptBKnight;
-        'b': FSquares[Coordinate] := ptBBishop;
-        'q': FSquares[Coordinate] := ptBQueen;
-        'k': FSquares[Coordinate] := ptBKing;
-        'P': FSquares[Coordinate] := ptWPawn;
-        'R': FSquares[Coordinate] := ptWRook;
-        'N': FSquares[Coordinate] := ptWKnight;
-        'B': FSquares[Coordinate] := ptWBishop;
-        'Q': FSquares[Coordinate] := ptWQueen;
-        'K': FSquares[Coordinate] := ptWKing;
-      end;
-      Inc(fl);
-    end;
-  end;
-  FreeAndNil(p);
-  // Determine who's to play
-  FWhitesTurn := s.Strings[1] = 'w';
-  // Determine allowed Castlings
-  FCastlingAbility := [];
-  for c in s.Strings[2] do
-    case c of
-      'K': FCastlingAbility := FCastlingAbility + [ctWKingside];
-      'Q': FCastlingAbility := FCastlingAbility + [ctWQueenside];
-      'k': FCastlingAbility := FCastlingAbility + [ctBKingside];
-      'q': FCastlingAbility := FCastlingAbility + [ctBQueenside];
-    end;
-  // Is en passant possible?
-  if s.Strings[3] = '-' then
-    FEnPassant := 0
-  else
-    FEnPassant := AlgebraicSquare(s.Strings[3][1], s.Strings[3][2]);
-  // Get plies
-  FPliesSinceLastPawnMoveOrCapture := StrToInt(s.Strings[4]);
-  // Get start move number
-  FMoveNumber := StrToInt(s.Strings[5]);
-  FreeAndNil(s);
+  SilentFromFEN(AFEN);
   Changed;
 end;
 
