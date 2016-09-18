@@ -7,8 +7,8 @@ unit ChessComponents;
 interface
 
 uses
-  Board, EngineView, ChessClock, StrTools, Game, Ply, pgndbase, pgngame, 
-  LazarusPackageIntf;
+  Board, EngineView, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, 
+  BitBoard, LazarusPackageIntf;
 
 implementation
 
