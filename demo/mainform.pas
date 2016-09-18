@@ -24,7 +24,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
   MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs,
-  Ply, Position, PGNDbase, PGNGame;
+  Ply, Position, PGNDbase, PGNGame, EpikTimer, BitBoard;
 
 type
 
@@ -78,7 +78,12 @@ implementation
 { TForm1 }
 
 procedure TForm1.FormCreate(Sender: TObject);
+var
+  i: TSquare10x12;
+  j: integer;
+  Q: QWord;
 begin
+  ET := TEpikTimer.Create(nil);
   PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
   btForward.Enabled := False;
@@ -88,10 +93,26 @@ begin
   Board1.CurrentPosition := TStandardPosition.Create;
   Board1.CurrentPosition.SetupInitialPosition;
   MyGame := TStandardGame.Create(Board1.CurrentPosition);
+  for i in ValidSquares do
+  begin
+    Q := TSquare8x8ToBitBoard(i);
+   // Q := Ranks[i];
+    for j := 1 to 64 do
+    begin
+      if Q mod 2 = 1 then
+        Write('1')
+      else
+        Write('0');
+      Q := Q shr 1;
+    end;
+   // WriteLN;
+      WriteLn('  ', SquareToString(i));
+  end;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
+  ET.Free;
   FreeAndNil(MyGame);
   PGNDatabase.Free;
 end;
@@ -164,6 +185,9 @@ begin
       LItem.SubItems.Add(GameResultToStr(PGNDatabase.Items[i].GameResult));
     end;
   end;
+  WriteLn('Züge: ', Zuege);
+  WriteLn('Zeit: ', Zeit, 's');
+  WriteLn(Trunc(Zuege / Zeit), ' Züge pro Sekunde');
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
