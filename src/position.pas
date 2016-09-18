@@ -24,7 +24,7 @@ unit Position;
 interface
 
 uses
-  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools
+  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools, BitBoard
   {$IFDEF Logging} , EpikTimer {$ENDIF}  ;
 
 {$INCLUDE ChessPieceLetters.inc}
@@ -172,7 +172,8 @@ implementation
 
 function TSquare8x8ToBitBoard(const ASquare: TSquare8x8): QWord;
 begin
-  Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
+  // Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
+  Result := Ranks[ASquare.RRank] and Files[ASquare.RFile];
 end;
 
 { TPosition }
@@ -233,8 +234,10 @@ begin
       TStandardPosition(Source).FPliesSinceLastPawnMoveOrCapture;
     for i := 0 to 119 do
       FSquares[i] := TStandardPosition(Source).FSquares[i];
-    FBlackKing:=TStandardPosition(Source).FBlackKing;
-    FWhiteKing:=TStandardPosition(Source).FWhiteKing;
+    FBlackKing := TStandardPosition(Source).FBlackKing;
+    FWhiteKing := TStandardPosition(Source).FWhiteKing;
+    for i := 1 to 8 do
+      FBitBoards[i] := TStandardPosition(Source).FBitBoards[i];
   end;
 end;
 
@@ -450,6 +453,7 @@ var
   BMoveNumer: integer;
   BBlackKing, BWhiteKing: TSquare10x12;
   b, c, tb, tc: extended;
+  Temp: boolean;
   {$IFDEF Logging}
   a: extended;
   {$ENDIF}
@@ -504,6 +508,7 @@ begin
   tb := tb + ET.Elapsed - b;
   // Backup Position, Play Move, Position Valid?
   j := 0;
+  Temp := IsCheck;
   // Backup current Position
   BEnPassant := FEnPassant;
   BPliesSinceLastPawnMoveOrCapture := FPliesSinceLastPawnMoveOrCapture;
