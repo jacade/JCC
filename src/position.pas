@@ -17,7 +17,7 @@
 
 unit Position;
 
-{$DEFINE LOGGING}
+//{$DEFINE LOGGING}
 
 {$mode objfpc}{$H+}
 
@@ -465,8 +465,8 @@ begin
   {$IFDEF Logging}
   ET.Start;
   a := ET.Elapsed;
-{$ENDIF}
   b := ET.Elapsed;
+{$ENDIF}
   FLegalMoves.Clear;
   for i in ValidSquares do
   begin
@@ -505,7 +505,9 @@ begin
       end;
     end;
   end;
+  {$IFDEF Logging}
   tb := tb + ET.Elapsed - b;
+  {$ENDIF}
   // Backup Position, Play Move, Position Valid?
   j := 0;
   Temp := IsCheck;
@@ -521,12 +523,16 @@ begin
   while j < FLegalMoves.Count do
   begin
     Self.SilentPlayMove(FLegalMoves.Items[j]);
+    {$IFDEF Logging}
     c := ET.Elapsed;
+    {$ENDIF}
     if not Self.IsIllegalCheck then
       Inc(j)
     else
       FLegalMoves.Delete(j);
+    {$IFDEF Logging}
     tc := tc + ET.Elapsed - c;
+    {$ENDIF}
     // Restore inital values
     FEnPassant := BEnPassant;
     FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;

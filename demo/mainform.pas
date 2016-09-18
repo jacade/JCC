@@ -19,6 +19,8 @@ unit MainForm;
 
 {$mode objfpc}{$H+}
 
+//{$DEFINE LOGGING}
+
 interface
 
 uses
@@ -83,7 +85,9 @@ var
   j: integer;
   Q: QWord;
 begin
+  {$IFDEF Logging}
   ET := TEpikTimer.Create(nil);
+  {$ENDIF}
   PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
   btForward.Enabled := False;
@@ -93,6 +97,7 @@ begin
   Board1.CurrentPosition := TStandardPosition.Create;
   Board1.CurrentPosition.SetupInitialPosition;
   MyGame := TStandardGame.Create(Board1.CurrentPosition);
+  {$IFDEF Logging}
   for i in ValidSquares do
   begin
     Q := TSquare8x8ToBitBoard(i);
@@ -108,11 +113,14 @@ begin
    // WriteLN;
       WriteLn('  ', SquareToString(i));
   end;
+  {$ENDIF}
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
+  {$IFDEF Logging}
   ET.Free;
+  {$ENDIF}
   FreeAndNil(MyGame);
   PGNDatabase.Free;
 end;
@@ -185,9 +193,11 @@ begin
       LItem.SubItems.Add(GameResultToStr(PGNDatabase.Items[i].GameResult));
     end;
   end;
+  {$IFDEF Logging}
   WriteLn('Züge: ', Zuege);
   WriteLn('Zeit: ', Zeit, 's');
   WriteLn(Trunc(Zuege / Zeit), ' Züge pro Sekunde');
+  {$ENDIF}
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
