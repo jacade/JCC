@@ -38,8 +38,8 @@ const
 
 function BitBoardToStr(ABitBoard: QWord): string;
 function IsBitSet(ABitBoard: QWord; Index: byte): boolean;
-function NumberOfLeadingZeroes(AWord: QWord): integer;
-function NumberOfTrailingZeroes(AWord: QWord): integer;
+function NumberOfLeadingZeroes(const AWord: QWord): integer;
+function NumberOfTrailingZeroes(const AWord: QWord): integer;
 
 implementation
 
@@ -65,93 +65,14 @@ begin
   Result := ((ABitBoard shr Index) and 1) = 1;
 end;
 
-function NumberOfLeadingZeroes(AWord: QWord): integer;
-var
-  Temp: Qword;
+function NumberOfLeadingZeroes(const AWord: QWord): integer;
 begin
-  if AWord = 0 then
-    Result := 64
-  else
-  begin
-    Result := 63;
-    Temp := AWord;
-    Temp := AWord shr 32;
-    if Temp <> 0 then
-    begin
-      Result := Result - 32;
-      AWord := Temp;
-    end;
-    Temp := AWord shr 16;
-    if Temp <> 0 then
-    begin
-      Result := Result - 16;
-      AWord := Temp;
-    end;
-    Temp := AWord shr 8;
-    if Temp <> 0 then
-    begin
-      Result := Result - 8;
-      AWord := Temp;
-    end;
-    Temp := AWord shr 4;
-    if Temp <> 0 then
-    begin
-      Result := Result - 4;
-      AWord := Temp;
-    end;
-    Temp := AWord shr 2;
-    if Temp <> 0 then
-    begin
-      Result := Result - 2;
-      AWord := Temp;
-    end;
-    Result := (Result - (AWord shr 1));
-  end;
+  Result := 63 - BsrQWord(AWord);
 end;
 
-function NumberOfTrailingZeroes(AWord: QWord): integer;
-var
-  Temp: QWord;
+function NumberOfTrailingZeroes(const AWord: QWord): integer;
 begin
-  // from https://stackoverflow.com/questions/6506356/java-implementation-of-long-numberoftrailingzeros
-  if AWord = 0 then
-    Result := 64
-  else
-  begin
-    Result := 63;
-    Temp := AWord;
-    Temp := AWord shl 32;
-    if Temp <> 0 then
-    begin
-      Result := Result - 32;
-      AWord := Temp;
-    end;
-    Temp := AWord shl 16;
-    if Temp <> 0 then
-    begin
-      Result := Result - 16;
-      AWord := Temp;
-    end;
-    Temp := AWord shl 8;
-    if Temp <> 0 then
-    begin
-      Result := Result - 8;
-      AWord := Temp;
-    end;
-    Temp := AWord shl 4;
-    if Temp <> 0 then
-    begin
-      Result := Result - 4;
-      AWord := Temp;
-    end;
-    Temp := AWord shl 2;
-    if Temp <> 0 then
-    begin
-      Result := Result - 2;
-      AWord := Temp;
-    end;
-    Result := (Result - ((AWord shl 1) shr 63));
-  end;
+  Result := BsfQWord(AWord);
 end;
 
 
