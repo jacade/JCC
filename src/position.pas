@@ -17,7 +17,7 @@
 
 unit Position;
 
-//{$DEFINE LOGGING}
+{$DEFINE LOGGING}
 
 {$mode objfpc}{$H+}
 
@@ -465,7 +465,6 @@ begin
   {$IFDEF Logging}
   ET.Start;
   a := ET.Elapsed;
-  b := ET.Elapsed;
 {$ENDIF}
   FLegalMoves.Clear;
   for i in ValidSquares do
@@ -478,8 +477,14 @@ begin
     case FSquares[i] of
       ptWPawn, ptBPawn:
       begin
+  {$IFDEF Logging}
+        b := ET.Elapsed;
+  {$ENDIF}
         GeneratePawnCaptureMoves(i);
         GeneratePawnForwardMoves(i);
+  {$IFDEF Logging}
+        tb := tb + ET.Elapsed - b;
+  {$ENDIF}
       end;
       ptWKnight, ptBKnight:
       begin
@@ -505,9 +510,6 @@ begin
       end;
     end;
   end;
-  {$IFDEF Logging}
-  tb := tb + ET.Elapsed - b;
-  {$ENDIF}
   // Backup Position, Play Move, Position Valid?
   j := 0;
   Temp := IsCheck;
@@ -544,9 +546,9 @@ begin
     FWhiteKing := BWhiteKing;
     FWhitesTurn := not FWhitesTurn;
   end;
-  //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
-  //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
-  //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
+  Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
+  Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
+  Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
 
   // TODO: Replace pawn moves with actual promotion moves
   GeneratePawnPromotionMoves(FLegalMoves);
@@ -726,30 +728,88 @@ begin
         raise EInvalidFEN.Create('FEN is invalid');
       case temp[i] of
         '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
-        'p': FSquares[Coordinate] := ptBPawn;
-        'r': FSquares[Coordinate] := ptBRook;
-        'n': FSquares[Coordinate] := ptBKnight;
-        'b': FSquares[Coordinate] := ptBBishop;
-        'q': FSquares[Coordinate] := ptBQueen;
+        'p':
+        begin
+          FSquares[Coordinate] := ptBPawn;
+          FBitBoards[1] := FBitBoards[1] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'r':
+        begin
+          FSquares[Coordinate] := ptBRook;
+          FBitBoards[2] := FBitBoards[2] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'n':
+        begin
+          FSquares[Coordinate] := ptBKnight;
+          FBitBoards[3] := FBitBoards[3] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'b':
+        begin
+          FSquares[Coordinate] := ptBBishop;
+          FBitBoards[4] := FBitBoards[4] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'q':
+        begin
+          FSquares[Coordinate] := ptBQueen;
+          FBitBoards[5] := FBitBoards[5] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+        end;
         'k':
         begin
           FSquares[Coordinate] := ptBKing;
+          FBitBoards[6] := FBitBoards[6] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
           FBlackKing := Coordinate;
         end;
-        'P': FSquares[Coordinate] := ptWPawn;
-        'R': FSquares[Coordinate] := ptWRook;
-        'N': FSquares[Coordinate] := ptWKnight;
-        'B': FSquares[Coordinate] := ptWBishop;
-        'Q': FSquares[Coordinate] := ptWQueen;
+        'P':
+        begin
+          FSquares[Coordinate] := ptWPawn;
+          FBitBoards[1] := FBitBoards[1] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'R':
+        begin
+          FSquares[Coordinate] := ptWRook;
+          FBitBoards[2] := FBitBoards[2] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'N':
+        begin
+          FSquares[Coordinate] := ptWKnight;
+          FBitBoards[3] := FBitBoards[3] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'B':
+        begin
+          FSquares[Coordinate] := ptWBishop;
+          FBitBoards[4] := FBitBoards[4] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+        end;
+        'Q':
+        begin
+          FSquares[Coordinate] := ptWQueen;
+          FBitBoards[5] := FBitBoards[5] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+        end;
         'K':
         begin
           FSquares[Coordinate] := ptWKing;
+          FBitBoards[6] := FBitBoards[6] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
           FWhiteKing := Coordinate;
         end;
       end;
       Inc(fl);
     end;
   end;
+  {$IFDEF Logging}
+  for i := 1 to 8 do
+    WriteLn(BitBoardToStr(FBitBoards[i]));
+  {$ENDIF}
   FreeAndNil(p);
   // Determine who's to play
   FWhitesTurn := s.Strings[1] = 'w';
