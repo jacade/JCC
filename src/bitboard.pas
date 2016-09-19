@@ -48,27 +48,91 @@ begin
 end;
 
 function NumberOfLeadingZeroes(AWord: QWord): integer;
-begin
-  Result := 64;
-  while AWord > 0 do
-  begin
-    AWord := AWord shr 1;
-    Dec(Result);
-  end;
-end;
-
-function NumberOfTrailingZeroes(AWord: QWord): integer;
+var
+  Temp: Qword;
 begin
   if AWord = 0 then
     Result := 64
   else
   begin
-    Result := 0;
-    while (AWord and 1) = 0 do
+    Result := 63;
+    Temp := AWord;
+    Temp := AWord shr 32;
+    if Temp <> 0 then
     begin
-      AWord := AWord shr 1;
-      Inc(Result);
+      Result := Result - 32;
+      AWord := Temp;
     end;
+    Temp := AWord shr 16;
+    if Temp <> 0 then
+    begin
+      Result := Result - 16;
+      AWord := Temp;
+    end;
+    Temp := AWord shr 8;
+    if Temp <> 0 then
+    begin
+      Result := Result - 8;
+      AWord := Temp;
+    end;
+    Temp := AWord shr 4;
+    if Temp <> 0 then
+    begin
+      Result := Result - 4;
+      AWord := Temp;
+    end;
+    Temp := AWord shr 2;
+    if Temp <> 0 then
+    begin
+      Result := Result - 2;
+      AWord := Temp;
+    end;
+    Result := (Result - (AWord shr 1));
+  end;
+end;
+
+function NumberOfTrailingZeroes(AWord: QWord): integer;
+var
+  Temp: QWord;
+begin
+  // from https://stackoverflow.com/questions/6506356/java-implementation-of-long-numberoftrailingzeros
+  if AWord = 0 then
+    Result := 64
+  else
+  begin
+    Result := 63;
+    Temp := AWord;
+    Temp := AWord shl 32;
+    if Temp <> 0 then
+    begin
+      Result := Result - 32;
+      AWord := Temp;
+    end;
+    Temp := AWord shl 16;
+    if Temp <> 0 then
+    begin
+      Result := Result - 16;
+      AWord := Temp;
+    end;
+    Temp := AWord shl 8;
+    if Temp <> 0 then
+    begin
+      Result := Result - 8;
+      AWord := Temp;
+    end;
+    Temp := AWord shl 4;
+    if Temp <> 0 then
+    begin
+      Result := Result - 4;
+      AWord := Temp;
+    end;
+    Temp := AWord shl 2;
+    if Temp <> 0 then
+    begin
+      Result := Result - 2;
+      AWord := Temp;
+    end;
+    Result := (Result - ((AWord shl 1) shr 63));
   end;
 end;
 
