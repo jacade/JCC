@@ -253,6 +253,7 @@ procedure TStandardPosition.GenerateLegalMoves;
 var
   // Useful variables
   BlackPiecesWithoutKing: QWord;
+  WhitePiecesWithoutKing: QWord;
   Empty: QWord;
   WP, WR, WN, WB, WQ, WK: QWord;
   BP, BR, BN, BB, BQ, BK: QWord;
@@ -385,7 +386,7 @@ var
     FreeAndNil(temp);
   end;
 
-  procedure GeneratePawnCaptureMoves(Start: TSquare10x12);
+  procedure GeneratePawnCaptureMoves;
   var
     i, Trail: integer;
     PawnMoves: QWord;
@@ -399,7 +400,7 @@ var
       PawnMoves := PawnMoves shr Trail;
       if PawnMoves > 0 then
       begin
-        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
         begin
           if (PawnMoves and 1) = 1 then
             FLegalMoves.Add(CreateMoveFromInt(Trail + i + 7, Trail + i));
@@ -413,17 +414,48 @@ var
       PawnMoves := PawnMoves shr Trail;
       if PawnMoves > 0 then
       begin
-        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
         begin
           if (PawnMoves and 1) = 1 then
             FLegalMoves.Add(CreateMoveFromInt(Trail + i + 9, Trail + i));
           PawnMoves := PawnMoves shr 1;
         end;
       end;
+    end
+    else
+    begin
+      // Black pawn captures to the right
+      PawnMoves := ((BP and not Files[8]) shl 9) and
+        (WhitePiecesWithoutKing or SquareToBitBoard(FEnPassant));
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i - 9, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
+      // Black pawn captures to the left
+      PawnMoves := ((BP and not Files[1]) shl 7) and
+        (WhitePiecesWithoutKing or SquareToBitBoard(FEnPassant));
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i - 7, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
     end;
   end;
 
-  procedure GeneratePawnForwardMoves(Start: TSquare10x12);
+  procedure GeneratePawnForwardMoves;
   var
     Sign, i, Trail: integer;
     PawnMoves: Qword;
@@ -436,7 +468,7 @@ var
       PawnMoves := PawnMoves shr Trail;
       if PawnMoves > 0 then
       begin
-        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
         begin
           if (PawnMoves and 1) = 1 then
             FLegalMoves.Add(CreateMoveFromInt(Trail + i + 8, Trail + i));
@@ -449,10 +481,39 @@ var
       PawnMoves := PawnMoves shr Trail;
       if PawnMoves > 0 then
       begin
-        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
         begin
           if (PawnMoves and 1) = 1 then
             FLegalMoves.Add(CreateMoveFromInt(Trail + i + 16, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
+    end
+    else
+    begin
+      // Black pawn goes one forward
+      PawnMoves := (BP shl 8) and Empty;
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i - 8, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
+      // Black pawn goes two forward
+      PawnMoves := ((WP and Ranks[2]) shl 16) and Empty and (Empty shl 8);
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i - 16, Trail + i));
           PawnMoves := PawnMoves shr 1;
         end;
       end;
@@ -522,6 +583,7 @@ begin
   BQ := FBitBoards[5] and FBitBoards[8];
   BK := FBitBoards[6] and FBitBoards[8];
   BlackPiecesWithoutKing := FBitBoards[8] and not BK;
+  WhitePiecesWithoutKing:= FBitBoards[7] and not WK;
   Empty := not (FBitBoards[7] or FBitBoards[8]);
   //a := ET.Elapsed;
   tb := 0;
@@ -535,8 +597,8 @@ begin
   {$IFDEF Logging}
   b := ET.Elapsed;
   {$ENDIF}
-  GeneratePawnCaptureMoves(i);
-  GeneratePawnForwardMoves(i);
+  GeneratePawnCaptureMoves;
+  GeneratePawnForwardMoves;
   {$IFDEF Logging}
   tb := tb + ET.Elapsed - b;
   {$ENDIF}
