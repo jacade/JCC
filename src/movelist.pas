@@ -124,6 +124,18 @@ function AlgebraicSquare(AAlgebraicFile: TAlgebraicFile;
 
 function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType=ptEmpty):TMove;
 
+// Board representation for the following method
+// 0  1  2  3  4  5  6  7
+// 8  9  10 11 12 13 14 15
+// 16 17 18 19 20 21 22 23
+// 24 25 26 27 28 29 30 31
+// 32 33 34 35 36 37 38 39
+// 40 41 42 43 44 45 46 47
+// 48 49 50 51 52 53 54 55
+// 56 57 58 59 60 61 62 63
+
+function CreateMoveFromInt(AStart, ADest: Integer; APromotionPiece: TPieceType=ptEmpty): TMove;
+
 const
   OffSquares = [0..20, 29, 30, 39, 40, 49, 50, 59, 60, 69, 70, 79,
     80, 89, 90, 99..119];
@@ -224,6 +236,16 @@ function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType
 begin
   Result.Start:=AStart;
   Result.Dest:=ADest;
+  Result.PromotionPiece := APromotionPiece;
+end;
+
+function CreateMoveFromInt(AStart, ADest: Integer; APromotionPiece: TPieceType
+  ): TMove;
+begin
+  Result.Start.RFile := (AStart mod 8 + 1);
+  Result.Start.RRank:= (AStart div 8) + 1;
+  Result.Dest.RFile := (ADest mod 8 + 1);
+  Result.Dest.RRank:= (ADest div 8) + 1;
   Result.PromotionPiece := APromotionPiece;
 end;
 
