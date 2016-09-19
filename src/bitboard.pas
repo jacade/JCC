@@ -11,25 +11,6 @@ uses
 // by going left to right and then up to down.
 // So a8 would be 0 and h1 is 2^63
 
-// Rows and Lines
-//Rank1: QWord = 18374686479671623680;
-//Rank2: QWord = 71776119061217280;
-//Rank3: QWord = 280375465082880;
-//Rank4: QWord = 1095216660480;
-//Rank5: QWord = 4278190080;
-//Rank6: QWord = 16711680;
-//Rank7: QWord = 65280;
-//Rank8: QWord = 255;
-
-//  FileA: QWord = 72340172838076673;
-//  FileB: QWord = 144680345676153346;
-//  FileC: QWord = 289360691352306692;
-//  FileD: QWord = 578721382704613384;
-//  FileE: QWord = 1157442765409226768;
-//  FileF: QWord = 2314885530818453536;
-//  FileG: QWord = 4629771061636907072;
-//  FileH: QWord = 9259542123273814144;
-
 const
   Ranks: array[1..8] of QWord =
     (18374686479671623680, 71776119061217280, 280375465082880,
@@ -39,6 +20,57 @@ const
     (72340172838076673, 144680345676153346, 289360691352306692, 578721382704613384,
     1157442765409226768, 2314885530818453536, 4629771061636907072, 9259542123273814144);
 
+function BitBoardToStr(ABitBoard: QWord): string;
+function IsBitSet(ABitBoard: QWord; Index: byte): boolean;
+function NumberOfLeadingZeroes(AWord: QWord): integer;
+function NumberOfTrailingZeroes(AWord: QWord): integer;
+
 implementation
+
+function BitBoardToStr(ABitBoard: QWord): string;
+var
+  j: integer;
+begin
+  Result := '';
+  for j := 1 to 64 do
+  begin
+    if ABitBoard mod 2 = 1 then
+      Result := '1' + Result
+    else
+      Result := '0' + Result;
+    ABitBoard := ABitBoard shr 1;
+  end;
+end;
+
+function IsBitSet(ABitBoard: QWord; Index: byte): boolean;
+begin
+  Result := ((ABitBoard shr Index) and 1) = 1;
+end;
+
+function NumberOfLeadingZeroes(AWord: QWord): integer;
+begin
+  Result := 64;
+  while AWord > 0 do
+  begin
+    AWord := AWord shr 1;
+    Dec(Result);
+  end;
+end;
+
+function NumberOfTrailingZeroes(AWord: QWord): integer;
+begin
+  if AWord = 0 then
+    Result := 64
+  else
+  begin
+    Result := 0;
+    while (AWord and 1) = 0 do
+    begin
+      AWord := AWord shr 1;
+      Inc(Result);
+    end;
+  end;
+end;
+
 
 end.
