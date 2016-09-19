@@ -166,14 +166,22 @@ var
     {$ENDIF}
 
 // Returns a Bitboard with zeroes and a 1 at the given position
-function TSquare8x8ToBitBoard(const ASquare: TSquare8x8): QWord;
+function SquareToBitBoard(const ASquare: TSquare10x12): QWord;
 
 implementation
 
-function TSquare8x8ToBitBoard(const ASquare: TSquare8x8): QWord;
+function SquareToBitBoard(const ASquare: TSquare10x12): QWord;
+var
+  Temp: TSquare8x8;
 begin
-  // Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
-  Result := Ranks[ASquare.RRank] and Files[ASquare.RFile];
+  if ASquare in OffSquares then
+    Result := 0
+  else
+  begin
+    Temp := ASquare;
+    // Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
+    Result := Ranks[Temp.RRank] and Files[Temp.RFile];
+  end;
 end;
 
 { TPosition }
@@ -242,6 +250,12 @@ begin
 end;
 
 procedure TStandardPosition.GenerateLegalMoves;
+var
+  // Useful variables
+  BlackPiecesWithoutKing: QWord;
+  Empty: QWord;
+  WP, WR, WN, WB, WQ, WK: QWord;
+  BP, BR, BN, BB, BQ, BK: QWord;
 
   procedure GenerateBishopMoves(Start: TSquare10x12);
   var
@@ -373,39 +387,75 @@ procedure TStandardPosition.GenerateLegalMoves;
 
   procedure GeneratePawnCaptureMoves(Start: TSquare10x12);
   var
-    i, Sign, Dest: integer;
+    i, Trail: integer;
+    PawnMoves: QWord;
   begin
     if FWhitesTurn then
-      Sign := -1
-    else
-      Sign := 1;
-    for i in [9, 11] do
     begin
-      Dest := Start + Sign * i;
-      if not (FSquares[Dest] in [ptOff, ptEmpty]) and not
-        SameColor(FSquares[Start], FSquares[Dest]) then
-        FLegalMoves.Add(CreateMove(Start, Dest));
+      // White pawn captures to the right
+      PawnMoves := ((WP and not Files[8]) shr 7) and
+        (BlackPiecesWithoutKing or SquareToBitBoard(FEnPassant));
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i + 7, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
+      // White pawn captures to the left
+      PawnMoves := ((WP and not Files[1]) shr 9) and
+        (BlackPiecesWithoutKing or SquareToBitBoard(FEnPassant));
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i + 9, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
     end;
-    // En Passant
-    if FEnPassant in [Start + Sign * 9, Start + Sign * 11] then
-      FLegalMoves.Add(CreateMove(Start, FEnPassant));
   end;
 
   procedure GeneratePawnForwardMoves(Start: TSquare10x12);
   var
-    Sign: integer;
+    Sign, i, Trail: integer;
+    PawnMoves: Qword;
   begin
     if FWhitesTurn then
-      Sign := -1
-    else
-      Sign := 1;
-    if FSquares[Start + Sign * 10] = ptEmpty then
     begin
-      FLegalMoves.Add(CreateMove(Start, Start + Sign * 10));
-      // Pawn can go two?
-      if ((FWhitesTurn and (Start in Rank2)) or (not FWhitesTurn and
-        (Start in Rank7))) and (FSquares[Start + Sign * 20] = ptEmpty) then
-        FLegalMoves.Add(CreateMove(Start, Start + Sign * 20));
+      // White pawn goes one forward
+      PawnMoves := (WP shr 8) and Empty;
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i + 8, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
+      // White pawn goes two forward
+      PawnMoves := ((WP and Ranks[2]) shr 16) and Empty and (Empty shr 8);
+      Trail := NumberOfTrailingZeroes(PawnMoves);
+      PawnMoves := PawnMoves shr Trail;
+      if PawnMoves > 0 then
+      begin
+        for i := 0 to 64 - NumberOfLeadingZeroes(PawnMoves) do
+        begin
+          if (PawnMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i + 16, Trail + i));
+          PawnMoves := PawnMoves shr 1;
+        end;
+      end;
     end;
   end;
 
@@ -458,6 +508,21 @@ var
   a: extended;
   {$ENDIF}
 begin
+  // Initiliaze variables
+  WP := FBitBoards[1] and FBitBoards[7];
+  WR := FBitBoards[2] and FBitBoards[7];
+  WN := FBitBoards[3] and FBitBoards[7];
+  WB := FBitBoards[4] and FBitBoards[7];
+  WQ := FBitBoards[5] and FBitBoards[7];
+  WK := FBitBoards[6] and FBitBoards[7];
+  BP := FBitBoards[1] and FBitBoards[8];
+  BR := FBitBoards[2] and FBitBoards[8];
+  BN := FBitBoards[3] and FBitBoards[8];
+  BB := FBitBoards[4] and FBitBoards[8];
+  BQ := FBitBoards[5] and FBitBoards[8];
+  BK := FBitBoards[6] and FBitBoards[8];
+  BlackPiecesWithoutKing := FBitBoards[8] and not BK;
+  Empty := not (FBitBoards[7] or FBitBoards[8]);
   //a := ET.Elapsed;
   tb := 0;
   tc := 0;
@@ -467,6 +532,14 @@ begin
   a := ET.Elapsed;
 {$ENDIF}
   FLegalMoves.Clear;
+  {$IFDEF Logging}
+  b := ET.Elapsed;
+  {$ENDIF}
+  GeneratePawnCaptureMoves(i);
+  GeneratePawnForwardMoves(i);
+  {$IFDEF Logging}
+  tb := tb + ET.Elapsed - b;
+  {$ENDIF}
   for i in ValidSquares do
   begin
     // First check if there is a piece with the right color
@@ -475,17 +548,6 @@ begin
       Continue;
     // Then, generate pseudo-legal moves
     case FSquares[i] of
-      ptWPawn, ptBPawn:
-      begin
-  {$IFDEF Logging}
-        b := ET.Elapsed;
-  {$ENDIF}
-        GeneratePawnCaptureMoves(i);
-        GeneratePawnForwardMoves(i);
-  {$IFDEF Logging}
-        tb := tb + ET.Elapsed - b;
-  {$ENDIF}
-      end;
       ptWKnight, ptBKnight:
       begin
         GenerateKnightMoves(i);
@@ -731,75 +793,75 @@ begin
         'p':
         begin
           FSquares[Coordinate] := ptBPawn;
-          FBitBoards[1] := FBitBoards[1] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[1] := FBitBoards[1] or SquareToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
         end;
         'r':
         begin
           FSquares[Coordinate] := ptBRook;
-          FBitBoards[2] := FBitBoards[2] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[2] := FBitBoards[2] or SquareToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
         end;
         'n':
         begin
           FSquares[Coordinate] := ptBKnight;
-          FBitBoards[3] := FBitBoards[3] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[3] := FBitBoards[3] or SquareToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
         end;
         'b':
         begin
           FSquares[Coordinate] := ptBBishop;
-          FBitBoards[4] := FBitBoards[4] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[4] := FBitBoards[4] or SquareToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
         end;
         'q':
         begin
           FSquares[Coordinate] := ptBQueen;
-          FBitBoards[5] := FBitBoards[5] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[5] := FBitBoards[5] or SquareToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
         end;
         'k':
         begin
           FSquares[Coordinate] := ptBKing;
-          FBitBoards[6] := FBitBoards[6] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[6] := FBitBoards[6] or SquareToBitBoard(Coordinate);
+          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
           FBlackKing := Coordinate;
         end;
         'P':
         begin
           FSquares[Coordinate] := ptWPawn;
-          FBitBoards[1] := FBitBoards[1] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[1] := FBitBoards[1] or SquareToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
         end;
         'R':
         begin
           FSquares[Coordinate] := ptWRook;
-          FBitBoards[2] := FBitBoards[2] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[2] := FBitBoards[2] or SquareToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
         end;
         'N':
         begin
           FSquares[Coordinate] := ptWKnight;
-          FBitBoards[3] := FBitBoards[3] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[3] := FBitBoards[3] or SquareToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
         end;
         'B':
         begin
           FSquares[Coordinate] := ptWBishop;
-          FBitBoards[4] := FBitBoards[4] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[4] := FBitBoards[4] or SquareToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
         end;
         'Q':
         begin
           FSquares[Coordinate] := ptWQueen;
-          FBitBoards[5] := FBitBoards[5] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[5] := FBitBoards[5] or SquareToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
         end;
         'K':
         begin
           FSquares[Coordinate] := ptWKing;
-          FBitBoards[6] := FBitBoards[6] or TSquare8x8ToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or TSquare8x8ToBitBoard(Coordinate);
+          FBitBoards[6] := FBitBoards[6] or SquareToBitBoard(Coordinate);
+          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
           FWhiteKing := Coordinate;
         end;
       end;
