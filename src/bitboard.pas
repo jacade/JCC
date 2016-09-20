@@ -40,6 +40,7 @@ function BitBoardToStr(ABitBoard: QWord): string;
 function IsBitSet(ABitBoard: QWord; Index: byte): boolean;
 function NumberOfLeadingZeroes(const AWord: QWord): integer;
 function NumberOfTrailingZeroes(const AWord: QWord): integer;
+function ReverseQWord(AWord: QWord): QWord;
 
 implementation
 
@@ -75,5 +76,19 @@ begin
   Result := BsfQWord(AWord);
 end;
 
+function ReverseQWord(AWord: QWord): QWord;
+var
+  i: integer;
+begin
+  Result := 0;
+  // quick 'n' dirty
+  for i := 1 to 63 do
+  begin
+    Result := Result + (AWord and 1);
+    AWord := AWord shr 1;
+    Result := Result shl 1;
+  end;
+  Result := Result + (AWord and 1);
+end;
 
 end.
