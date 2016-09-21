@@ -32,6 +32,7 @@ uses
 type
   // Constants are taken from http://chessprogramming.wikispaces.com/10x12+Board
   // Main resource is https://de.wikipedia.org/wiki/Schachprogramm#12.C3.9710-Darstellung
+  // Bitboard stuff is based on https://www.youtube.com/playlist?list=PLQV5mozTHmacMeRzJCW_8K3qw2miYqd0c
 
   TCastlingTypes = (ctWKingside, ctWQueenside, ctBKingside, ctBQueenside);
 
@@ -252,43 +253,73 @@ end;
 procedure TStandardPosition.GenerateLegalMoves;
 var
   // Useful variables
-  BlackPiecesWithoutKing: QWord;
-  WhitePiecesWithoutKing: QWord;
-  Empty: QWord;
-  WP, WR, WN, WB, WQ, WK: QWord;
-  BP, BR, BN, BB, BQ, BK: QWord;
+  BlackPiecesWithoutKing: TBitBoard;
+  WhitePiecesWithoutKing: TBitBoard;
+  Empty: TBitBoard;
+  WP, WR, WN, WB, WQ, WK: TBitBoard;
+  BP, BR, BN, BB, BQ, BK: TBitBoard;
+  Occupied: TBitBoard;
+  OppositeColorWithoutKingOrEmpty: TBitBoard;
 
-  procedure GenerateBishopMoves(Start: TSquare10x12);
+  procedure AddBitBoardToMoveList(PossibleMoves: TBitBoard; Start: integer;
+    RelativeStart: integer = 0);
   var
-    i, j, Dest: integer;
-    Sign: integer;
-    Flag: boolean;
+    Trail, i: integer;
   begin
-    for j := 1 to 2 do
+    // TODO: This could be further optimizied if necessary
+    if PossibleMoves > 0 then
     begin
-      if j = 1 then
-        Sign := 1
-      else
-        Sign := -1;
-      for i in DiagonalMoves do
+      Trail := NumberOfTrailingZeroes(PossibleMoves);
+      PossibleMoves := PossibleMoves shr Trail;
+      if Start < 0 then // This should be used for pawn moves
       begin
-        Dest := Start + Sign * i;
-        Flag := False;
-        while (FSquares[Dest] <> ptOff) and not Flag do
+        for i := 0 to 63 - NumberOfLeadingZeroes(PossibleMoves) do
         begin
-          if (FSquares[Dest] = ptEmpty) then
-          begin
-            FLegalMoves.Add(CreateMove(Start, Dest));
-            Dest := Dest + Sign * i;
-          end
-          else
-          begin
-            if not SameColor(FSquares[Start], FSquares[Dest]) then
-              FLegalMoves.Add(CreateMove(Start, Dest));
-            Flag := True;
-          end;
+          if (PossibleMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Trail + i + RelativeStart, Trail + i));
+          PossibleMoves := PossibleMoves shr 1;
+        end;
+      end
+      else  // This is for the other pieces
+      begin
+        for i := 0 to 63 - NumberOfLeadingZeroes(PossibleMoves) do
+        begin
+          if (PossibleMoves and 1) = 1 then
+            FLegalMoves.Add(CreateMoveFromInt(Start, Trail + i));
+          PossibleMoves := PossibleMoves shr 1;
         end;
       end;
+    end;
+  end;
+
+  function DiagonalAndAntiDiagonalBitboard(Index: integer): TBitBoard;
+  var
+    Temp, Diag, AntiDiag, CurrentDiag, CurrentAntiDiag: TBitBoard;
+  begin
+    Temp := QWord(1) shl Index;
+    CurrentDiag := Diagonals[(Index div 8) + (Index mod 8) + 1];
+    Diag := ((Occupied and CurrentDiag) - 2 * Temp) xor
+      ReverseBitBoard(ReverseBitBoard(Occupied and CurrentDiag) - 2 *
+      ReverseBitBoard(Temp));
+    CurrentAntiDiag := AntiDiagonals[(Index div 8) - (Index mod 8) + 8];
+    AntiDiag := ((Occupied and CurrentAntiDiag) - (2 * Temp)) xor
+      ReverseBitBoard(ReverseBitBoard(Occupied and CurrentAntiDiag) -
+      (2 * ReverseBitBoard(Temp)));
+    Result := (Diag and CurrentDiag) or (AntiDiag and CurrentAntiDiag);
+  end;
+
+  procedure GenerateBishopMoves(Bishops: TBitBoard);
+  var
+    CurrentBishop, i, Moves: TBitBoard;
+  begin
+    CurrentBishop := Bishops and not (Bishops - 1);
+    while CurrentBishop > 0 do
+    begin
+      i := NumberOfTrailingZeroes(CurrentBishop);
+      Moves := DiagonalAndAntiDiagonalBitboard(i) and  OppositeColorWithoutKingOrEmpty;
+      AddBitBoardToMoveList(Moves, i);
+      Bishops := Bishops and not CurrentBishop;
+      CurrentBishop := Bishops and not (Bishops - 1);
     end;
   end;
 
@@ -388,7 +419,6 @@ var
 
   procedure GeneratePawnCaptureMoves;
   var
-    i, Trail: integer;
     PawnMoves: QWord;
   begin
     if FWhitesTurn then
@@ -396,62 +426,22 @@ var
       // White pawn captures to the right
       PawnMoves := ((WP and not Files[8]) shr 7) and
         (BlackPiecesWithoutKing or SquareToBitBoard(FEnPassant));
-      Trail := NumberOfTrailingZeroes(PawnMoves);
-      PawnMoves := PawnMoves shr Trail;
-      if PawnMoves > 0 then
-      begin
-        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
-        begin
-          if (PawnMoves and 1) = 1 then
-            FLegalMoves.Add(CreateMoveFromInt(Trail + i + 7, Trail + i));
-          PawnMoves := PawnMoves shr 1;
-        end;
-      end;
+      AddBitBoardToMoveList(PawnMoves, -1, -7);
       // White pawn captures to the left
       PawnMoves := ((WP and not Files[1]) shr 9) and
         (BlackPiecesWithoutKing or SquareToBitBoard(FEnPassant));
-      Trail := NumberOfTrailingZeroes(PawnMoves);
-      PawnMoves := PawnMoves shr Trail;
-      if PawnMoves > 0 then
-      begin
-        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
-        begin
-          if (PawnMoves and 1) = 1 then
-            FLegalMoves.Add(CreateMoveFromInt(Trail + i + 9, Trail + i));
-          PawnMoves := PawnMoves shr 1;
-        end;
-      end;
+      AddBitBoardToMoveList(PawnMoves, -1, -9);
     end
     else
     begin
       // Black pawn captures to the right
       PawnMoves := ((BP and not Files[8]) shl 9) and
         (WhitePiecesWithoutKing or SquareToBitBoard(FEnPassant));
-      Trail := NumberOfTrailingZeroes(PawnMoves);
-      PawnMoves := PawnMoves shr Trail;
-      if PawnMoves > 0 then
-      begin
-        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
-        begin
-          if (PawnMoves and 1) = 1 then
-            FLegalMoves.Add(CreateMoveFromInt(Trail + i - 9, Trail + i));
-          PawnMoves := PawnMoves shr 1;
-        end;
-      end;
+      AddBitBoardToMoveList(PawnMoves, -1, +9);
       // Black pawn captures to the left
       PawnMoves := ((BP and not Files[1]) shl 7) and
         (WhitePiecesWithoutKing or SquareToBitBoard(FEnPassant));
-      Trail := NumberOfTrailingZeroes(PawnMoves);
-      PawnMoves := PawnMoves shr Trail;
-      if PawnMoves > 0 then
-      begin
-        for i := 0 to 63 - NumberOfLeadingZeroes(PawnMoves) do
-        begin
-          if (PawnMoves and 1) = 1 then
-            FLegalMoves.Add(CreateMoveFromInt(Trail + i - 7, Trail + i));
-          PawnMoves := PawnMoves shr 1;
-        end;
-      end;
+      AddBitBoardToMoveList(PawnMoves, -1, +7);
     end;
   end;
 
@@ -554,6 +544,20 @@ var
     end;
   end;
 
+  function HorizontalAndVerticalBitBoard(Index: integer): TBitBoard;
+  var
+    Temp, Horz, Vert, CurrentFile: TBitBoard;
+  begin
+    Temp := QWord(1) shl Index;
+    Horz := (Occupied - 2 * Temp) xor ReverseBitBoard(ReverseBitBoard(Occupied) -
+      2 * ReverseBitBoard(Temp));
+    CurrentFile := Files[(Index mod 8) + 1];
+    Vert := ((Occupied and CurrentFile) - (2 * Temp)) xor
+      ReverseBitBoard(ReverseBitBoard(Occupied and CurrentFile) -
+      (2 * ReverseBitBoard(Temp)));
+    Result := (Horz and Ranks[8 - (Index div 8)]) or (Vert and CurrentFile);
+  end;
+
 var
   i: byte;
   j: integer;
@@ -583,8 +587,9 @@ begin
   BQ := FBitBoards[5] and FBitBoards[8];
   BK := FBitBoards[6] and FBitBoards[8];
   BlackPiecesWithoutKing := FBitBoards[8] and not BK;
-  WhitePiecesWithoutKing:= FBitBoards[7] and not WK;
-  Empty := not (FBitBoards[7] or FBitBoards[8]);
+  WhitePiecesWithoutKing := FBitBoards[7] and not WK;
+  Occupied := FBitBoards[7] or FBitBoards[8];
+  Empty := not Occupied;
   //a := ET.Elapsed;
   tb := 0;
   tc := 0;
@@ -599,6 +604,16 @@ begin
   {$ENDIF}
   GeneratePawnCaptureMoves;
   GeneratePawnForwardMoves;
+  if WhitesTurn then
+  begin
+    OppositeColorWithoutKingOrEmpty := BlackPiecesWithoutKing or Empty;
+    GenerateBishopMoves(WB or WQ);
+  end
+  else
+  begin
+    OppositeColorWithoutKingOrEmpty := WhitePiecesWithoutKing or Empty;
+    GenerateBishopMoves(BB or BQ);
+  end;
   {$IFDEF Logging}
   tb := tb + ET.Elapsed - b;
   {$ENDIF}
@@ -614,10 +629,6 @@ begin
       begin
         GenerateKnightMoves(i);
       end;
-      ptWBishop, ptBBishop:
-      begin
-        GenerateBishopMoves(i);
-      end;
       ptWRook, ptBRook:
       begin
         GenerateRookMoves(i);
@@ -625,7 +636,6 @@ begin
       ptWQueen, ptBQueen:
       begin
         GenerateRookMoves(i);
-        GenerateBishopMoves(i);
       end;
       ptWKing, ptBKing:
       begin
@@ -680,6 +690,7 @@ begin
   Inc(Zuege, FLegalMoves.Count);
   Zeit := Zeit + (ET.Elapsed - a);
   ET.Stop;
+  WriteLn('Zahl der möglichen Züge: ', FLegalMoves.Count);
 {$ENDIF}
 end;
 
