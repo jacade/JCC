@@ -211,7 +211,10 @@ begin
     Temp := (FCurrentPosition as TStandardPosition).FilterLegalMoves(Piece,
       Start, Dest, PromoPiece);
     case Temp.Count of
-      0: raise Exception.Create(APGNMove + ' is no valid move.');
+      0: begin
+        (FCurrentPosition as TStandardPosition).PrintBoards;
+            raise Exception.Create(APGNMove + ' is no valid move.');
+      end;
       1: Result := temp.Items[0];
       else // we need to extract more information from s
         for Move in Temp do
