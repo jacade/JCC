@@ -111,9 +111,12 @@ type
     FOccupied: TBitBoard; // = FBitBoards[7] and FBitBoards[8]
 
     procedure Changed;
-    function DiagonalAndAntiDiagonalBitboard(Index: integer): TBitBoard;
-    //procedure GenerateAttackMaps;
-    function HorizontalAndVerticalBitBoard(Index: integer): TBitBoard;
+    function AntiDiagonalAttacks(index: integer): TBitBoard;
+    function DiagonalAttacks(index: integer): TBitBoard;
+    function HorizontalAttacks(Index: integer): TBitBoard;
+    function VerticalAttacks(Index: integer): TBitBoard;
+    function DiagonalAndAntiDiagonalAttacks(Index: integer): TBitBoard;
+    function HorizontalAndVerticalAttacks(Index: integer): TBitBoard;
     // Checks if the side not to move is attacking the given square
     function IsAttacked(Index: integer): boolean;
     procedure SilentFromFEN(const AFEN: string);
@@ -240,116 +243,63 @@ begin
     FOnChange(Self);
 end;
 
-function TStandardPosition.DiagonalAndAntiDiagonalBitboard(Index: integer): TBitBoard;
+function TStandardPosition.AntiDiagonalAttacks(index: integer): TBitBoard;
 var
-  Temp, Diag, AntiDiag, CurrentDiag, CurrentAntiDiag: TBitBoard;
+  Temp: QWord;
+  CurrentAntiDiag: TBitBoard;
+begin
+  Temp := QWord(1) shl Index;
+  CurrentAntiDiag := AntiDiagonals[(Index div 8) - (Index mod 8) + 8];
+  Result := ((FOccupied and CurrentAntiDiag) - (2 * Temp)) xor
+    ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentAntiDiag) -
+    (2 * ReverseBitBoard(Temp)));
+  Result := Result and CurrentAntiDiag;
+end;
+
+function TStandardPosition.DiagonalAttacks(index: integer): TBitBoard;
+var
+  Temp: QWord;
+  CurrentDiag: TBitBoard;
 begin
   Temp := QWord(1) shl Index;
   CurrentDiag := Diagonals[(Index div 8) + (Index mod 8) + 1];
-  Diag := ((FOccupied and CurrentDiag) - 2 * Temp) xor
+  Result := ((FOccupied and CurrentDiag) - 2 * Temp) xor
     ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentDiag) -
     2 * ReverseBitBoard(Temp));
-  CurrentAntiDiag := AntiDiagonals[(Index div 8) - (Index mod 8) + 8];
-  AntiDiag := ((FOccupied and CurrentAntiDiag) - (2 * Temp)) xor
-    ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentAntiDiag) -
-    (2 * ReverseBitBoard(Temp)));
-  Result := (Diag and CurrentDiag) or (AntiDiag and CurrentAntiDiag);
+  Result := Result and CurrentDiag;
 end;
 
-//procedure TStandardPosition.GenerateAttackMaps;
-//var
-//  i, j: integer;
-//  Pawns, Rooks, Knights, Bishops, Kings, CurrentRook, CurrentBishop,
-//  CurrentKnight, CurrentKing: TBitBoard;
-//begin
-//FOccupied := FBitBoards[7] or FBitBoards[8];
-//for i := 1 to 2 do
-//begin
-//  FAttackMaps[i] := 0;
-//  if i = 1 then  // get white pieces
-//  begin
-//    Pawns := FBitBoards[1] and FBitBoards[7];
-//    Rooks := (FBitBoards[2] or FBitBoards[5]) and FBitBoards[7];
-//    Knights := FBitBoards[3] and FBitBoards[7];
-//    Bishops := (FBitBoards[4] or FBitBoards[5]) and FBitBoards[7];
-//    Kings := FBitBoards[6] and FBitBoards[7];
-//  end
-//  else  // get black pieces
-//  begin
-//    Pawns := FBitBoards[1] and FBitBoards[8];
-//    Rooks := (FBitBoards[2] or FBitBoards[5]) and FBitBoards[8];
-//    Knights := FBitBoards[3] and FBitBoards[8];
-//    Bishops := (FBitBoards[4] or FBitBoards[5]) and FBitBoards[8];
-//    Kings := FBitBoards[6] and FBitBoards[8];
-//  end;
-//  // Rook attacks
-//  CurrentRook := Rooks and not (Rooks - 1);
-//  while CurrentRook > 0 do
-//  begin
-//    j := NumberOfTrailingZeroes(CurrentRook);
-//    FAttackMaps[i] := FAttackMaps[i] or HorizontalAndVerticalBitBoard(j);
-//    Rooks := Rooks and not CurrentRook;
-//    CurrentRook := Rooks and not (Rooks - 1);
-//  end;
-//  // Bishop attacks
-//  CurrentBishop := Bishops and not (Bishops - 1);
-//  while CurrentBishop > 0 do
-//  begin
-//    j := NumberOfTrailingZeroes(CurrentBishop);
-//    FAttackMaps[i] := FAttackMaps[i] or DiagonalAndAntiDiagonalBitboard(j);
-//    Bishops := Bishops and not CurrentBishop;
-//    CurrentBishop := Bishops and not (Bishops - 1);
-//  end;
-//  // Knight attacks
-//  CurrentKnight := Knights and not (Knights - 1);
-//  while CurrentKnight > 0 do
-//  begin
-//    j := NumberOfTrailingZeroes(CurrentKnight);
-//    FAttackMaps[i] := FAttackMaps[i] or BitBoard.KnightMoves[j];
-//    Knights := Knights and not CurrentKnight;
-//    CurrentKnight := Knights and not (Knights - 1);
-//  end;
-//  // King attacks
-//  CurrentKing := Kings and not (Kings - 1);
-//  while CurrentKing > 0 do
-//  begin
-//    j := NumberOfTrailingZeroes(CurrentKing);
-//    FAttackMaps[i] := FAttackMaps[i] or KingMoves[j];
-//    Kings := Kings and not CurrentKing;
-//    CurrentKing := Kings and not (Kings - 1);
-//  end;
-//  // Pawn attacks
-//  if i = 1 then
-//  begin
-//    // White pawn captures to the right
-//    FAttackMaps[i] := FAttackMaps[i] or ((Pawns and not Files[8]) shr 7);
-//    // White pawn captures to the left
-//    FAttackMaps[i] := FAttackMaps[i] or ((Pawns and not Files[1]) shr 9);
-//  end
-//  else
-//  begin
-//    // Black pawn captures to the right
-//    FAttackMaps[i] := FAttackMaps[i] or ((Pawns and not Files[8]) shl 9);
-//    // Black pawn captures to the left
-//    FAttackMaps[i] := FAttackMaps[i] or ((Pawns and not Files[1]) shl 7);
-//  end;
-//end;
-//WriteLn(BitBoardToStr(FAttackMaps[1]), '  Weiß');
-//WriteLn(BitBoardToStr(FAttackMaps[2]), '  Schwarz');
-//end;
-
-function TStandardPosition.HorizontalAndVerticalBitBoard(Index: integer): TBitBoard;
+function TStandardPosition.HorizontalAttacks(Index: integer): TBitBoard;
 var
-  Temp, Horz, Vert, CurrentFile: TBitBoard;
+  Temp: QWord;
 begin
   Temp := QWord(1) shl Index;
-  Horz := (FOccupied - 2 * Temp) xor ReverseBitBoard(ReverseBitBoard(FOccupied) -
+  Result := (FOccupied - 2 * Temp) xor ReverseBitBoard(ReverseBitBoard(FOccupied) -
     2 * ReverseBitBoard(Temp));
+  Result := Result and Ranks[8 - (Index div 8)];
+end;
+
+function TStandardPosition.VerticalAttacks(Index: integer): TBitBoard;
+var
+  Temp: QWord;
+  CurrentFile: TBitBoard;
+begin
+  Temp := QWord(1) shl Index;
   CurrentFile := Files[(Index mod 8) + 1];
-  Vert := ((FOccupied and CurrentFile) - (2 * Temp)) xor
+  Result := ((FOccupied and CurrentFile) - (2 * Temp)) xor
     ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentFile) -
     (2 * ReverseBitBoard(Temp)));
-  Result := (Horz and Ranks[8 - (Index div 8)]) or (Vert and CurrentFile);
+  Result := Result and CurrentFile;
+end;
+
+function TStandardPosition.DiagonalAndAntiDiagonalAttacks(Index: integer): TBitBoard;
+begin
+  Result := AntiDiagonalAttacks(Index) or DiagonalAttacks(Index);
+end;
+
+function TStandardPosition.HorizontalAndVerticalAttacks(Index: integer): TBitBoard;
+begin
+  Result := HorizontalAttacks(Index) or VerticalAttacks(Index);
 end;
 
 procedure TStandardPosition.Copy(Source: TPosition);
@@ -379,6 +329,8 @@ var
   WP, WR, WN, WB, WQ, WK: TBitBoard;
   BP, BR, BN, BB, BQ, BK: TBitBoard;
   OppositeColorWithoutKingOrEmpty: TBitBoard;
+  // 1. Horizontal 2. Vertical 3. Diagonal 4. Anti-Diagonal
+  Pinned: array[1..4] of TBitBoard;
 
   procedure AddBitBoardToMoveList(PossibleMoves: TBitBoard; Start: integer;
     RelativeStart: integer = 0);
@@ -407,14 +359,23 @@ var
 
   procedure GenerateBishopMoves(Bishops: TBitBoard);
   var
-    i, Moves: TBitBoard;
+    i, Moves, B: TBitBoard;
   begin
-    while Bishops > 0 do
+    B := Bishops and not Pinned[3];
+    while B > 0 do
     begin
-      i := NumberOfTrailingZeroes(Bishops);
-      Moves := DiagonalAndAntiDiagonalBitboard(i) and OppositeColorWithoutKingOrEmpty;
+      i := NumberOfTrailingZeroes(B);
+      Moves := AntiDiagonalAttacks(i) and OppositeColorWithoutKingOrEmpty;
       AddBitBoardToMoveList(Moves, i);
-      Bishops := Bishops and (Bishops - 1);
+      B := B and (B - 1);
+    end;
+    B := Bishops and not Pinned[4];
+    while B > 0 do
+    begin
+      i := NumberOfTrailingZeroes(B);
+      Moves := DiagonalAttacks(i) and OppositeColorWithoutKingOrEmpty;
+      AddBitBoardToMoveList(Moves, i);
+      B := B and (B - 1);
     end;
   end;
 
@@ -533,33 +494,44 @@ var
     if FWhitesTurn then
     begin
       // White pawn goes one forward
-      PawnMoves := (WP shr 8) and Empty;
+      PawnMoves := ((WP and not (Pinned[1] or Pinned[3] or Pinned[4])) shr 8) and Empty;
       AddBitBoardToMoveList(PawnMoves, -1, 8);
       // White pawn goes two forward
-      PawnMoves := ((WP and Ranks[2]) shr 16) and Empty and (Empty shr 8);
+      PawnMoves := ((WP and Ranks[2] and not (Pinned[1] or Pinned[3] or Pinned[4])) shr
+        16) and Empty and (Empty shr 8);
       AddBitBoardToMoveList(PawnMoves, -1, 16);
     end
     else
     begin
       // Black pawn goes one forward
-      PawnMoves := (BP shl 8) and Empty;
+      PawnMoves := ((BP and not (Pinned[1] or Pinned[3] or Pinned[4])) shl 8) and Empty;
       AddBitBoardToMoveList(PawnMoves, -1, -8);
       // Black pawn goes two forward
-      PawnMoves := ((BP and Ranks[7]) shl 16) and Empty and (Empty shl 8);
+      PawnMoves := ((BP and Ranks[7] and not (Pinned[1] or Pinned[3] or Pinned[4])) shl
+        16) and Empty and (Empty shl 8);
       AddBitBoardToMoveList(PawnMoves, -1, -16);
     end;
   end;
 
   procedure GenerateRookMoves(Rooks: TBitBoard);
   var
-    i, Moves: TBitBoard;
+    i, Moves, R: TBitBoard;
   begin
-    while Rooks > 0 do
+    R := Rooks and not Pinned[1];
+    while R > 0 do
     begin
-      i := NumberOfTrailingZeroes(Rooks);
-      Moves := HorizontalAndVerticalBitBoard(i) and OppositeColorWithoutKingOrEmpty;
+      i := NumberOfTrailingZeroes(R);
+      Moves := VerticalAttacks(i) and OppositeColorWithoutKingOrEmpty;
       AddBitBoardToMoveList(Moves, i);
-      Rooks := Rooks and (Rooks - 1);
+      R := R and (R - 1);
+    end;
+    R := Rooks and not Pinned[2];
+    while R > 0 do
+    begin
+      i := NumberOfTrailingZeroes(R);
+      Moves := HorizontalAttacks(i) and OppositeColorWithoutKingOrEmpty;
+      AddBitBoardToMoveList(Moves, i);
+      R := R and (R - 1);
     end;
   end;
 
@@ -572,7 +544,8 @@ var
   BMoveNumer: integer;
   BBlackKing, BWhiteKing: TSquare10x12;
   BackupBoards: array[1..8] of TBitBoard;
-  b, c, tb, tc: extended;
+  d, c, tb, tc: extended;
+  R, B, K, Pinner, SuperKingAttacks, Blockers: TBitBoard;
   {$IFDEF Logging}
   a: extended;
   {$ENDIF}
@@ -594,6 +567,60 @@ begin
   WhitePiecesWithoutKing := FBitBoards[7] and not WK;
   FOccupied := FBitBoards[7] or FBitBoards[8];
   Empty := not FOccupied;
+  for i := 1 to 4 do
+    Pinned[i] := 0;
+  // Find all pinned pieces
+  // based on Opposite Ray-Directions http://chessprogramming.wikispaces.com/Checks+and+Pinned+Pieces+(Bitboards)
+  if FWhitesTurn then
+  begin
+    K := WK;
+    R := BR or BQ;
+    B := BB or BQ;
+    Blockers := FBitBoards[7];
+  end
+  else
+  begin
+    K := BK;
+    R := WR or WQ;
+    B := WB or WQ;
+    Blockers := FBitBoards[8];
+  end;
+  // Horizontal pins
+  Pinner := R;
+  SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K));
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Pinned[1] := Pinned[1] or (HorizontalAttacks(i) and SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
+  // Vertical pins
+  Pinner := R;
+  SuperKingAttacks := VerticalAttacks(NumberOfTrailingZeroes(K));
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Pinned[2] := Pinned[2] or (VerticalAttacks(i) and SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
+  // Diagonal pins
+  Pinner := B;
+  SuperKingAttacks := DiagonalAttacks(NumberOfTrailingZeroes(K));
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Pinned[3] := Pinned[3] or (DiagonalAttacks(i) and SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
+  // Antidiagonal pins
+  Pinner := B;
+  SuperKingAttacks := AntiDiagonalAttacks(NumberOfTrailingZeroes(K));
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Pinned[4] := Pinned[4] or (AntiDiagonalAttacks(i) and SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
   //a := ET.Elapsed;
   tb := 0;
   tc := 0;
@@ -602,6 +629,9 @@ begin
   ET.Start;
   a := ET.Elapsed;
 {$ENDIF}
+    {$IFDEF Logging}
+  d := ET.Elapsed;
+    {$ENDIF}
   FLegalMoves.Clear;
   GeneratePawnCaptureMoves;
   GeneratePawnForwardMoves;
@@ -609,19 +639,23 @@ begin
   if WhitesTurn then
   begin
     OppositeColorWithoutKingOrEmpty := BlackPiecesWithoutKing or Empty;
-    GenerateBishopMoves(WB or WQ);
-    GenerateRookMoves(WR or WQ);
-    GenerateKnightMoves(WN);
+    GenerateBishopMoves((WB or WQ) and not (Pinned[1] or Pinned[2]));
+    GenerateRookMoves((WR or WQ) and not (Pinned[3] or Pinned[4]));
+    GenerateKnightMoves(WN and not (Pinned[1] or Pinned[2] or Pinned[3] or Pinned[4]));
     GenerateKingMoves(WK);
   end
   else
   begin
     OppositeColorWithoutKingOrEmpty := WhitePiecesWithoutKing or Empty;
-    GenerateBishopMoves(BB or BQ);
-    GenerateRookMoves(BR or BQ);
-    GenerateKnightMoves(BN);
+    GenerateBishopMoves((BB or BQ) and not (Pinned[1] or Pinned[2]));
+    GenerateRookMoves((BR or BQ) and not (Pinned[3] or Pinned[4]));
+    GenerateKnightMoves(BN and not (Pinned[1] or Pinned[2] or Pinned[3] or Pinned[4]));
     GenerateKingMoves(BK);
   end;
+    {$IFDEF Logging}
+  tb := tb + ET.Elapsed - d;
+
+    {$ENDIF}
   // Backup Position, Play Move, Position Valid?
   j := 0;
   // Backup current Position
@@ -635,20 +669,15 @@ begin
     BackupBoards[i] := FBitBoards[i];
   while j < FLegalMoves.Count do
   begin
-    {$IFDEF Logging}
-    b := ET.Elapsed;
-    {$ENDIF}
     Self.SilentPlayMove(FLegalMoves.Items[j]);
-    {$IFDEF Logging}
-    tb := tb + ET.Elapsed - b;
-    {$ENDIF}
     {$IFDEF Logging}
     c := ET.Elapsed;
     {$ENDIF}
-    if not Self.IsIllegalCheck then
-      Inc(j)
-    else
-      FLegalMoves.Delete(j);
+    //if not Self.IsIllegalCheck then
+    //  Inc(j)
+    //else
+    //  FLegalMoves.Delete(j);
+    Inc(j);
     {$IFDEF Logging}
     tc := tc + ET.Elapsed - c;
     {$ENDIF}
@@ -663,17 +692,16 @@ begin
     for i := 1 to 8 do
       FBitBoards[i] := BackupBoards[i];
   end;
+  GeneratePawnPromotionMoves(FLegalMoves);
   //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
   //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
   //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
+ //  WriteLn('Zahl der möglichen Züge: ', FLegalMoves.Count);
 
-  // TODO: Replace pawn moves with actual promotion moves
-  GeneratePawnPromotionMoves(FLegalMoves);
   {$IFDEF Logging}
   Inc(Zuege, FLegalMoves.Count);
   Zeit := Zeit + (ET.Elapsed - a);
   ET.Stop;
-  //  WriteLn('Zahl der möglichen Züge: ', FLegalMoves.Count);
 {$ENDIF}
 end;
 
@@ -726,11 +754,11 @@ begin
   Result := False;
   FOccupied := FBitBoards[7] or FBitBoards[8];
   // Do rook moves from start
-  Moves := HorizontalAndVerticalBitBoard(Index) and FOccupied;
+  Moves := HorizontalAndVerticalAttacks(Index) and FOccupied;
   if (FBitBoards[2] or FBitBoards[5]) and FBitBoards[Opp] and Moves > 0 then
     Exit(True);
   // Do bishop moves from start
-  Moves := DiagonalAndAntiDiagonalBitboard(Index) and FOccupied;
+  Moves := DiagonalAndAntiDiagonalAttacks(Index) and FOccupied;
   if (FBitBoards[4] or FBitBoards[5]) and FBitBoards[Opp] and Moves > 0 then
     Exit(True);
   // Do knight moves from start
@@ -1010,11 +1038,40 @@ end;
 
 procedure TStandardPosition.PrintBoards;
 var
-  i: integer;
+  i, k: integer;
 begin
   for i := 1 to 8 do
     Writeln(BitBoardToStr(FBitBoards[i]), i);
   WriteLn(BitBoardToStr(FEnPassant), 'En Passant');
+  k := 1;
+  Write('|');
+  for i in ValidSquares do
+  begin
+    case Squares[i] of
+      ptEmpty: Write('  ');
+      ptWPawn: Write(' P ');
+      ptWKnight: Write(' N ');
+      ptWBishop: Write(' B ');
+      ptWRook: Write(' R ');
+      ptWQueen: Write(' Q ');
+      ptWKing: Write(' K ');
+      ptBPawn: Write(' p ');
+      ptBKnight: Write(' n ');
+      ptBBishop: Write(' b ');
+      ptBRook: Write(' r ');
+      ptBQueen: Write(' q ');
+      ptBKing: Write(' k ');
+      ptOff: Write(' X ');
+    end;
+    Write('|');
+    if k = 8 then
+    begin
+      k := 0;
+      WriteLn;
+      Write('|');
+    end;
+    Inc(k);
+  end;
 end;
 
 constructor TStandardPosition.Create;
