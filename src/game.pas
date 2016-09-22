@@ -286,6 +286,7 @@ end;
 
 procedure TGame.ReplaceMainLine(AMove: TMove);
 begin
+  FCurrentPlyNode.Children.Items[0].Free;
   FCurrentPlyNode.Children.Erase(0);
   FCurrentPlyNode.Children.Insert(0, TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := CurrentPlyNode.Children.Items[0];
