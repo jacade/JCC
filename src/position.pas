@@ -384,37 +384,37 @@ var
     RelativeStart: integer = 0);
   var
     i: integer;
-    CurrentMove: TBitBoard;
   begin
-    CurrentMove := PossibleMoves and not (PossibleMoves - 1);
-    while CurrentMove > 0 do
+    if Start < 0 then // This should be used for pawn moves
     begin
-      i := NumberOfTrailingZeroes(CurrentMove);
-      if Start < 0 then // This should be used for pawn moves
+      while PossibleMoves > 0 do
       begin
+        i := NumberOfTrailingZeroes(PossibleMoves);
         FLegalMoves.Add(CreateMoveFromInt(i + RelativeStart, i));
-      end
-      else  // This is for the other pieces
-      begin
-        FLegalMoves.Add(CreateMoveFromInt(Start, i));
+        PossibleMoves := PossibleMoves and (PossibleMoves - 1);
       end;
-      PossibleMoves := PossibleMoves and not CurrentMove;
-      CurrentMove := PossibleMoves and not (PossibleMoves - 1);
+    end
+    else  // This is for the other pieces
+    begin
+      while PossibleMoves > 0 do
+      begin
+        i := NumberOfTrailingZeroes(PossibleMoves);
+        FLegalMoves.Add(CreateMoveFromInt(Start, i));
+        PossibleMoves := PossibleMoves and (PossibleMoves - 1);
+      end;
     end;
   end;
 
   procedure GenerateBishopMoves(Bishops: TBitBoard);
   var
-    CurrentBishop, i, Moves: TBitBoard;
+    i, Moves: TBitBoard;
   begin
-    CurrentBishop := Bishops and not (Bishops - 1);
-    while CurrentBishop > 0 do
+    while Bishops > 0 do
     begin
-      i := NumberOfTrailingZeroes(CurrentBishop);
+      i := NumberOfTrailingZeroes(Bishops);
       Moves := DiagonalAndAntiDiagonalBitboard(i) and OppositeColorWithoutKingOrEmpty;
       AddBitBoardToMoveList(Moves, i);
-      Bishops := Bishops and not CurrentBishop;
-      CurrentBishop := Bishops and not (Bishops - 1);
+      Bishops := Bishops and (Bishops - 1);
     end;
   end;
 
@@ -447,31 +447,27 @@ var
 
   procedure GenerateKingMoves(Kings: TBitBoard);
   var
-    CurrentKing, i, Moves: TBitBoard;
+    i, Moves: TBitBoard;
   begin
-    CurrentKing := Kings and not (Kings - 1);
-    while CurrentKing > 0 do
+    while Kings > 0 do
     begin
-      i := NumberOfTrailingZeroes(CurrentKing);
+      i := NumberOfTrailingZeroes(Kings);
       Moves := KingMoves[i] and OppositeColorWithoutKingOrEmpty;
       AddBitBoardToMoveList(Moves, i);
-      Kings := Kings and not CurrentKing;
-      CurrentKing := Kings and not (Kings - 1);
+      Kings := Kings and (Kings - 1);
     end;
   end;
 
   procedure GenerateKnightMoves(Knights: TBitBoard);
   var
-    CurrentKnight, i, Moves: TBitBoard;
+    i, Moves: TBitBoard;
   begin
-    CurrentKnight := Knights and not (Knights - 1);
-    while CurrentKnight > 0 do
+    while Knights > 0 do
     begin
-      i := NumberOfTrailingZeroes(CurrentKnight);
+      i := NumberOfTrailingZeroes(Knights);
       Moves := BitBoard.KnightMoves[i] and OppositeColorWithoutKingOrEmpty;
       AddBitBoardToMoveList(Moves, i);
-      Knights := Knights and not CurrentKnight;
-      CurrentKnight := Knights and not (Knights - 1);
+      Knights := Knights and (Knights - 1);
     end;
   end;
 
@@ -556,16 +552,14 @@ var
 
   procedure GenerateRookMoves(Rooks: TBitBoard);
   var
-    CurrentRook, i, Moves: TBitBoard;
+    i, Moves: TBitBoard;
   begin
-    CurrentRook := Rooks and not (Rooks - 1);
-    while CurrentRook > 0 do
+    while Rooks > 0 do
     begin
-      i := NumberOfTrailingZeroes(CurrentRook);
+      i := NumberOfTrailingZeroes(Rooks);
       Moves := HorizontalAndVerticalBitBoard(i) and OppositeColorWithoutKingOrEmpty;
       AddBitBoardToMoveList(Moves, i);
-      Rooks := Rooks and not CurrentRook;
-      CurrentRook := Rooks and not (Rooks - 1);
+      Rooks := Rooks and (Rooks - 1);
     end;
   end;
 
@@ -719,7 +713,7 @@ end;
 function TStandardPosition.IsAttacked(Index: integer): boolean;
 var
   Opp: integer;
-  Moves, CurrentSquare: TBitBoard;
+  Moves: TBitBoard;
 begin
   if FWhitesTurn then
   begin
@@ -733,54 +727,33 @@ begin
   FOccupied := FBitBoards[7] or FBitBoards[8];
   // Do rook moves from start
   Moves := HorizontalAndVerticalBitBoard(Index) and FOccupied;
-  CurrentSquare := Moves and not (Moves - 1);
-  while (CurrentSquare > 0) and not Result do
-  begin
-    Result := (FBitBoards[2] or FBitBoards[5]) and FBitBoards[Opp] and CurrentSquare > 0;
-    Moves := Moves and not CurrentSquare;
-    CurrentSquare := Moves and not (Moves - 1);
-  end;
+  if (FBitBoards[2] or FBitBoards[5]) and FBitBoards[Opp] and Moves > 0 then
+    Exit(True);
   // Do bishop moves from start
   Moves := DiagonalAndAntiDiagonalBitboard(Index) and FOccupied;
-  CurrentSquare := Moves and not (Moves - 1);
-  while (CurrentSquare > 0) and not Result do
-  begin
-    Result := (FBitBoards[4] or FBitBoards[5]) and FBitBoards[Opp] and CurrentSquare > 0;
-    Moves := Moves and not CurrentSquare;
-    CurrentSquare := Moves and not (Moves - 1);
-  end;
+  if (FBitBoards[4] or FBitBoards[5]) and FBitBoards[Opp] and Moves > 0 then
+    Exit(True);
   // Do knight moves from start
   Moves := BitBoard.KnightMoves[Index] and FOccupied;
-  CurrentSquare := Moves and not (Moves - 1);
-  while (CurrentSquare > 0) and not Result do
-  begin
-    Result := FBitBoards[3] and FBitBoards[Opp] and CurrentSquare > 0;
-    Moves := Moves and not CurrentSquare;
-    CurrentSquare := Moves and not (Moves - 1);
-  end;
+  if FBitBoards[3] and FBitBoards[Opp] and Moves > 0 then
+    Exit(True);
   // Do king moves from start
   Moves := KingMoves[Index] and FOccupied;
-  CurrentSquare := Moves and not (Moves - 1);
-  while (CurrentSquare > 0) and not Result do
-  begin
-    Result := FBitBoards[6] and FBitBoards[Opp] and CurrentSquare > 0;
-    Moves := Moves and not CurrentSquare;
-    CurrentSquare := Moves and not (Moves - 1);
-  end;
+  if FBitBoards[6] and FBitBoards[Opp] and Moves > 0 then
+    Exit(True);
   // Do opposite pawn Moves
-  if not Result then
-    if not FWhitesTurn then
-    begin
-      Moves := (((FBitBoards[1] and FBitBoards[7] and not Files[8]) shr 7)) or
-        (((FBitBoards[1] and FBitBoards[7] and not Files[1]) shr 9));
-      Result := (QWord(1) shl Index) and Moves > 0;
-    end
-    else
-    begin
-      Moves := (((FBitBoards[1] and FBitBoards[8] and not Files[8]) shl 9)) or
-        (((FBitBoards[1] and FBitBoards[8] and not Files[1]) shl 7));
-      Result := (QWord(1) shl Index) and Moves > 0;
-    end;
+  if not FWhitesTurn then
+  begin
+    Moves := (((FBitBoards[1] and FBitBoards[7] and not Files[8]) shr 7)) or
+      (((FBitBoards[1] and FBitBoards[7] and not Files[1]) shr 9));
+    Result := (QWord(1) shl Index) and Moves > 0;
+  end
+  else
+  begin
+    Moves := (((FBitBoards[1] and FBitBoards[8] and not Files[8]) shl 9)) or
+      (((FBitBoards[1] and FBitBoards[8] and not Files[1]) shl 7));
+    Result := (QWord(1) shl Index) and Moves > 0;
+  end;
 end;
 
 procedure TStandardPosition.SilentFromFEN(const AFEN: string);
