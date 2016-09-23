@@ -329,8 +329,8 @@ var
   WP, WR, WN, WB, WQ, WK: TBitBoard;
   BP, BR, BN, BB, BQ, BK: TBitBoard;
   OppositeColorWithoutKingOrEmpty: TBitBoard;
-  // 1. Horizontal 2. Vertical 3. Diagonal 4. Anti-Diagonal
-  Pinned: array[1..4] of TBitBoard;
+  // 1. Horizontal 2. Vertical 3. Diagonal 4. Anti-Diagonal 5. Illegal En Passants right 6. En passants left
+  Pinned: array[1..6] of TBitBoard;
 
   procedure AddBitBoardToMoveList(PossibleMoves: TBitBoard; Start: integer;
     RelativeStart: integer = 0);
@@ -466,23 +466,23 @@ var
     if FWhitesTurn then
     begin
       // White pawn captures to the right
-      PawnMoves := ((WP and not Files[8]) shr 7) and
-        (BlackPiecesWithoutKing or FEnPassant);
+      PawnMoves := ((WP and not (Files[8] or Pinned[1] or Pinned[2] or
+        Pinned[4] or Pinned[5])) shr 7) and (BlackPiecesWithoutKing or FEnPassant);
       AddBitBoardToMoveList(PawnMoves, -1, 7);
       // White pawn captures to the left
-      PawnMoves := ((WP and not Files[1]) shr 9) and
-        (BlackPiecesWithoutKing or FEnPassant);
+      PawnMoves := ((WP and not (Files[1] or Pinned[1] or Pinned[2] or
+        Pinned[3] or Pinned[6])) shr 9) and (BlackPiecesWithoutKing or FEnPassant);
       AddBitBoardToMoveList(PawnMoves, -1, 9);
     end
     else
     begin
       // Black pawn captures to the right
-      PawnMoves := ((BP and not Files[8]) shl 9) and
-        (WhitePiecesWithoutKing or FEnPassant);
+      PawnMoves := ((BP and not (Files[8] or Pinned[1] or Pinned[2] or
+        Pinned[3] or Pinned[5])) shl 9) and (WhitePiecesWithoutKing or FEnPassant);
       AddBitBoardToMoveList(PawnMoves, -1, -9);
       // Black pawn captures to the left
-      PawnMoves := ((BP and not Files[1]) shl 7) and
-        (WhitePiecesWithoutKing or FEnPassant);
+      PawnMoves := ((BP and not (Files[1] or Pinned[1] or Pinned[2] or
+        Pinned[4] or Pinned[6])) shl 7) and (WhitePiecesWithoutKing or FEnPassant);
       AddBitBoardToMoveList(PawnMoves, -1, -7);
     end;
   end;
@@ -545,7 +545,7 @@ var
   BBlackKing, BWhiteKing: TSquare10x12;
   BackupBoards: array[1..8] of TBitBoard;
   d, c, tb, tc: extended;
-  R, B, K, Pinner, SuperKingAttacks, Blockers: TBitBoard;
+  R, B, K, Pinner, SuperKingAttacks, Blockers, Blocker: TBitBoard;
   {$IFDEF Logging}
   a: extended;
   {$ENDIF}
@@ -567,7 +567,7 @@ begin
   WhitePiecesWithoutKing := FBitBoards[7] and not WK;
   FOccupied := FBitBoards[7] or FBitBoards[8];
   Empty := not FOccupied;
-  for i := 1 to 4 do
+  for i := 1 to 6 do
     Pinned[i] := 0;
   // Find all pinned pieces
   // based on Opposite Ray-Directions http://chessprogramming.wikispaces.com/Checks+and+Pinned+Pieces+(Bitboards)
@@ -621,6 +621,61 @@ begin
     Pinned[4] := Pinned[4] or (AntiDiagonalAttacks(i) and SuperKingAttacks and Blockers);
     Pinner := Pinner and (Pinner - 1);
   end;
+  // Illegal en passants
+  if EnPassant > 0 then
+  begin
+    // En passnats to the right
+    if FWhitesTurn then
+    begin
+      Pinner := R and Ranks[5];
+      // Temporary remove last moved pawn
+      FOccupied := FOccupied and not (FEnPassant shl 8);
+    // Get Pawn that is able to capture en passant
+      Blocker := Blockers and (FEnPassant shl 7)
+    end
+    else
+    begin
+      Pinner := R and Ranks[4];
+      // Temporary remove last moved pawn
+      FOccupied := FOccupied and not (FEnPassant shr 8);
+    // Get Pawn that is able to capture en passant
+      Blocker := Blockers and (FEnPassant shr 9);
+    end;
+    SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K));
+    while Pinner > 0 do
+    begin
+      i := NumberOfTrailingZeroes(Pinner);
+      Pinned[5] := Pinned[5] or (HorizontalAttacks(i) and SuperKingAttacks and Blocker);
+      Pinner := Pinner and (Pinner - 1);
+    end;
+    // En passnats to the left
+    if FWhitesTurn then
+    begin
+      Pinner := R and Ranks[5];
+      // Get Pawn that is able to capture en passant
+      Blocker := Blockers and (FEnPassant shl 9);
+    end
+    else
+    begin
+      Pinner := R and Ranks[4];
+      // Get Pawn that is able to capture en passant
+      Blocker := Blockers and (FEnPassant shr 7);
+    end;
+    //WriteLn(BitBoardToStr(Pinner), 'PINNER');
+    //WriteLn(BitBoardToStr(FOccupied), 'OCC');
+    //WriteLn(BitBoardToStr(Blocker), 'BLOCKER');
+    SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K));
+    while Pinner > 0 do
+    begin
+      i := NumberOfTrailingZeroes(Pinner);
+      Pinned[6] := Pinned[6] or (HorizontalAttacks(i) and SuperKingAttacks and Blocker);
+      Pinner := Pinner and (Pinner - 1);
+    end;
+    // Add pawns again
+    FOccupied := FOccupied or FBitBoards[1];
+  end;
+  //for i := 1 to 6 do
+  //  WriteLn(BitBoardToStr(Pinned[i]), i);
   //a := ET.Elapsed;
   tb := 0;
   tc := 0;
@@ -665,38 +720,38 @@ begin
   BMoveNumer := FMoveNumber;
   BBlackKing := FBlackKing;
   BWhiteKing := FWhiteKing;
-  for i := 1 to 8 do
-    BackupBoards[i] := FBitBoards[i];
-  while j < FLegalMoves.Count do
-  begin
-    Self.SilentPlayMove(FLegalMoves.Items[j]);
-    {$IFDEF Logging}
-    c := ET.Elapsed;
-    {$ENDIF}
-    //if not Self.IsIllegalCheck then
-    //  Inc(j)
-    //else
-    //  FLegalMoves.Delete(j);
-    Inc(j);
-    {$IFDEF Logging}
-    tc := tc + ET.Elapsed - c;
-    {$ENDIF}
-    // Restore inital values
-    FEnPassant := BEnPassant;
-    FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;
-    FCastlingAbility := BCastlingAbility;
-    FMoveNumber := BMoveNumer;
-    FBlackKing := BBlackKing;
-    FWhiteKing := BWhiteKing;
-    FWhitesTurn := not FWhitesTurn;
-    for i := 1 to 8 do
-      FBitBoards[i] := BackupBoards[i];
-  end;
+  //for i := 1 to 8 do
+  //  BackupBoards[i] := FBitBoards[i];
+  //while j < FLegalMoves.Count do
+  //begin
+  //  Self.SilentPlayMove(FLegalMoves.Items[j]);
+  //  {$IFDEF Logging}
+  //  c := ET.Elapsed;
+  //  {$ENDIF}
+  //  //if not Self.IsIllegalCheck then
+  //  //  Inc(j)
+  //  //else
+  //  //  FLegalMoves.Delete(j);
+  //  Inc(j);
+  //  {$IFDEF Logging}
+  //  tc := tc + ET.Elapsed - c;
+  //  {$ENDIF}
+  //  // Restore inital values
+  //  FEnPassant := BEnPassant;
+  //  FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;
+  //  FCastlingAbility := BCastlingAbility;
+  //  FMoveNumber := BMoveNumer;
+  //  FBlackKing := BBlackKing;
+  //  FWhiteKing := BWhiteKing;
+  //  FWhitesTurn := not FWhitesTurn;
+  //  for i := 1 to 8 do
+  //    FBitBoards[i] := BackupBoards[i];
+  //end;
   GeneratePawnPromotionMoves(FLegalMoves);
   //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
   //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
   //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
- //  WriteLn('Zahl der möglichen Züge: ', FLegalMoves.Count);
+  //  WriteLn('Zahl der möglichen Züge: ', FLegalMoves.Count);
 
   {$IFDEF Logging}
   Inc(Zuege, FLegalMoves.Count);
@@ -1317,7 +1372,7 @@ begin
   begin
     // Check if dest is occupied or a pawn is taken en passant
     if (Squares[TSquare10x12(AMove.Dest)] <> ptEmpty) or
-      ((Piece in [ptWPawn, ptBPawn]) and (TSquare10x12(AMove.Dest) = FEnPassant)) then
+      ((Piece in [ptWPawn, ptBPawn]) and (SquareToBitBoard(AMove.Dest) = FEnPassant)) then
     begin
       if (Piece in [ptWPawn, ptBPawn]) and (Length(Result) = 0) then
         Result := Result + TAlgebraicSquare(AMove.Start).RFile;
@@ -1334,7 +1389,7 @@ begin
       Result := Result + ':';
     // Optionally add 'e.p.' if it is an en passant move
     if ShowEnPassantSuffix and (Piece in [ptWPawn, ptBPawn]) and
-      (TSquare10x12(AMove.Dest) = FEnPassant) then
+      (SquareToBitBoard(AMove.Dest) = FEnPassant) then
     begin
       Result := Result + 'e.p.';
     end;
