@@ -207,24 +207,32 @@ begin
       else
         raise Exception.Create(APGNMove + ' is longer than expected');
     end;
-    // Get all moves which match the extracted information
-    Temp := (FCurrentPosition as TStandardPosition).FilterLegalMoves(Piece,
-      Start, Dest, PromoPiece);
-    case Temp.Count of
-      0: begin
-        (FCurrentPosition as TStandardPosition).PrintBoards;
-            raise Exception.Create(APGNMove + ' is no valid move.');
-      end;
-      1: Result := temp.Items[0];
-      else // we need to extract more information from s
-        for Move in Temp do
-        begin
-          if ((AFile > 0) and (Move.Start.RFile = AFile)) or
-            ((ARank > 0) and (Move.Start.RRank = ARank)) then
-            Result := Move;
-        end;
+    if not (FCurrentPosition as TStandardPosition).ValidateMove(Result,
+      Piece, Dest, AFile, ARank) then
+    begin
+      WriteLn(Self.Notation);
+      (FCurrentPosition as TStandardPosition).PrintBoards;
+      raise Exception.Create(APGNMove + ' is no valid move.');
     end;
-    Temp.Free;
+    Result.PromotionPiece := PromoPiece;
+    // Get all moves which match the extracted information
+    //Temp := (FCurrentPosition as TStandardPosition).FilterLegalMoves(Piece,
+    //  Start, Dest, PromoPiece);
+    //case Temp.Count of
+    //  0: begin
+    //    (FCurrentPosition as TStandardPosition).PrintBoards;
+    //        raise Exception.Create(APGNMove + ' is no valid move.');
+    //  end;
+    //  1: Result := temp.Items[0];
+    //  else // we need to extract more information from s
+    //    for Move in Temp do
+    //    begin
+    //      if ((AFile > 0) and (Move.Start.RFile = AFile)) or
+    //        ((ARank > 0) and (Move.Start.RRank = ARank)) then
+    //        Result := Move;
+    //    end;
+    //end;
+    //Temp.Free;
   end;
   //if Result = nil then
   //  raise Exception.Create(APGNMove + ' is no valid move.');
