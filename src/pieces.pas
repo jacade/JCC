@@ -17,9 +17,12 @@
 
 unit Pieces;
 
+
 {$mode objfpc}{$H+}
 
 interface
+
+uses SysUtils;
 
 type
   {$PACKENUM 1}
@@ -40,11 +43,25 @@ const
   WhitePieces = [ptWPawn, ptWKnight, ptWBishop, ptWRook, ptWQueen, ptWKing];
   BlackPieces = [ptBPawn, ptBKnight, ptBBishop, ptBRook, ptBQueen, ptBKing];
 
+function BasisPieceType(APiece: TPieceType): TBasicPieceType;
 function IsWhite(Piece: TPieceType): boolean;
 function PieceType(ABasicPieceType: TBasicPieceType; WhiteColor: boolean): TPieceType;
 function SameColor(Piece1, Piece2: TPieceType): boolean;
 
 implementation
+
+function BasisPieceType(APiece: TPieceType): TBasicPieceType;
+begin
+  case APiece of
+    ptEmpty, ptOff: raise Exception.Create('There exist no basictype for these!');
+    ptWPawn, ptBPawn: Result := bptPawn;
+    ptWKnight, ptBKnight: Result := bptKnight;
+    ptWBishop, ptBBishop: Result := bptBishop;
+    ptWRook, ptBRook:Result :=  bptRook;
+    ptWQueen, ptBQueen: Result := bptQueen;
+    ptWKing, ptBKing:Result :=  bptKing;
+  end;
+end;
 
 function IsWhite(Piece: TPieceType): boolean;
 begin
