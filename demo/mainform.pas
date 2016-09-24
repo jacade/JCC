@@ -19,7 +19,7 @@ unit MainForm;
 
 {$mode objfpc}{$H+}
 
-//{$DEFINE LOGGING}
+{$DEFINE LOGGING}
 
 interface
 
@@ -83,10 +83,34 @@ procedure TForm1.FormCreate(Sender: TObject);
 var
   i: TSquare10x12;
   j: integer;
+  k: byte;
   Q: QWord;
+  FEN: string;
 begin
   {$IFDEF Logging}
   ET := TEpikTimer.Create(nil);
+  k := 0;
+  //for i in ValidSquares do
+  //begin
+  //  Q := SquareToBitBoard(i);
+  //  // Q := Ranks[i];
+  //  // WriteLN;
+  //  WriteLn(BitBoardToStr(Q), '  ', SquareToString(i), '  ', IsBitSet(Q, k),
+  //    ' ', NumberOfLeadingZeroes(Q), ' ', NumberOfTrailingZeroes(Q));
+  //  Inc(k);
+  //end;
+  //WriteLn('***************** DIAGONALEN *****************');
+  //for i := 1 to 15 do
+  //  WriteLn(BitBoardToStr(ReverseBitBoard( Diagonals[i])));
+  //WriteLn('***************** ANTI-DIAGONALEN *****************');
+  //for i := 1 to 15 do
+  //  WriteLn(BitBoardToStr(AntiDiagonals[i]));
+  //WriteLn('***************** Springerzüge ********************');
+  //for i := 0 to 63 do
+  //  WriteLn(BitBoardToStr(KnightMoves[i]));
+ // WriteLn('***************** Königzüge ***********************');
+ //for i := 0 to 63 do
+ //   WriteLn(BitBoardToStr(KingMoves[i]));
   {$ENDIF}
   PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
@@ -95,25 +119,15 @@ begin
   btLast.Enabled := False;
   Board1.PieceDirectory := '../Pieces/';
   Board1.CurrentPosition := TStandardPosition.Create;
-  Board1.CurrentPosition.SetupInitialPosition;
+  // Board1.CurrentPosition.SetupInitialPosition;
+  // FEN := '8/8/4p1p1/2p4p/p1PpkP1P/Pr2rRK1/1P1R2P1/8 w - - 0 42';
+  // FEN := '8/5bk1/8/2P1p3/8/1K6/8/8 w - d6 0 1';
+  //  FEN := 'rnbqkbnr/p1p1p1p1/8/1p1p1p1p/P1P1P1P1/8/1P1P1P1P/RNBQKBNR w KQkq - 0 5';
+   //FEN := 'rnbqkbnr/p5p1/8/1ppPpP1p/P5P1/8/1P1P1P1P/RNBQKBNR w KQkq e6 0 7';
+   FEN := '8/8/8/K7/R3Pppk/8/8/8 b - e3 0 1';
+   (Board1.CurrentPosition as TStandardPosition).FromFEN(FEN);
+  // (Board1.CurrentPosition as TStandardPosition).PrintBoards;
   MyGame := TStandardGame.Create(Board1.CurrentPosition);
-  {$IFDEF Logging}
-  for i in ValidSquares do
-  begin
-    Q := TSquare8x8ToBitBoard(i);
-   // Q := Ranks[i];
-    for j := 1 to 64 do
-    begin
-      if Q mod 2 = 1 then
-        Write('1')
-      else
-        Write('0');
-      Q := Q shr 1;
-    end;
-   // WriteLN;
-      WriteLn('  ', SquareToString(i));
-  end;
-  {$ENDIF}
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);

@@ -243,9 +243,9 @@ function CreateMoveFromInt(AStart, ADest: Integer; APromotionPiece: TPieceType
   ): TMove;
 begin
   Result.Start.RFile := (AStart mod 8 + 1);
-  Result.Start.RRank:= (AStart div 8) + 1;
+  Result.Start.RRank:= (8 -(AStart div 8));
   Result.Dest.RFile := (ADest mod 8 + 1);
-  Result.Dest.RRank:= (ADest div 8) + 1;
+  Result.Dest.RRank:= (8- (ADest div 8));
   Result.PromotionPiece := APromotionPiece;
 end;
 
