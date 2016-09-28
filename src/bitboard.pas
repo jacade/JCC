@@ -96,6 +96,10 @@ const
   CastlingSquares: array[1..4] of TBitBoard =
     (6917529027641081856, 1008806316530991104, 96, 14);
 
+  // Black and white squares on board
+  BlackSquares: TBitBoard = 6172840429334713770;
+  WhiteSquares: TBitBoard = 12273903644374837845;
+
 function BitBoardToStr(ABitBoard: TBitBoard): string;
 function IsBitSet(ABitBoard: TBitBoard; Index: byte): boolean;
 function NumberOfLeadingZeroes(const ABitBoard: TBitBoard): integer;
@@ -137,18 +141,25 @@ begin
 end;
 
 function ReverseBitBoard(ABitBoard: TBitBoard): TBitBoard;
-var
-  i: integer;
 begin
-  Result := 0;
-  // quick 'n' dirty
-  for i := 1 to 63 do
-  begin
-    Result := Result + (ABitBoard and 1);
-    ABitBoard := ABitBoard shr 1;
-    Result := Result shl 1;
-  end;
-  Result := Result + (ABitBoard and 1);
+  // based on http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+  // swap odd and even bits
+  ABitBoard := ((ABitBoard shr 1) and $5555555555555555) or
+    ((ABitBoard and $5555555555555555) shl 1);
+  // swap consecutive pairs
+  ABitBoard := ((ABitBoard shr 2) and $3333333333333333) or
+    ((ABitBoard and $3333333333333333) shl 2);
+  // swap nibbles ...
+  ABitBoard := ((ABitBoard shr 4) and $0F0F0F0F0F0F0F0F) or
+    ((ABitBoard and $0F0F0F0F0F0F0F0F) shl 4);
+  // swap bytes
+  ABitBoard := ((ABitBoard shr 8) and $00FF00FF00FF00FF) or
+    ((ABitBoard and $00FF00FF00FF00FF) shl 8);
+  // swap 2-byte long pairs
+  ABitBoard := ((ABitBoard shr 16) and $0000FFFF0000FFFF) or
+    ((ABitBoard and $0000FFFF0000FFFF) shl 16);
+  // swap 4-byte long pairs
+  Result := (ABitBoard shr 32) or (ABitBoard shl 32);
 end;
 
 end.
