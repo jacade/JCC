@@ -18,7 +18,7 @@
 unit MoveList;
 
 {$mode objfpc}{$H+}
-{$modeswitch advancedrecords}
+//{$modeswitch advancedrecords}
 
 interface
 
@@ -84,17 +84,38 @@ type
 
   { TMove }
 
-  TMove = record
-    Start: TSquare8x8;
-    Dest: TSquare8x8;
-    PromotionPiece: TPieceType;
+  //TMove = record
+  //  Start: TSquare8x8;
+  //  Dest: TSquare8x8;
+  //  PromotionPiece: TPieceType;
+  //public
+  //  class operator = (Move1, Move2: TMove): Boolean;
+  //end;
+  TMove = class
+  private
+    //FDest: Byte; // 0..63
+    //FPromotionPiece: TPieceType;
+    //FStart: Byte; // 0..63
+      FData: Word;
+  protected
+    function GetDest: TSquare8x8; virtual;
+    function GetPromotionPiece: TPieceType; virtual;
+    function GetStart: TSquare8x8;  virtual;
+    procedure SetDest(AValue: TSquare8x8);  virtual;
+    procedure SetStart(AValue: TSquare8x8); virtual;
+    procedure SetPromotionPiece(AValue: TPieceType); virtual;
   public
-    class operator = (Move1, Move2: TMove): Boolean;
+    function Copy: TMove; virtual;
+    constructor Create(AStart, ADest: Byte; APromotionPiece: TPieceType = ptEmpty);
+  public
+    property Start: TSquare8x8 read GetStart write SetStart;
+    property Dest: TSquare8x8 read GetDest write SetDest;
+    property PromotionPiece: TPieceType read GetPromotionPiece write SetPromotionPiece;
   end;
 
   { TMoveList }
 
-  TMoveList = specialize TFPGList<TMove>;
+  TMoveList = specialize TFPGObjectList<TMove>;
 
   { TMoveListHelper }
 
@@ -242,19 +263,125 @@ end;
 function CreateMoveFromInt(AStart, ADest: Integer; APromotionPiece: TPieceType
   ): TMove;
 begin
-  Result.Start.RFile := (AStart mod 8 + 1);
-  Result.Start.RRank:= (8 -(AStart div 8));
-  Result.Dest.RFile := (ADest mod 8 + 1);
-  Result.Dest.RRank:= (8- (ADest div 8));
-  Result.PromotionPiece := APromotionPiece;
+  Result := TMove.Create(AStart, ADest, APromotionPiece);
+  //Result.Start.RFile := (AStart mod 8 + 1);
+  //Result.Start.RRank:= (8 -(AStart div 8));
+  //Result.Dest.RFile := (ADest mod 8 + 1);
+  //Result.Dest.RRank:= (8- (ADest div 8));
+  //Result.PromotionPiece := APromotionPiece;
 end;
 
 { TMove }
 
-class operator TMove.=(Move1, Move2: TMove): Boolean;
+function TMove.GetDest: TSquare8x8;
+var
+  Temp: Word;
 begin
-  Result := (Move1.Start = Move2.Start) and (Move1.Dest = Move2.Dest) and
-              (Move1.PromotionPiece = Move2.PromotionPiece);
+  Temp := (FData and 4032) shr 6;
+  Result.RFile := Temp mod 8 + 1;
+  Result.RRank := 8 - Temp div 8 ;
+end;
+
+//function TMove.GetPromotionPiece: TPieceType;
+//begin
+//  Result := (Move1.Start = Move2.Start) and (Move1.Dest = Move2.Dest) and
+//              (Move1.PromotionPiece = Move2.PromotionPiece);
+//end;
+
+function TMove.GetPromotionPiece: TPieceType;
+var
+  Temp: Word;
+begin
+  Temp := (FData and 61440) shr 12;
+  case Temp of
+    0: Result := ptEmpty;
+    1: Result := ptWPawn;
+    2: Result := ptWKnight;
+    3: Result := ptWBishop;
+    4: Result := ptWRook;
+    5: Result := ptWQueen;
+    6: Result := ptWKing;
+    7: Result := ptBPawn;
+    8: Result := ptBKnight;
+    9: Result := ptBBishop;
+    10: Result := ptBRook;
+    11: Result := ptBQueen;
+    12: Result := ptBKing;
+    15: Result := ptOff;
+  end;
+end;
+
+function TMove.GetStart: TSquare8x8;
+var
+  Temp: Word;
+begin
+  Temp := FData and 63;
+  Result.RFile := Temp mod 8 + 1;
+  Result.RRank := 8 - Temp div 8 ;
+end;
+
+procedure TMove.SetDest(AValue: TSquare8x8);
+begin
+ FData := (FData and not Word(4032)) + ((8 - AValue.RRank) * 8 + AValue.RFile - 1) shl 6;
+end;
+
+procedure TMove.SetPromotionPiece(AValue: TPieceType);
+var
+  Temp: Word;
+begin
+  case AValue of
+    ptEmpty: Temp := 0;
+    ptWPawn: Temp := 1;
+    ptWKnight: Temp := 2;
+    ptWBishop: Temp := 3;
+    ptWRook: Temp := 4;
+    ptWQueen: Temp := 5;
+    ptWKing: Temp := 6;
+    ptBPawn: Temp := 7;
+    ptBKnight: Temp := 8;
+    ptBBishop: Temp := 9;
+    ptBRook: Temp := 10;
+    ptBQueen: Temp := 11;
+    ptBKing: Temp := 12;
+    ptOff: Temp := 15;
+  end;
+  FData := (FData and not 61440) + Temp shl 12;
+end;
+
+procedure TMove.SetStart(AValue: TSquare8x8);
+begin
+  FData := (FData and not Word(63)) + (8 - AValue.RRank) * 8 + AValue.RFile - 1;
+end;
+
+function TMove.Copy: TMove;
+begin
+  Result := TMove.Create(FData and 63, (FData and 4032) shr 6 , PromotionPiece);
+end;
+
+constructor TMove.Create(AStart, ADest: Byte; APromotionPiece: TPieceType);
+var
+  Temp: Word;
+begin
+  case APromotionPiece of
+    ptEmpty: Temp := 0;
+    ptWPawn: Temp := 1;
+    ptWKnight: Temp := 2;
+    ptWBishop: Temp := 3;
+    ptWRook: Temp := 4;
+    ptWQueen: Temp := 5;
+    ptWKing: Temp := 6;
+    ptBPawn: Temp := 7;
+    ptBKnight: Temp := 8;
+    ptBBishop: Temp := 9;
+    ptBRook: Temp := 10;
+    ptBQueen: Temp := 11;
+    ptBKing: Temp := 12;
+    ptOff: Temp := 15;
+  end;
+  FData := AStart + Word(ADest) shl 6 + Temp shl 12;
+  //FStart := AStart;
+  //FDest := ADest;
+  //FPromotionPiece := APromotionPiece;
 end;
 
 { TMoveListHelper }
