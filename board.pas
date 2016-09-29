@@ -370,17 +370,20 @@ begin
     if (ClickedFile in [0..7]) and (ClickedRank in [0..7]) and
       (f in [0..7]) and (r in [0..7]) then
     begin
-      Start := 10 * ClickedRank + ClickedFile + 21;
-      Dest := 10 * r + f + 21;
       if Reversed then
       begin
-        Start := 10 * (7 - ClickedRank) + (7 - ClickedFile) + 21;
-        Dest := 10 * (7 - r) + (7 - f) + 21;
+        Start := 8 * (7 - ClickedRank) + (7 - ClickedFile);
+        Dest := 8 * (7 - r) + (7 - f);
+      end
+      else
+      begin
+        Start := 8 * ClickedRank + ClickedFile;
+        Dest := 8 * r + f;
       end;
       // Check for Promotion and request the user to choose a piece
       PromoPiece := ptEmpty;
       if (FCurrentPosition.Squares[Start] in [ptWPawn, ptBPawn]) and
-        (Dest in Rank1 + Rank8) then
+        (Dest in [40..47, 16..23]) then
       begin
         if Assigned(FOnPromotion) then
         begin
@@ -391,7 +394,7 @@ begin
       end;
       if Assigned(FOnMovePlayed) then
       begin
-        FOnMovePlayed(CreateMove(Start, Dest, PromoPiece));
+        FOnMovePlayed(TMove.Create(Start, Dest, PromoPiece));
       end;
     end;
     ClickedDown := False;

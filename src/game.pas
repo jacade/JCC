@@ -25,14 +25,18 @@ uses
   Classes, SysUtils, MoveList, Position, Ply;
 
 type
-
+  {$PACKENUM 1}
   TGameResult = (grNone, grWhiteWins, grBlackWins, grDraw);
   // TODO: These have to be moved somewhere else
+  {$PACKENUM 1}
   TFIDETitle = (ftNone, ftCM, ftFM, ftIM, ftGM, ftWCM, ftWFM, ftWIM, ftWGM);
+  {$PACKENUM 1}
   TPlayerType = (ptNone, ptHuman, ptProgram);
   // The following two needs to be extended
+  {$PACKENUM 1}
   TTerminationType = (ttNone, ttNormal, ttAbandoned, ttAdjucation, ttDeath, ttEmergency,
     ttRulesInfraction, ttTimeForfeit, ttUnterminated);
+  {$PACKENUM 1}
   TModeType = (mtNone, mtOverTheBoard, mtPaperMail, mtElectronicMail, mtICS,
     mtGeneralTelecommunication);
 

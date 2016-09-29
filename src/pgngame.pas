@@ -140,20 +140,21 @@ begin
   if Pos('x', s) > 0 then
     Delete(s, Pos('x', s), 1);
   // Now s should be O-O, O-O-O or like [N, B, R, Q, K]?[a-h]?[1-8]?[a-h][1-8](=[N, B, R, Q, K])?
+  // TODO: Check if castlings are legal moves
   if s = 'O-O' then
   begin
     if FCurrentPosition.WhitesTurn then
-      Result := CreateMove(95, 97)
+      Result := TMove.Create(60, 62)
     else
-      Result := CreateMove(25, 27);
+      Result := TMove.Create(4, 6);
   end
   else
   if s = 'O-O-O' then
   begin
     if FCurrentPosition.WhitesTurn then
-      Result := CreateMove(95, 93)
+      Result := TMove.Create(60, 58)
     else
-      Result := CreateMove(25, 23);
+      Result := TMove.Create(4, 2);
   end
   else
   begin
