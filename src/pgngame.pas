@@ -7,7 +7,7 @@ unit PGNGame;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces, fgl
   {$IFDEF Logging}
   , Ply
   {$ENDIF}  ;
@@ -24,46 +24,28 @@ type
     Value: string;
   end;
 
+  PPGNTag = ^TPGNTag;
+
+  TPGNTagList = specialize TFPGList<PPGNTag>;
+
   { TPGNGame }
 
   TPGNGame = class(TStandardGame)
   private
-    FAnnotator: string;
-    FBlackELO: integer;
-    FBlackNA: string;
-    FBlackTitle: TFIDETitle;
-    FBlackType: TPlayerType;
-    FBlackUSCF: integer;
-    FBoard: integer;
-    FECO: string;
-    FEventDate: string;
-    FEventSponsor: string;
-    FFen: string;
     FEvent, FSite, FDate, FRound, FWhite, FBlack, FResult: string;
-    FMode: TModeType;
-    FNIC: string;
-    FOpening: string;
-    FPlyCount: word;
-    FSection: string;
-    FSetUp: boolean;
-    FStage: string;
-    FSubVariation: string;
-    FTermination: TTerminationType;
-    FTime: string;
-    FTimeControl: string;
-    FUTCDate: string;
-    FUTCTime: string;
-    FVariation: string;
-    FWhiteELO: integer;
-    FWhiteNA: string;
-    FWhiteTitle: TFIDETitle;
-    FWhiteType: TPlayerType;
-    FWhiteUSCF: integer;
+    FAdditionalTags: TPGNTagList;
+    function GetAdditionalTags(Index: integer): PPGNTag;
     function PGNToMove(const APGNMove: string): TMove;
   public
+    procedure AddAdditionalTag(const APGNTag: TPGNTag);
     // These procedures add a move in pgn format e.g. Nf3, e8=Q
     procedure AddPGNMove(const APGNMove: string);
     procedure AddPGNMoveAsSideLine(const APGNMove: string);
+    // deletes all additional tags
+    procedure ClearAdditionalTags;
+    constructor Create; override;
+    constructor Create(const AInitialPosition: TPosition); override;
+    destructor Destroy; override;
   public
     // Seven Tag Roster
     property Event: string read FEvent write FEvent;
@@ -73,49 +55,18 @@ type
     property White: string read FWhite write FWhite;
     property Black: string read FBlack write FBlack;
     property Result: string read FResult write FResult;
-  public   // Player related information  TODO: Add more national ranking systems like DWZ
-    property BlackELO: integer read FBlackELO write FBlackELO;
-    property BlackNA: string read FBlackNA write FBlackNA;
-    property BlackTitle: TFIDETitle read FBlackTitle write FBlackTitle;
-    property BlackType: TPlayerType read FBlackType write FBlackType;
-    property BlackUSCF: integer read FBlackUSCF write FBlackUSCF;
-    property WhiteELO: integer read FWhiteELO write FWhiteELO;
-    property WhiteNA: string read FWhiteNA write FWhiteNA;
-    property WhiteTitle: TFIDETitle read FWhiteTitle write FWhiteTitle;
-    property WhiteType: TPlayerType read FWhiteType write FWhiteType;
-    property WhiteUSCF: integer read FWhiteUSCF write FWhiteUSCF;
-  public  // Event related information
-    property Board: integer read FBoard write FBoard;
-    property EventDate: string read FEventDate write FEventDate;
-    property EventSponsor: string read FEventSponsor write FEventSponsor;
-    property Section: string read FSection write FSection;
-    property Stage: string read FStage write FStage;
-  public  // Opening information (locale)
-    property Opening: string read FOpening write FOpening;
-    property SubVariation: string read FSubVariation write FSubVariation;
-    property Variation: string read FVariation write FVariation;
-  public  // Opening information (3rd party)
-    property ECO: string read FECO write FECO;
-    property NIC: string read FNIC write FNIC;
-  public  // Time and date information
-    property Time: string read FTime write FTime;
-    property UTCDate: string read FUTCDate write FUTCDate;
-    property UTCTime: string read FUTCTime write FUTCTime;
-  public  // Time control
-    // TODO: Replace string with own format, when chessclock is ready
-    property TimeControl: string read FTimeControl write FTimeControl;
-  public  // Alternative starting position
-    property FEN: string read FFen write FFEN;
-    property SetUp: boolean read FSetUp write FSetUp;
-  public  // Game conclusion
-    property Termination: TTerminationType read FTermination write FTermination;
-  public  // Miscellanous
-    property Annotator: string read FAnnotator write FAnnotator;
-    property Mode: TModeType read FMode write FMode;
-    property PlyCount: word read FPlyCount write FPlyCount;
+  public   // Additional Informations
+    property AdditionalTags[Index: integer]: PPGNTag read GetAdditionalTags;
   end;
 
+  function ComparePGNTag(const Item1, Item2: PPGNTag): Integer;
+
 implementation
+
+function ComparePGNTag(const Item1, Item2: PPGNTag): Integer;
+begin
+  Result := CompareStr(Item1^.Name, Item2^.Name);
+end;
 
 
 { TPGNGame }
@@ -125,9 +76,8 @@ var
   Move: TMove;
   Piece, PromoPiece: TPieceType;
   AFile, ARank: byte;
-  Start: TSquare10x12;
+  Dest: TSquare8x8;
   s: string;
-  Dest: TAlgebraicSquare;
   Temp: TMoveList;
   NotValid: boolean;
 begin
@@ -189,7 +139,6 @@ begin
     // There is still some information left
     AFile := 0;
     Arank := 0;
-    Start := 0;
     case Length(s) of
       0: ;// Noting
       1:
@@ -204,12 +153,16 @@ begin
           ARank := Ord(s[1]) - 48;
         end;
       end;
-      2: Start := AlgebraicSquare(s[1], s[2]);
+      2:
+      begin
+        AFile := Ord(s[1]) - 96;
+        ARank := Ord(s[2]) - 48;
+      end;
       else
         raise Exception.Create(APGNMove + ' is longer than expected');
     end;
     if not (FCurrentPosition as TStandardPosition).ValidateMove(Result,
-      Piece, Dest, AFile, ARank) then
+      Piece, (8 - Dest.RRank) * 8 + Dest.RFile - 1, AFile, ARank) then
     begin
       WriteLn(Self.Notation);
       (FCurrentPosition as TStandardPosition).PrintBoards;
@@ -228,8 +181,8 @@ begin
     //  else // we need to extract more information from s
     //    for Move in Temp do
     //    begin
-    //      if ((AFile > 0) and (Move.Start.RFile = AFile)) or
-    //        ((ARank > 0) and (Move.Start.RRank = ARank)) then
+    //      if ((AFile > 0) and (Move.Start8x8.RFile = AFile)) or
+    //        ((ARank > 0) and (Move.Start8x8.RRank = ARank)) then
     //        Result := Move;
     //    end;
     //end;
@@ -237,6 +190,21 @@ begin
   end;
   //if Result = nil then
   //  raise Exception.Create(APGNMove + ' is no valid move.');
+end;
+
+procedure TPGNGame.AddAdditionalTag(const APGNTag: TPGNTag);
+var
+  Temp: PPGNTag;
+begin
+  New(Temp);
+  Temp^.Name := APGNTag.Name;
+  Temp^.Value := APGNTag.Value;
+  FAdditionalTags.Add(Temp);
+end;
+
+function TPGNGame.GetAdditionalTags(Index: integer): PPGNTag;
+begin
+  Result := FAdditionalTags.Items[Index];
 end;
 
 {$IFDEF Logging}
@@ -270,6 +238,34 @@ begin
   FPlyTree.DepthFirstTraverse(@PrintTree);
   WriteLn;
 {$ENDIF}
+end;
+
+procedure TPGNGame.ClearAdditionalTags;
+var
+  Temp: PPGNTag;
+begin
+  for Temp in FAdditionalTags do
+    Dispose(Temp);
+  FAdditionalTags.Clear;
+end;
+
+constructor TPGNGame.Create;
+begin
+  inherited Create;
+  FAdditionalTags := TPGNTagList.Create;
+  FAdditionalTags.Sort(@ComparePGNTag);
+end;
+
+constructor TPGNGame.Create(const AInitialPosition: TPosition);
+begin
+  inherited Create(AInitialPosition);
+end;
+
+destructor TPGNGame.Destroy;
+begin
+  ClearAdditionalTags;
+  FAdditionalTags.Free;
+  inherited Destroy;
 end;
 
 end.
