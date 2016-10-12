@@ -39,6 +39,76 @@ type
   {$PACKENUM 1}
   TModeType = (mtNone, mtOverTheBoard, mtPaperMail, mtElectronicMail, mtICS,
     mtGeneralTelecommunication);
+  // The following styles are used for representation of sublines
+  TRAVStyle = (rsPGN, rsChessbase, rsSCID, rsJose, rsChessX);
+
+  TTextStyle = record
+    ColorIndex: integer; // the index in the color table
+    Bold: boolean;
+    Italic: boolean;
+  end;
+
+  TRGBColor = record
+    Red: byte;
+    Green: byte;
+    Blue: byte;
+  end;
+
+  TSubLineStyle = record
+    Newline: boolean;      // Begin comment in next line
+    BeginChar: char;       // first character in sub line e.g. (, [
+    EndChar: char;         // last character in sub line e.g. ), ]
+    Indentation: integer;  // number of spaces used for indentation
+    // should a space char be used in front/behind End/Begin-Char
+    SpaceInBetween: boolean;
+  end;
+
+  TCommentStyle = record
+    // If a comment is too long to fit in current line, then start it in the next one
+    LongCommentInNewline: boolean;
+    // only used when line is too short. Number of spaces for indentation of comment
+    Indentation: integer;
+    BeginChar: char; // a special char to start the comment e.g. {
+    EndChar: char;   // a special char to stop the comment e.g. }
+  end;
+
+  TNotationStyle = record
+    PieceLetters: TChessPieceLetters;   // the piece letters that should be used
+    ShowPawnLetter: boolean;            // show the letter on pawn moves e.g. Pe4
+    ShowEnPassantSuffix: boolean;       // show e.p. if a pawn is taken en passant
+    CaptureSymbol: TCaptureSymbol;      // how to write a capture e.g. exd5, ed5
+    PromotionSymbol: TPromotionSymbol;  // how to write a promotion e.g. e8Q, e8=Q
+    ShowNAGNumber: boolean;    // display the raw number or convert it to its meaning
+    MaxLineLength: integer;             // the max length of the generated notation text
+    CommentStyle: TCommentStyle;        // the format for commentary
+    SubLineStyle: TSubLineStyle;        // the used format for sub lines
+    SecondarySubLineStyle: TSubLineStyle; // when there is at least one more sub line
+    FormatRTF: boolean;                 // Should the output be in rich text format
+    // The following are only used if FormatRTF is true
+
+    ColorTable: array[1..8] of TRGBColor;  // color table for the following text styles
+    MainLineMoveStyle: TTextStyle;      // normal text style for moves in main line
+    MainLineNumberStyle: TTextStyle;   // normal text style for move numbers in main line
+    SecondaryMainLineMoveStyle: TTextStyle; // is used when there are also sub lines
+    SecondaryMainLineNumberStyle: TTextStyle; // is used when there are also sub lines
+    SubLineMoveStyle: TTextStyle;       // text style for moves in the sub lines
+    SubLineNumberStyle: TTextStyle;     // text style for move numbers the sub lines
+    CommentTextStyle: TTextStyle;           // text style for comments
+    NAGStyle: TTextStyle;               // text style for NAG
+  end;
+
+const
+  DefaultNotationStyle: TNotationStyle = (
+    PieceLetters: ('P', 'N', 'B', 'R', 'Q', 'K', 'P', 'N', 'B', 'R', 'Q', 'K');
+    ShowPawnLetter: False;
+    ShowEnPassantSuffix: False;
+    CaptureSymbol: csx;
+    PromotionSymbol: psNone;
+    ShowNAGNumber: False;
+    MaxLineLength: 0;
+    );
+
+type
 
   { TGame }
 
@@ -52,7 +122,6 @@ type
     FCurrentPosition: TPosition;
     FInitialPosition: TPosition;
     FPlyTree: TPlyTree;
-    function GetNotation: string; virtual;
   public
     // Simply adds a move at current position
     procedure AddMove(AMove: TMove);
@@ -67,6 +136,9 @@ type
     destructor Destroy; override;
     // This returns the last tree node of in the main line of CurrentPlyNode
     function GetLastPlyNodeInCurrentVariation: TPlyTreeNode;
+    function GetNotation: string; overload;
+    function GetNotation(const ANotationStyle: TNotationStyle): string;
+      virtual; abstract; overload;
     // Setups position before last move on board
     procedure GoOneMoveBackward;
     // Setups position after next move on board
@@ -82,7 +154,6 @@ type
     property CurrentPlyNode: TPlyTreeNode read FCurrentPlyNode;
     property CurrentPosition: TPosition read FCurrentPosition;
     property InitialPosition: TPosition read FInitialPosition write SetInitialPosition;
-    property Notation: string read GetNotation;
     // NOTE: PlyTree.Root.Data will always be nil
     property PlyTree: TPlyTree read FPlyTree;
   end;
@@ -92,10 +163,10 @@ type
   TStandardGame = class(TGame)
   protected
     FGameResult: TGameResult;
-    function GetNotation: string; override;
   public
     constructor Create; override;
     constructor Create(const AInitialPosition: TPosition); override;
+    function GetNotation(const ANotationStyle: TNotationStyle): string; override;
     property GameResult: TGameResult read FGameResult write FGameResult;
   end;
 
@@ -177,6 +248,16 @@ begin
   end;
 end;
 
+function StartRTF(const ATextStyle: TTextStyle): string;
+begin
+  Result := '';
+  if ATextStyle.Bold then
+    Result := Result + '\b';
+  if ATextStyle.Italic then
+    Result := Result + '\i';
+  Result := Result + '\cf' + IntToStr(ATextStyle.ColorIndex);
+end;
+
 { TGame }
 
 function TGame.GetCurrentPlyNumber: word;
@@ -195,11 +276,6 @@ begin
   if FPlyTree.Count > 0 then
     raise Exception.Create('Game already began, cannot change initial position');
   FInitialPosition := AValue;
-end;
-
-function TGame.GetNotation: string;
-begin
-  Result := '';
 end;
 
 procedure TGame.AddMove(AMove: TMove);
@@ -260,6 +336,11 @@ begin
   end;
 end;
 
+function TGame.GetNotation: string;
+begin
+  Result := GetNotation(DefaultNotationStyle);
+end;
+
 procedure TGame.GoOneMoveBackward;
 begin
   GoToPositionAfterPlyNode(FPlyTree.GetParentOf(FCurrentPlyNode));
@@ -309,32 +390,147 @@ end;
 
 { TStandardGame }
 
-function TStandardGame.GetNotation: string;
+constructor TStandardGame.Create;
+begin
+  inherited Create;
+  FInitialPosition := TStandardPosition.Create;
+  FCurrentPosition := TStandardPosition.Create;
+  FGameResult := grNone;
+end;
+
+constructor TStandardGame.Create(const AInitialPosition: TPosition);
+begin
+  Create;
+  FInitialPosition.Copy(AInitialPosition);
+  FCurrentPosition.Copy(AInitialPosition);
+end;
+
+function TStandardGame.GetNotation(const ANotationStyle: TNotationStyle): string;
 var
   VarLevel: word;
+  LineLength: integer;
+  CurrentSubStyle: TSubLineStyle;
 
   function RecursiveLineToString(CurrentRoot: TPlyTreeNode;
     StartPos: TStandardPosition): string;
   var
     TempPos: TStandardPosition;
 
+    procedure AddNewLine(var Notation: string);
+    begin
+      // Add a new line and delete the last char if it's a space
+      if Notation[Length(Notation)] = ' ' then
+        Delete(Notation, Length(Notation), 1);
+      Notation := Notation + LineEnding;
+      LineLength := 0;
+    end;
+
+    procedure AddString(var Notation: string; const s: string);
+    begin
+      if (ANotationStyle.MaxLineLength > 0) and (LineLength +
+        Length(s) > ANotationStyle.MaxLineLength) then
+        AddNewLine(Notation);
+      Notation := Notation + s;
+      LineLength := Length(s);
+    end;
+
+    procedure AddComment(var Notation: string; const AComment: string);
+    var
+      s, NextWord: string;
+      p, Min: integer;
+    begin
+      s := AComment;
+      if ANotationStyle.FormatRTF then
+        Notation := Notation + StartRTF(ANotationStyle.CommentTextStyle);
+      if (ANotationStyle.MaxLineLength > 0) and
+        (LineLength + Length(s) > ANotationStyle.MaxLineLength) then
+      begin
+        // Comment too long
+        // calculate the the minimal start position
+        Min := (VarLevel + 1) * ANotationStyle.CommentStyle.Indentation;
+        if ANotationStyle.CommentStyle.LongCommentInNewline then
+        begin
+          // begin new line
+          AddNewLine(Notation);
+          Notation := Notation + StringOfChar(' ', Min);
+          LineLength := Min;
+        end;
+        AddString(Notation, ANotationStyle.CommentStyle.BeginChar);
+        while Length(s) > 0 do
+        begin
+          p := Pos(' ', s);
+          if p > 0 then
+          begin
+            NextWord := Copy(s, 1, p);
+          end
+          else
+            NextWord := s;
+          if (LineLength = Min) and (Length(NextWord) + Min >
+            ANotationStyle.MaxLineLength) then
+            // word is too long
+            NextWord := Copy(s, 1, ANotationStyle.MaxLineLength - Min);
+          if Length(NextWord) + LineLength <= ANotationStyle.MaxLineLength then
+          begin
+            // Add next word to notation
+            Notation := Notation + NextWord;
+            Delete(s, 1, Length(NextWord));
+          end
+          else
+          begin
+            // begin new line
+            AddNewLine(Notation);
+            Notation := Notation + StringOfChar(' ', Min);
+            LineLength := Min;
+          end;
+        end;
+        AddString(Notation, ANotationStyle.CommentStyle.EndChar);
+      if LineLength < ANotationStyle.MaxLineLength then
+        Notation := Notation + ' '
+      else
+      end
+      else
+        Notation := Notation + ANotationStyle.CommentStyle.BeginChar +
+          AComment + ANotationStyle.CommentStyle.EndChar + ' ';
+    end;
+
+    procedure AddNAG(var Notation: string; const ANAG: TNAG);
+    var
+      NextWord: string;
+    begin
+      if ANotationStyle.FormatRTF then
+        Notation := Notation + ANotationStyle.NAGStyle;
+      if ANotationStyle.ShowNAGNumber then
+        NextWord := '$' + IntToStr(ANAG)
+      else
+        NextWord := NAGToStr(ANAG);
+      Notation := Notation + ' ';
+    end;
+
     function PlyToStr(APly: TPly; FirstMoveInVariation: boolean): string;
     begin
       Result := '';
+      // in front comment
       if Length(APly.CommentTextInFront) > 0 then
-        Result := Result + APly.CommentTextInFront + ' ';
+      begin
+        AddComment(Result, APly.CommentTextInFront);
+      end;
       if APly.NonStandardGlyph > 0 then
-        Result := Result + NAGToStr(APly.NonStandardGlyph) + ' ';
+        Result := Result + NAGToStr(APly.NonStandardGlyph,
+          ANotationStyle.ShowNAGNumber) + ' ';
       if TempPos.WhitesTurn then
         Result := Result + IntToStr(TempPos.MoveNumber) + '.'
       else
       if FirstMoveInVariation then
         Result := Result + IntToStr(TempPos.MoveNumber) + '...';
-      Result := Result + TempPos.MoveToSAN(APly.Move);
+      Result := Result + TempPos.MoveToSAN(APly.Move, ANotationStyle.PieceLetters,
+        ANotationStyle.ShowPawnLetter, ANotationStyle.ShowEnPassantSuffix,
+        ANotationStyle.CaptureSymbol, ANotationStyle.PromotionSymbol);
       if APly.MoveAssessment > 0 then
-        Result := Result + NAGToStr(APly.MoveAssessment) + ' ';
+        Result := Result + NAGToStr(APly.MoveAssessment,
+          ANotationStyle.ShowNAGNumber) + ' ';
       if APly.PositionalAssessment > 0 then
-        Result := Result + NAGToStr(APly.PositionalAssessment) + ' ';
+        Result := Result + NAGToStr(APly.PositionalAssessment,
+          ANotationStyle.ShowNAGNumber) + ' ';
       if Result[Length(Result)] <> ' ' then
         Result := Result + ' ';
       if Length(APly.CommentTextInBehind) > 0 then
@@ -348,12 +544,14 @@ var
     Result := '';
     if CurrentRoot.Children.Size = 0 then
     begin // End of line
-      if VarLevel = 1 then
-        Result := '] ' + LineEnding
+      if VarLevel > 0 then
+      begin
+        if CurrentSubStyle.SpaceInBetween then
+          Result := Result + ' ';
+        Result := Result + CurrentSubStyle.EndChar;
+      end
       else
-      if VarLevel > 1 then
-        Result := ') ';
-      Exit;
+        Exit; // End of game
     end;
     TempPos := TStandardPosition.Create;
     TempPos.Copy(StartPos);
@@ -368,11 +566,21 @@ var
         TempPos.Copy(StartPos);
         Ply := CurrentRoot.Children.Items[i].Data;
         // Write side lines
-        if VarLevel = 1 then
-          Result := Result + LineEnding + StringOfChar(' ', 2 * VarLevel) + '['
-        else
-        if VarLevel > 1 then
-          Result := Result + '(';
+        case ANotationStyle.RAVStyle of
+          rsPGN: ;
+          rsChessbase:
+            if VarLevel = 1 then
+              Result := Result + LineEnding + StringOfChar(' ', 2 * VarLevel) + '['
+            else
+            if VarLevel > 1 then
+              Result := Result + '(';
+          rsSCID:
+          begin
+            Result := Result + LineEnding + StringOfChar(' ', 4 * VarLevel) + '( ';
+          end;
+          rsJose: ;
+          rsChessX: ;
+        end;
         Result := Result + PlyToStr(Ply, True);
         TempPos.PlayMove(Ply.Move);
         Result := Result + RecursiveLineToString(CurrentRoot.Children.Items[i], TempPos);
@@ -387,8 +595,23 @@ var
     TempPos.Free;
   end;
 
+var
+  j: integer;
 begin
-  Result := inherited GetNotation;
+  Result := '';
+  if ANotationStyle.FormatRTF then
+  begin
+    // Write color table
+    Result := Result + '{\colortbl;';
+    for j := 1 to 8 do
+    begin
+      Result := Result + '\red' + IntToStr(ANotationStyle.ColorTable[j].Red);
+      Result := Result + '\green' + IntToStr(ANotationStyle.ColorTable[j].Green);
+      Result := Result + '\blue' + IntToStr(ANotationStyle.ColorTable[j].Blue) + ';';
+    end;
+    Result := Result + '}' + LineEnding;
+  end;
+  LineLength := 0;
   if FPlyTree.Count > 0 then
   begin
     Varlevel := 0;
@@ -396,21 +619,7 @@ begin
       TStandardPosition);
   end;
   Result := Result + GameResultToStr(FGameResult);
-end;
 
-constructor TStandardGame.Create;
-begin
-  inherited Create;
-  FInitialPosition := TStandardPosition.Create;
-  FCurrentPosition := TStandardPosition.Create;
-  FGameResult := grNone;
-end;
-
-constructor TStandardGame.Create(const AInitialPosition: TPosition);
-begin
-  Create;
-  FInitialPosition.Copy(AInitialPosition);
-  FCurrentPosition.Copy(AInitialPosition);
 end;
 
 end.
