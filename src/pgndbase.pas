@@ -36,7 +36,8 @@ type
 
   TPGNDatabaseHelper = class helper for TPGNDatabase
   public
-    procedure LoadFromFile(APGNFile: string);
+    procedure LoadFromFile(const APGNFile: string);
+    procedure SaveToFile(const APGNFile: string);
   end;
 
 function StrToRating(const s: string): integer;
@@ -53,7 +54,46 @@ end;
 
 { TPGNDatabaseHelper }
 
-procedure TPGNDatabaseHelper.LoadFromFile(APGNFile: string);
+function ComparePGNGames(const Item1, Item2: TPGNGame): Integer;
+var
+  s1, s2: string;
+begin
+  Result := CompareStr(StringReplace(Item1.Date, '?', '0', [rfReplaceAll]), StringReplace(Item2.Date, '?', '0', [rfReplaceAll]));
+  if Result = 0 then
+  begin
+    Result := CompareStr(Item1.Event, Item2.Event);
+    if Result = 0 then
+    begin
+      Result := CompareStr(Item1.Site, Item2.Site);
+      if Result = 0 then
+      begin
+        s1 := StringReplace(Item1.Round, '-', '0', [rfReplaceAll]);
+        s1 := StringReplace(s1, '?', '/', [rfReplaceAll]);
+        s2 := StringReplace(Item2.Round, '-', '0', [rfReplaceAll]);
+        s2 := StringReplace(s2, '?', '/', [rfReplaceAll]);
+        Result := CompareStr(s1, s2);
+        if Result = 0 then
+        begin
+          Result := CompareStr(Item1.White, Item2.White);
+          if Result = 0 then
+          begin
+            Result := CompareStr(Item1.Black, Item2.Black);
+            if Result = 0 then
+            begin
+              Result := CompareStr(Item1.Result, Item2.Result);
+              if Result = 0 then
+              begin
+                Result := CompareStr(Item1.GetPGNNotation, Item2.GetPGNNotation);
+              end;
+            end;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+procedure TPGNDatabaseHelper.LoadFromFile(const APGNFile: string);
 var
   F: Text;
   s: string;
@@ -178,7 +218,8 @@ var
       c := getChar(Index);
       while not (c = '}') do
       begin
-        Result := Result + c;
+        if c <> #10 then
+          Result := Result + c;
         Inc(Index);
         //if Index > Len then
         //  raise EPGNImportException.Create('Unexpected end of string');
@@ -273,50 +314,8 @@ var
             'white': TempPGNGame.White := Tag.Value;
             'black': TempPGNGame.Black := Tag.Value;
             'result': TempPGNGame.Result := Tag.Value;
-            // Player related
-            'BlackELO': TempPGNGame.BlackELO := StrToRating(Tag.Value);
-            'BlackNA': TempPGNGame.BlackNA := Tag.Value;
-            'BlackTitle': TempPGNGame.BlackTitle := StrToFIDETitle(Tag.Value);
-            'BlackType': TempPGNGame.BlackType := StrToPlayerType(Tag.Value);
-            'BlackUSCF': TempPGNGame.BlackUSCF := StrToRating(Tag.Value);
-            'WhiteELO': TempPGNGame.WhiteELO := StrToRating(Tag.Value);
-            'WhiteNA': TempPGNGame.WhiteNA := Tag.Value;
-            'WhiteTitle': TempPGNGame.WhiteTitle := StrToFIDETitle(Tag.Value);
-            'WhiteType': TempPGNGame.WhiteType := StrToPlayerType(Tag.Value);
-            'WhiteUSCF': TempPGNGame.WhiteUSCF := StrToRating(Tag.Value);
-            // Event related
-            'Board': TempPGNGame.Board := StrToInt(Tag.Value);
-            'EventDate': TempPGNGame.EventDate := Tag.Value;
-            'EventSponsor': TempPGNGame.EventSponsor := Tag.Value;
-            'Section': TempPGNGame.Section := Tag.Value;
-            'Stage': TempPGNGame.Stage := Tag.Value;
-            // Opening information (locale)
-            'Opening': TempPGNGame.Opening := Tag.Value;
-            'SubVariation': TempPGNGame.SubVariation := Tag.Value;
-            'Variation': TempPGNGame.Variation := Tag.Value;
-            // Opening information (3rd party)
-            'ECO': TempPGNGame.ECO := Tag.Value;
-            'NIC': TempPGNGame.NIC := Tag.Value;
-            // Time and date information
-            'Time': TempPGNGame.Time := Tag.Value;
-            'UTCDate': TempPGNGame.UTCDate := Tag.Value;
-            'UTCTime': TempPGNGame.UTCTime := Tag.Value;
-            // Time control
-            // TODO': Replace string with own format, when chessclock is TempPGNGamey
-            'TimeControl': TempPGNGame.TimeControl := Tag.Value;
-            // Alternative starting position
-            'FEN':
-            begin
-              TempPGNGame.FEN := Tag.Value;
-              (TempPGNGame.CurrentPosition as TStandardPosition).FromFEN(Tag.Value);
-            end;
-            'SetUp': TempPGNGame.SetUp := Tag.Value = '1';
-            // Game conclusion
-            'Termination': TempPGNGame.Termination := StrToTerminationType(Tag.Value);
-            // Miscellanous
-            'Annotator': TempPGNGame.Annotator := Tag.Value;
-            'Mode': TempPGNGame.Mode := StrToModeType(Tag.Value);
-            'PlyCount': TempPGNGame.PlyCount := StrToInt(tag.Value);
+            else
+              TempPGNGame.AddAdditionalTag(Tag);
           end;
         end;
         '%':
@@ -527,6 +526,44 @@ begin
   end;
   temp.Free;
   VariationPlies.Free;
+end;
+
+procedure TPGNDatabaseHelper.SaveToFile(const APGNFile: string);
+var
+  PGNGame: TPGNGame;
+  F: Text;
+  Temp: TPGNTag;
+  i: Integer;
+begin
+  AssignFile(F, APGNFile);
+  Rewrite(F);
+  try
+    Self.Sort(@ComparePGNGames);
+    for PGNGame in Self do
+    begin
+      // Write tag roster
+      WriteLn(F, '[Event "' + PGNGame.Event + '"]');
+      WriteLn(F, '[Site "' + PGNGame.Site + '"]');
+      WriteLn(F, '[Date "' + PGNGame.Date + '"]');
+      WriteLn(F, '[Round "' + PGNGame.Round + '"]');
+      WriteLn(F, '[White "' + PGNGame.White + '"]');
+      WriteLn(F, '[Black "' + PGNGame.Black + '"]');
+      WriteLn(F, '[Result "' + PGNGame.Result + '"]');
+      // Write any additional tags
+      for i := 0 to PGNGame.CountAdditionalTags - 1 do
+      begin
+        Temp := PGNGame.AdditionalTags[i]^;
+        WriteLn(F, '[' + Temp.Name + ' "' + Temp.Value + '"]');
+      end;
+      // Write move section
+      WriteLn(F);
+      WriteLn(F, PGNGame.GetPGNNotation);
+      WriteLn(F);
+    end;
+
+  finally
+    CloseFile(F);
+  end;
 end;
 
 end.
