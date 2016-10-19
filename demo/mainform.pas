@@ -19,14 +19,14 @@ unit MainForm;
 
 {$mode objfpc}{$H+}
 
-{$DEFINE LOGGING}
+//{$DEFINE LOGGING}
 
 interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
-  MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs,
-  Ply, Position, PGNDbase, PGNGame, EpikTimer, BitBoard;
+  NotationMemo, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Ply,
+  Position, PGNDbase, PGNGame, {$IFDEF Logging} EpikTimer, {$ENDIF} BitBoard;
 
 type
 
@@ -43,8 +43,9 @@ type
     Button3: TButton;
     ComboBox1: TComboBox;
     Label1: TLabel;
+    Label2: TLabel;
     ListView1: TListView;
-    Memo1: TMemo;
+    NotationMemo1: TNotationMemo;
     OpenDialog1: TOpenDialog;
     procedure Board1MouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
@@ -81,14 +82,15 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
-  i: TSquare10x12;
   j: integer;
   k: byte;
   Q: QWord;
   FEN: string;
+  MainLineStyle, SubLineStyle: TLineStyle;
 begin
   {$IFDEF Logging}
   ET := TEpikTimer.Create(nil);
+  ET.Start;
   k := 0;
   //for i in ValidSquares do
   //begin
@@ -108,9 +110,11 @@ begin
   //WriteLn('***************** Springerzüge ********************');
   //for i := 0 to 63 do
   //  WriteLn(BitBoardToStr(KnightMoves[i]));
- // WriteLn('***************** Königzüge ***********************');
- //for i := 0 to 63 do
- //   WriteLn(BitBoardToStr(KingMoves[i]));
+  // WriteLn('***************** Königzüge ***********************');
+  //for i := 0 to 63 do
+  //   WriteLn(BitBoardToStr(KingMoves[i]));
+  WriteLn(BitBoardToStr(BlackSquares), 'SCHWARZ');
+  WriteLn(BitBoardToStr(WhiteSquares), 'WEIß');
   {$ENDIF}
   PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
@@ -123,11 +127,35 @@ begin
   // FEN := '8/8/4p1p1/2p4p/p1PpkP1P/Pr2rRK1/1P1R2P1/8 w - - 0 42';
   // FEN := '8/5bk1/8/2P1p3/8/1K6/8/8 w - d6 0 1';
   //  FEN := 'rnbqkbnr/p1p1p1p1/8/1p1p1p1p/P1P1P1P1/8/1P1P1P1P/RNBQKBNR w KQkq - 0 5';
-   //FEN := 'rnbqkbnr/p5p1/8/1ppPpP1p/P5P1/8/1P1P1P1P/RNBQKBNR w KQkq e6 0 7';
-   FEN := '8/8/8/K7/R3Pppk/8/8/8 b - e3 0 1';
-   (Board1.CurrentPosition as TStandardPosition).FromFEN(FEN);
+  //FEN := 'rnbqkbnr/p5p1/8/1ppPpP1p/P5P1/8/1P1P1P1P/RNBQKBNR w KQkq e6 0 7';
+  FEN := '8/8/8/K7/R3Pppk/8/8/8 b - e3 0 1';
+  (Board1.CurrentPosition as TStandardPosition).FromFEN(FEN);
   // (Board1.CurrentPosition as TStandardPosition).PrintBoards;
   MyGame := TStandardGame.Create(Board1.CurrentPosition);
+
+  with NotationMemo1.AddLineStyle^ do
+  begin
+    CommentaryStyle.Color := clBlue;
+    CommentaryStyle.Style := [fsBold];
+    MoveStyle.Color := clBlack;
+    MoveStyle.Style := [fsBold];
+    NAGStyle.Color := clRed;
+    NAGStyle.Style := [fsBold];
+    NumberStyle.Color := clBlack;
+    NumberStyle.Style := [fsBold];
+  end;
+
+  with NotationMemo1.AddLineStyle^ do
+  begin
+    CommentaryStyle.Color := clBlue;
+    CommentaryStyle.Style := [];
+    MoveStyle.Color := clBlack;
+    MoveStyle.Style := [];
+    NAGStyle.Color := clRed;
+    NAGStyle.Style := [];
+    NumberStyle.Color := clBlack;
+    NumberStyle.Style := [];
+  end;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -147,7 +175,11 @@ begin
   if Selected then
   begin
     MyPGNGame := PGNDatabase.Items[ListView1.Items.IndexOf(Item)];
-    Memo1.Text := MyPGNGame.Notation;
+    NotationMemo1.SetTextFromGameNotation(MyPGNGame.Notation);
+    MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
+    (Board1.CurrentPosition as TStandardPosition).FromFEN(
+      (MyPGNGame.CurrentPosition as TStandardPosition).ToFEN);
+    Board1.Invalidate;
   end;
 end;
 
@@ -162,7 +194,7 @@ end;
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
-  Memo1.Lines.Clear;
+  NotationMemo1.Lines.Clear;
   MyGame.Clear;
   Board1.CurrentPosition.SetupInitialPosition;
   UpdateButtons;
@@ -190,11 +222,18 @@ end;
 procedure TForm1.Button3Click(Sender: TObject);
 var
   LItem: TListItem;
-  i: integer;
+  i, sum: integer;
+  a: extended;
 begin
+  a := 0;
   if OpenDialog1.Execute then
   begin
     PGNDatabase.LoadFromFile(OpenDialog1.FileName);
+    {$IFDEF Logging}
+    a := ET.Elapsed;
+    {$ENDIF}
+    ListView1.BeginUpdate;
+    sum := 0;
     for i := 0 to PGNDatabase.Count - 1 do
     begin
       LItem := ListView1.Items.Add;
@@ -205,12 +244,16 @@ begin
       LItem.SubItems.Add(PGNDatabase.Items[i].Site);
       LItem.SubItems.Add(PGNDatabase.Items[i].Round);
       LItem.SubItems.Add(GameResultToStr(PGNDatabase.Items[i].GameResult));
+      sum := sum + PGNDatabase.Items[i].PlyTree.Count div 2;
     end;
+    ListView1.EndUpdate;
+    Label2.Caption := Label2.Caption + FloatToStr(sum / PGNDatabase.Count);
   end;
   {$IFDEF Logging}
   WriteLn('Züge: ', Zuege);
   WriteLn('Zeit: ', Zeit, 's');
   WriteLn(Trunc(Zuege / Zeit), ' Züge pro Sekunde');
+  WriteLn(((ET.Elapsed - a)));
   {$ENDIF}
 end;
 
@@ -250,7 +293,7 @@ begin
     end;
   end;
   Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
-  Memo1.Text := MyGame.Notation;
+  NotationMemo1.SetTextFromGameNotation(MyGame.Notation);
   UpdateButtons;
 end;
 
