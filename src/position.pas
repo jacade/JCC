@@ -17,7 +17,7 @@
 
 unit Position;
 
-{$DEFINE LOGGING}
+//{$DEFINE LOGGING}
 
 {$mode objfpc}{$H+}
 
@@ -134,7 +134,7 @@ type
     procedure GenerateRookPseudoMoves(Rooks, OppositeColorWithoutKingOrEmpty: TBitBoard;
       AMoveList: TMoveList);
     function FilterMoveList(AMoveList: TMoveList; APiece: TPieceType = ptEmpty;
-      StartFile: byte = 0; StartRank: byte = 0; DestSquare: TSquare10x12 = 0;
+      StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 0;
       APromotionPiece: TPieceType = ptEmpty): TMoveList;
     // Checks if the side not to move is attacking the given square
     function IsAttacked(Index: integer): boolean;
@@ -158,7 +158,7 @@ type
     destructor Destroy; override;
     // Returns a sub list of LegalMoves with those moves which fulfill the parameters
     function FilterLegalMoves(APiece: TPieceType = ptEmpty;
-      StartFile: byte = 0; StartRank: byte = 0; DestSquare: TSquare10x12 = 0;
+      StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 0;
       APromotionPiece: TPieceType = ptEmpty): TMoveList;
     procedure FromFEN(const AFEN: string);
     // Checks if the side to move is check
@@ -182,7 +182,8 @@ type
     procedure SetupInitialPosition; override;
     // If true, the converted move can be found in ResultMove
     function ValidateMove(var ResultMove: TMove; MovingPiece: TPieceType;
-      Dest: TSquare10x12; StartingFile: byte = 0; StartingRank: byte = 0): boolean;
+      Dest: byte; StartingFile: byte = 0; StartingRank: byte = 0): boolean;
+    function ValidateMove(AMove: TMove): boolean;
     function ToFEN: string;
   public
     property CastlingAbility: TCastlingAbility
@@ -202,22 +203,14 @@ var
     {$ENDIF}
 
 // Returns a Bitboard with zeroes and a 1 at the given position
-function SquareToBitBoard(const ASquare: TSquare10x12): QWord;
+function SquareToBitBoard(const ASquare: TSquare8x8): QWord;
 
 implementation
 
-function SquareToBitBoard(const ASquare: TSquare10x12): QWord;
-var
-  Temp: TSquare8x8;
+function SquareToBitBoard(const ASquare: TSquare8x8): QWord;
 begin
-  if ASquare in OffSquares then
-    Result := 0
-  else
-  begin
-    Temp := ASquare;
-    // Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
-    Result := Ranks[Temp.RRank] and Files[Temp.RFile];
-  end;
+  // Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
+  Result := Ranks[ASquare.RRank] and Files[ASquare.RFile];
 end;
 
 { TPosition }
@@ -462,7 +455,7 @@ begin
 end;
 
 function TStandardPosition.FilterMoveList(AMoveList: TMoveList;
-  APiece: TPieceType; StartFile: byte; StartRank: byte; DestSquare: TSquare10x12;
+  APiece: TPieceType; StartFile: byte; StartRank: byte; DestSquare: byte;
   APromotionPiece: TPieceType): TMoveList;
 var
   NoFilterPiece, NoFilterDest, NoFilterPromo, NoFilterStartR, NoFilterStartF: boolean;
@@ -476,10 +469,10 @@ begin
   Result := TMoveList.Create;
   for Move in AMoveList do
   begin
-    if (NoFilterPiece or (Squares[TSquare10x12(Move.Start)] = APiece)) and
+    if (NoFilterPiece or (Squares[Move.Start] = APiece)) and
       (NoFilterDest or (Move.Dest = DestSquare)) and
-      (NoFilterStartF or (Move.Start.RFile = StartFile)) and
-      (NoFilterStartR or (Move.Start.RRank = StartRank)) and
+      (NoFilterStartF or (Move.Start8x8.RFile = StartFile)) and
+      (NoFilterStartR or (Move.Start8x8.RRank = StartRank)) and
       (NoFilterPromo or (Move.PromotionPiece = APromotionPiece)) then
       Result.Add(Move);
   end;
@@ -603,7 +596,7 @@ var
     temp: TMoveList;
     Piece: TBasicPieceType;
     i: integer;
-    Start, Dest: TSquare10x12;
+    Start, Dest: byte;
   begin
     temp := TMoveList.Create;
     i := 0;
@@ -615,7 +608,7 @@ var
         (not FWhitesTurn and (Start in Rank2) and (Squares[Start] = ptBPawn)) then
       begin
         for Piece in [bptRook, bptKnight, bptBishop, bptQueen] do
-          temp.Add(CreateMove(Start, Dest, PieceType(Piece, FWhitesTurn)));
+          temp.Add(TMove.Create(Start, Dest, PieceType(Piece, FWhitesTurn)));
         AMoveList.Delete(i);
       end
       else
@@ -708,7 +701,6 @@ var
   BEnPassant: TBitBoard;
   BPliesSinceLastPawnMoveOrCapture: integer;
   BMoveNumer: integer;
-  BBlackKing, BWhiteKing: TSquare10x12;
   BackupBoards: array[1..8] of TBitBoard;
   d, c, tb, tc: extended;
   R, B, K, Pinner, SuperKingAttacks, Blockers, Blocker: TBitBoard;
@@ -950,7 +942,7 @@ begin
   begin
     for j := 7 to 8 do
     begin
-      if (SquareToBitBoard(Index) and FBitBoards[i] and FBitBoards[j]) > 0 then
+      if ((QWord(1) shl Index) and FBitBoards[i] and FBitBoards[j]) > 0 then
         case i of
           1: Result := PieceType(bptPawn, j = 7);
           2: Result := PieceType(bptRook, j = 7);
@@ -1013,7 +1005,7 @@ procedure TStandardPosition.SilentFromFEN(const AFEN: string);
 var
   c: char;
   s, p: TStringList;
-  rk, fl, i, Coordinate: TSquare10x12;
+  rk, fl, i, Coordinate: byte;
   temp: string;
   RegFEN: TRegExpr;
 begin
@@ -1031,10 +1023,10 @@ begin
   for rk := 0 to 7 do
   begin
     temp := p.Strings[rk];
-    fl := 1;
+    fl := 0;
     for i := 1 to Length(temp) do
     begin
-      Coordinate := rk * 10 + 20 + fl;
+      Coordinate := rk * 8 + fl;
       // TODO:
       //if FSquares[Coordinate] = ptOff then
       //  raise EInvalidFEN.Create('FEN is invalid');
@@ -1042,63 +1034,63 @@ begin
         '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
         'p':
         begin
-          FBitBoards[1] := FBitBoards[1] or SquareToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
+          FBitBoards[1] := FBitBoards[1] or QWord(1) shl Coordinate;
+          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
         end;
         'r':
         begin
-          FBitBoards[2] := FBitBoards[2] or SquareToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
+          FBitBoards[2] := FBitBoards[2] or QWord(1) shl Coordinate;
+          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
         end;
         'n':
         begin
-          FBitBoards[3] := FBitBoards[3] or SquareToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
+          FBitBoards[3] := FBitBoards[3] or QWord(1) shl Coordinate;
+          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
         end;
         'b':
         begin
-          FBitBoards[4] := FBitBoards[4] or SquareToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
+          FBitBoards[4] := FBitBoards[4] or QWord(1) shl Coordinate;
+          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
         end;
         'q':
         begin
-          FBitBoards[5] := FBitBoards[5] or SquareToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
+          FBitBoards[5] := FBitBoards[5] or QWord(1) shl Coordinate;
+          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
         end;
         'k':
         begin
-          FBitBoards[6] := FBitBoards[6] or SquareToBitBoard(Coordinate);
-          FBitBoards[8] := FBitBoards[8] or SquareToBitBoard(Coordinate);
+          FBitBoards[6] := FBitBoards[6] or QWord(1) shl Coordinate;
+          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
         end;
         'P':
         begin
-          FBitBoards[1] := FBitBoards[1] or SquareToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
+          FBitBoards[1] := FBitBoards[1] or QWord(1) shl Coordinate;
+          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
         end;
         'R':
         begin
-          FBitBoards[2] := FBitBoards[2] or SquareToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
+          FBitBoards[2] := FBitBoards[2] or QWord(1) shl Coordinate;
+          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
         end;
         'N':
         begin
-          FBitBoards[3] := FBitBoards[3] or SquareToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
+          FBitBoards[3] := FBitBoards[3] or QWord(1) shl Coordinate;
+          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
         end;
         'B':
         begin
-          FBitBoards[4] := FBitBoards[4] or SquareToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
+          FBitBoards[4] := FBitBoards[4] or QWord(1) shl Coordinate;
+          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
         end;
         'Q':
         begin
-          FBitBoards[5] := FBitBoards[5] or SquareToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
+          FBitBoards[5] := FBitBoards[5] or QWord(1) shl Coordinate;
+          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
         end;
         'K':
         begin
-          FBitBoards[6] := FBitBoards[6] or SquareToBitBoard(Coordinate);
-          FBitBoards[7] := FBitBoards[7] or SquareToBitBoard(Coordinate);
+          FBitBoards[6] := FBitBoards[6] or QWord(1) shl Coordinate;
+          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
         end;
       end;
       Inc(fl);
@@ -1137,8 +1129,8 @@ var
   Start, Dest: TBitBoard;
   i: integer;
 begin
-  Start := SquareToBitBoard(AMove.Start);
-  Dest := SquareToBitBoard(AMove.Dest);
+  Start := SquareToBitBoard(AMove.Start8x8);
+  Dest := SquareToBitBoard(AMove.Dest8x8);
   if (Start and (FBitBoards[7] or FBitBoards[8])) = 0 then
   begin
     PrintBoards;
@@ -1266,7 +1258,7 @@ begin
   WriteLn(BitBoardToStr(FEnPassant), 'En Passant');
   k := 1;
   Write('|');
-  for i in ValidSquares do
+  for i := 0 to 63 do
   begin
     case Squares[i] of
       ptEmpty: Write('  ');
@@ -1313,7 +1305,7 @@ begin
 end;
 
 function TStandardPosition.FilterLegalMoves(APiece: TPieceType;
-  StartFile: byte; StartRank: byte; DestSquare: TSquare10x12;
+  StartFile: byte; StartRank: byte; DestSquare: byte;
   APromotionPiece: TPieceType): TMoveList;
   //var
   //  NoFilterPiece, NoFilterDest, NoFilterPromo, NoFilterStartR, NoFilterStartF: boolean;
@@ -1513,23 +1505,23 @@ var
 begin
   SameDest := TMoveList.Create;
   Clone := TStandardPosition.Create;
-  Piece := Squares[TSquare10x12(AMove.Start)];
+  Piece := Squares[AMove.Start];
   Castling := False;
   AppendColon := False;
   case Piece of
     ptWKing, ptBKing:
     begin
       // Handle kingside castling
-      if ((AMove.Start = 95) and (AMove.Dest = 97)) or
-        ((AMove.Start = 25) and (AMove.Dest = 27)) then
+      if ((AMove.Start = 60) and (AMove.Dest = 62)) or
+        ((AMove.Start = 4) and (AMove.Dest = 6)) then
       begin
         Result := 'O-O';
         Castling := True;
       end
       else
       // Handle queenside castling
-      if ((AMove.Start = 95) and (AMove.Dest = 93)) or
-        ((AMove.Start = 25) and (AMove.Dest = 23)) then
+      if ((AMove.Start = 60) and (AMove.Dest = 58)) or
+        ((AMove.Start = 4) and (AMove.Dest = 2)) then
       begin
         Result := 'O-O-O';
         Castling := True;
@@ -1545,9 +1537,9 @@ begin
       for j := 0 to FLegalMoves.Count - 1 do
       begin
         // Check if there is another piece of the same kind, which can go to the current square
-        if (AMove.Start <> FLegalMoves.Items[j].Start) and
-          (FLegalMoves.Items[j].Dest = AMove.Dest) and
-          (Squares[TSquare10x12(FLegalMoves.Items[j].Start)] = Piece) then
+        if (AMove.Start8x8 <> FLegalMoves.Items[j].Start8x8) and
+          (FLegalMoves.Items[j].Dest8x8 = AMove.Dest8x8) and
+          (Squares[FLegalMoves.Items[j].Start] = Piece) then
           SameDest.Add(FLegalMoves.Items[j]);
       end;
       if SameDest.Count > 0 then  // We need to distinguish
@@ -1557,10 +1549,10 @@ begin
         for j := 0 to SameDest.Count - 1 do
         begin
           Distinguished := Distinguished and
-            (SameDest.Items[j].Start.RFile <> AMove.Start.RFile);
+            (SameDest.Items[j].Start8x8.RFile <> AMove.Start8x8.RFile);
         end;
         if Distinguished then
-          Result := Result + TAlgebraicSquare(AMove.Start).RFile
+          Result := Result + TAlgebraicSquare(AMove.Start8x8).RFile
         else
         begin
           Distinguished := True;
@@ -1568,13 +1560,14 @@ begin
           for j := 0 to SameDest.Count - 1 do
           begin
             Distinguished :=
-              Distinguished and (SameDest.Items[j].Start.RRank <> AMove.Start.RRank);
+              Distinguished and (SameDest.Items[j].Start8x8.RRank <>
+              AMove.Start8x8.RRank);
           end;
           if Distinguished then
-            Result := Result + TAlgebraicSquare(AMove.Start).RRank
+            Result := Result + TAlgebraicSquare(AMove.Start8x8).RRank
           else
             // We cannot distinguish, so we need the whole square
-            Result := Result + SquareToString(AMove.Start);
+            Result := Result + SquareToString(AMove.Start8x8);
         end;
       end;
     end;
@@ -1582,12 +1575,12 @@ begin
   if not Castling then
   begin
     // Check if dest is occupied or a pawn is taken en passant
-    if (Squares[TSquare10x12(AMove.Dest)] <> ptEmpty) or
-      ((Piece in [ptWPawn, ptBPawn]) and (SquareToBitBoard(AMove.Dest) =
+    if (Squares[AMove.Dest] <> ptEmpty) or
+      ((Piece in [ptWPawn, ptBPawn]) and (SquareToBitBoard(AMove.Dest8x8) =
       FEnPassant)) then
     begin
       if (Piece in [ptWPawn, ptBPawn]) and (Length(Result) = 0) then
-        Result := Result + TAlgebraicSquare(AMove.Start).RFile;
+        Result := Result + TAlgebraicSquare(AMove.Start8x8).RFile;
       case CaptureSymbol of
         csNone: ;// Do nothing
         csColon: Result := Result + ':';
@@ -1595,13 +1588,13 @@ begin
         csx: Result := Result + 'x';
       end;
     end;
-    Result := Result + SquareToString(AMove.Dest);
+    Result := Result + SquareToString(AMove.Dest8x8);
     // Add colon if desired
     if AppendColon then
       Result := Result + ':';
     // Optionally add 'e.p.' if it is an en passant move
     if ShowEnPassantSuffix and (Piece in [ptWPawn, ptBPawn]) and
-      (SquareToBitBoard(AMove.Dest) = FEnPassant) then
+      (SquareToBitBoard(AMove.Dest8x8) = FEnPassant) then
     begin
       Result := Result + 'e.p.';
     end;
@@ -1650,19 +1643,20 @@ begin
 end;
 
 function TStandardPosition.ValidateMove(var ResultMove: TMove;
-  MovingPiece: TPieceType; Dest: TSquare10x12; StartingFile: byte;
-  StartingRank: byte): boolean;
+  MovingPiece: TPieceType; Dest: byte; StartingFile: byte; StartingRank: byte): boolean;
 var
   Candidates, OppositePiecesWithoutKingOrEmpty, FilterFile, FilterRank,
   BEnPassant, Attacks: TBitBoard;
   PseudoLegalMoves, FoundMoves: TMoveList;
-  j, BPliesSinceLastPawnMoveOrCapture, BMoveNumber, i, k: integer;
+  j, BPliesSinceLastPawnMoveOrCapture, BMoveNumber, i: integer;
   BackupBoards: array[1..8] of TBitBoard;
   BCastlingAbility: TCastlingAbility;
   a, b, c, d, e, f: extended;
   Move: TMove;
 begin
+  {$IFDEF Logging}
   b := ET.Elapsed;
+  {$ENDIF}
   if StartingFile > 0 then
     FilterFile := Files[StartingFile]
   else
@@ -1716,18 +1710,19 @@ begin
       GenerateBlackPawnPseudoMoves(Candidates, PseudoLegalMoves);
   end;
   //Write(' 2: ', FormatFloat('0.##', (ET.Elapsed - c) * 1000000), 'µs');
+  {$IFDEF Logging}
   d := ET.Elapsed;
+  {$ENDIF}
   case BasisPieceType(MovingPiece) of
     bptKnight:
     begin
       //GenerateKnightPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
       //  PseudoLegalMoves);
-      k := NumberOfTrailingZeroes(SquareToBitBoard(Dest));
-      Attacks := BitBoard.KnightMoves[k] and Candidates;
+      Attacks := BitBoard.KnightMoves[Dest] and Candidates;
       while Attacks > 0 do
       begin
         i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, k));
+        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
         Attacks := Attacks and (Attacks - 1);
       end;
     end;
@@ -1739,12 +1734,11 @@ begin
       //  Candidates := Candidates and BlackSquares;
       //GenerateBishopPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
       //  PseudoLegalMoves);
-      k := NumberOfTrailingZeroes(SquareToBitBoard(Dest));
-      Attacks := DiagonalAndAntiDiagonalAttacks(k) and Candidates;
+      Attacks := DiagonalAndAntiDiagonalAttacks(Dest) and Candidates;
       while Attacks > 0 do
       begin
         i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, k));
+        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
         Attacks := Attacks and (Attacks - 1);
       end;
     end;
@@ -1754,12 +1748,11 @@ begin
       //  Ranks[TSquare8x8(Dest).RRank]);
       //GenerateRookPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
       //  PseudoLegalMoves);
-      k := NumberOfTrailingZeroes(SquareToBitBoard(Dest));
-      Attacks := HorizontalAndVerticalAttacks(k) and Candidates;
+      Attacks := HorizontalAndVerticalAttacks(Dest) and Candidates;
       while Attacks > 0 do
       begin
         i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, k));
+        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
         Attacks := Attacks and (Attacks - 1);
       end;
     end;
@@ -1767,31 +1760,32 @@ begin
     begin
       //GenerateQueenPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
       //    PseudoLegalMoves);
-      k := NumberOfTrailingZeroes(SquareToBitBoard(Dest));
-      Attacks := (DiagonalAndAntiDiagonalAttacks(k) or
-        HorizontalAndVerticalAttacks(k)) and Candidates;
+      Attacks := (DiagonalAndAntiDiagonalAttacks(Dest) or
+        HorizontalAndVerticalAttacks(Dest)) and Candidates;
       while Attacks > 0 do
       begin
         i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, k));
+        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
         Attacks := Attacks and (Attacks - 1);
       end;
     end;
-    bptKing: begin
+    bptKing:
+    begin
       //GenerateKingPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
       //  PseudoLegalMoves);
-      k := NumberOfTrailingZeroes(SquareToBitBoard(Dest));
-      Attacks := BitBoard.KingMoves[k] and Candidates;
+      Attacks := BitBoard.KingMoves[Dest] and Candidates;
       while Attacks > 0 do
       begin
         i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, k));
+        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
         Attacks := Attacks and (Attacks - 1);
       end;
     end;
   end;
   //Write(' 3: ', FormatFloat('0.##', (ET.Elapsed - d) * 1000000), 'µs ', MovingPiece);
+  {$IFDEF Logging}
   e := ET.Elapsed;
+  {$ENDIF}
   if PseudoLegalMoves.Count > 0 then
   begin
     FoundMoves := TMoveList.Create(False);
@@ -1810,7 +1804,9 @@ begin
     while j < FoundMoves.Count do
     begin
       SilentPlayMove(FoundMoves.Items[j]);
+      {$IFDEF Logging}
       f := ET.Elapsed;
+      {$ENDIF}
       if not IsIllegalCheck then
         Inc(j)
       else
@@ -1840,44 +1836,53 @@ begin
   {$ENDIF}
 end;
 
+function TStandardPosition.ValidateMove(AMove: TMove): boolean;
+var
+  Dummy: TMove;
+begin
+  Result := ValidateMove(Dummy, Squares[AMove.Start], AMove.Dest,
+    AMove.Start mod 8 + 1, 8 - AMove.Start div 8);
+end;
+
 function TStandardPosition.ToFEN: string;
 var
   i, z, j: integer;
 begin
   Result := '';
+  z := 0;
   // Piece placement
-  for i := 2 to 9 do
+  for i := 0 to 63 do
   begin
-    z := 0;
-    for j := 1 to 8 do
+    if Squares[i] = ptEmpty then
+      Inc(z)
+    else
     begin
-      if Squares[10 * i + j] = ptEmpty then
-        Inc(z)
-      else
-      begin
-        if z > 0 then
-          Result := Result + IntToStr(z);
-        case Squares[10 * i + j] of
-          ptWPawn: Result := Result + 'P';
-          ptWKnight: Result := Result + 'N';
-          ptWBishop: Result := Result + 'B';
-          ptWRook: Result := Result + 'R';
-          ptWQueen: Result := Result + 'Q';
-          ptWKing: Result := Result + 'K';
-          ptBPawn: Result := Result + 'p';
-          ptBKnight: Result := Result + 'n';
-          ptBBishop: Result := Result + 'b';
-          ptBRook: Result := Result + 'r';
-          ptBQueen: Result := Result + 'q';
-          ptBKing: Result := Result + 'k';
-        end;
-        z := 0;
+      if z > 0 then
+        Result := Result + IntToStr(z);
+      case Squares[i] of
+        ptWPawn: Result := Result + 'P';
+        ptWKnight: Result := Result + 'N';
+        ptWBishop: Result := Result + 'B';
+        ptWRook: Result := Result + 'R';
+        ptWQueen: Result := Result + 'Q';
+        ptWKing: Result := Result + 'K';
+        ptBPawn: Result := Result + 'p';
+        ptBKnight: Result := Result + 'n';
+        ptBBishop: Result := Result + 'b';
+        ptBRook: Result := Result + 'r';
+        ptBQueen: Result := Result + 'q';
+        ptBKing: Result := Result + 'k';
       end;
+      z := 0;
     end;
-    if z > 0 then
-      Result := Result + IntToStr(z);
-    if i < 9 then
-      Result := Result + '/';
+    if i mod 8 = 7 then
+    begin
+      if z > 0 then
+        Result := Result + IntToStr(z);
+      z := 0;
+      if i < 63 then
+        Result := Result + '/';
+    end;
   end;
   // Active color
   if FWhitesTurn then
