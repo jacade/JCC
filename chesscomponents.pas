@@ -8,7 +8,7 @@ interface
 
 uses
   Board, EngineView, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, 
-  BitBoard, LazarusPackageIntf;
+  BitBoard, NotationMemo, LazarusPackageIntf;
 
 implementation
 
@@ -17,6 +17,7 @@ begin
   RegisterUnit('Board', @Board.Register);
   RegisterUnit('EngineView', @EngineView.Register);
   RegisterUnit('ChessClock', @ChessClock.Register);
+  RegisterUnit('NotationMemo', @NotationMemo.Register);
 end;
 
 initialization
