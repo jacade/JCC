@@ -410,6 +410,7 @@ var
   IsMoving: boolean;
 begin
   inherited Paint;
+  Canvas.Brush.Style := bsSolid;
   InnerBoard := Rect(0, 0, Width, Height);
   if bsLeft in Border.Style then
     Inc(InnerBoard.Left, Border.Size);
@@ -440,6 +441,7 @@ begin
   if Border.Size > 0 then
   begin
     Canvas.Brush.Color := Border.Background;
+    Canvas.Brush.Style := bsClear;
     Canvas.Font.Assign(Border.Font);
     // Centered Text
     TextStyle.Alignment := taCenter;
@@ -498,7 +500,7 @@ begin
     else
       k := (d - MIN_IMAGE_SIZE) div STEP_IMAGE_SIZE + 1;
     IsMoving := False;
-    for i in ValidSquares do
+    for i := 0 to 63 do
     begin
       case FCurrentPosition.Squares[i] of
         ptBBishop: j := 1;
@@ -518,8 +520,8 @@ begin
       end;
       if j > 0 then
       begin
-        r := i div 10 - 2;
-        f := i mod 10 - 1;
+        r := i div 8;
+        f := i mod 8;
         if FReversed then
         begin
           f := 7 - f;
