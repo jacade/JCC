@@ -70,7 +70,7 @@ type
   // | 100    101  102  103  104  105  106  107  108    109  |
   // | 110    111  112  113  114  115  116  117  118    119  |
   // ----------------------------------------------------------
-  TSquare10x12 = 0..119;
+ // TSquare10x12 = 0..119;
 
   TAlgebraicSquare = record
     RFile: TAlgebraicFile;
@@ -97,19 +97,24 @@ type
     //FPromotionPiece: TPieceType;
     //FStart: Byte; // 0..63
       FData: Word;
-  protected
-    function GetDest: TSquare8x8; virtual;
-    function GetPromotionPiece: TPieceType; virtual;
-    function GetStart: TSquare8x8;  virtual;
-    procedure SetDest(AValue: TSquare8x8);  virtual;
-    procedure SetStart(AValue: TSquare8x8); virtual;
-    procedure SetPromotionPiece(AValue: TPieceType); virtual;
+    function GetDest: Byte;
+    function GetDest8x8: TSquare8x8;
+    function GetPromotionPiece: TPieceType;
+    function GetStart: Byte;
+    function GetStart8x8: TSquare8x8;
+    procedure SetDest(AValue: Byte);
+    procedure SetDest8x8(AValue: TSquare8x8);
+    procedure SetPromotionPiece(AValue: TPieceType);
+    procedure SetStart(AValue: Byte);
+    procedure SetStart8x8(AValue: TSquare8x8);
   public
     function Copy: TMove; virtual;
     constructor Create(AStart, ADest: Byte; APromotionPiece: TPieceType = ptEmpty);
   public
-    property Start: TSquare8x8 read GetStart write SetStart;
-    property Dest: TSquare8x8 read GetDest write SetDest;
+    property Dest: Byte read GetDest write SetDest;
+    property Dest8x8: TSquare8x8 read GetDest8x8 write SetDest8x8;
+    property Start: Byte read GetStart write SetStart;
+    property Start8x8: TSquare8x8 read GetStart8x8 write SetStart8x8;
     property PromotionPiece: TPieceType read GetPromotionPiece write SetPromotionPiece;
   end;
 
@@ -131,12 +136,12 @@ function AlgebraicMoveToString(AAlgebraicMove: TMove): string;
 
 operator = (ASquare1, ASquare2: TSquare8x8): boolean;
 
-operator := (AAlgebraicSquare: TAlgebraicSquare): TSquare10x12;
-operator := (ASquare10x12: TSquare10x12): TSquare8x8;
+//operator := (AAlgebraicSquare: TAlgebraicSquare): TSquare10x12;
+//operator := (ASquare10x12: TSquare10x12): TSquare8x8;
 operator := (ASquare8x8: TSquare8x8): TAlgebraicSquare;
 operator := (AAlgebraicSquare: TAlgebraicSquare): TSquare8x8;
-operator := (ASquare10x12: TSquare10x12): TAlgebraicSquare;
-operator := (ASquare8x8: TSquare8x8): TSquare10x12;
+//operator := (ASquare10x12: TSquare10x12): TAlgebraicSquare;
+//operator := (ASquare8x8: TSquare8x8): TSquare10x12;
 
 operator in (AMove: TMove; AMoveList: TMoveList): Boolean;
 
@@ -158,28 +163,28 @@ function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType=ptEmp
 function CreateMoveFromInt(AStart, ADest: Integer; APromotionPiece: TPieceType=ptEmpty): TMove;
 
 const
-  OffSquares = [0..20, 29, 30, 39, 40, 49, 50, 59, 60, 69, 70, 79,
-    80, 89, 90, 99..119];
-  ValidSquares = [21..28, 31..38, 41..48, 51..58, 61..68, 71..78, 81..88, 91..98];
+//  OffSquares = [0..20, 29, 30, 39, 40, 49, 50, 59, 60, 69, 70, 79,
+//    80, 89, 90, 99..119];
+//  ValidSquares = [21..28, 31..38, 41..48, 51..58, 61..68, 71..78, 81..88, 91..98];
+//
+  // 0..63 board constants
+  Rank1 = [56, 57, 58, 59, 60, 61, 62, 63];
+  Rank2 = [48, 49, 50, 51, 52, 53, 54, 55];
+  Rank3 = [40, 41, 42, 43, 44, 45, 46, 47];
+  Rank4 = [32, 33, 34, 35, 36, 37, 38, 39];
+  Rank5 = [24, 25, 26, 27, 28, 29, 30, 31];
+  Rank6 = [16, 17, 18, 19, 20, 21, 22, 23];
+  Rank7 = [8, 9, 10, 11, 12, 13, 14, 15];
+  Rank8 = [0, 1, 2, 3, 4, 5, 6, 7];
 
-  // 10x12 board constants
-  Rank1 = [91, 92, 93, 94, 95, 96, 97, 98];
-  Rank2 = [81, 82, 83, 84, 85, 86, 87, 88];
-  Rank3 = [71, 72, 73, 74, 75, 76, 77, 78];
-  Rank4 = [61, 62, 63, 64, 65, 66, 67, 68];
-  Rank5 = [51, 52, 53, 54, 55, 56, 57, 58];
-  Rank6 = [41, 42, 43, 44, 45, 46, 47, 48];
-  Rank7 = [31, 32, 33, 34, 35, 36, 37, 38];
-  Rank8 = [21, 22, 23, 24, 25, 26, 27, 28];
-
-  FileA = [21, 31, 41, 51, 61, 71, 81, 91];
-  FileB = [22, 32, 42, 52, 62, 72, 82, 92];
-  FileC = [23, 33, 43, 53, 63, 73, 83, 93];
-  FileD = [24, 34, 44, 54, 64, 74, 84, 94];
-  FileE = [25, 35, 45, 55, 65, 75, 85, 95];
-  FileF = [26, 36, 46, 56, 66, 76, 86, 96];
-  FileG = [27, 37, 47, 57, 67, 77, 87, 97];
-  FileH = [28, 38, 48, 58, 68, 78, 88, 98];
+  FileA = [0, 8, 16, 24, 32, 40, 48, 56];
+  FileB = [1, 9, 17, 25, 33, 41, 49, 57];
+  FileC = [2, 10, 18, 26, 34, 42, 50, 58];
+  FileD = [3, 11, 19, 27, 35, 43, 51, 59];
+  FileE = [4, 12, 20, 28, 36, 44, 52, 60];
+  FileF = [5, 13, 21, 29, 37, 45, 53, 61];
+  FileG = [6, 14, 22, 30, 38, 46, 54, 62];
+  FileH = [7, 15, 23, 31, 39, 47, 55, 63];
 
 
 implementation
@@ -191,8 +196,8 @@ end;
 
 function AlgebraicMoveToString(AAlgebraicMove: TMove): string;
 begin
-  Result := SquareToString(AAlgebraicMove.Start) +
-    SquareToString(AAlgebraicMove.Dest);
+  Result := SquareToString(AAlgebraicMove.Start8x8) +
+    SquareToString(AAlgebraicMove.Dest8x8);
 end;
 
 operator = (ASquare1, ASquare2: TSquare8x8): boolean;
@@ -200,19 +205,19 @@ begin
   Result := (ASquare1.RFile = ASquare2.RFile) and (ASquare1.RRank = ASquare2.RRank);
 end;
 
-operator := (AAlgebraicSquare: TAlgebraicSquare): TSquare10x12;
-begin
-  Result := TSquare8x8(AAlgebraicSquare);
-end;
+//operator := (AAlgebraicSquare: TAlgebraicSquare): TSquare10x12;
+//begin
+//  Result := TSquare8x8(AAlgebraicSquare);
+//end;
 
-operator := (ASquare10x12: TSquare10x12): TSquare8x8;
-begin
-  if ASquare10x12 in OffSquares then
-    raise ERangeError.Create('The given square ' + IntToStr(ASquare10x12) +
-      ' is not on the board!');
-  Result.RFile := ASquare10x12 mod 10;
-  Result.RRank := 10 - (ASquare10x12 div 10);
-end;
+//operator := (ASquare10x12: TSquare10x12): TSquare8x8;
+//begin
+//  if ASquare10x12 in OffSquares then
+//    raise ERangeError.Create('The given square ' + IntToStr(ASquare10x12) +
+//      ' is not on the board!');
+//  Result.RFile := ASquare10x12 mod 10;
+//  Result.RRank := 10 - (ASquare10x12 div 10);
+//end;
 
 operator := (ASquare8x8: TSquare8x8): TAlgebraicSquare;
 begin
@@ -226,15 +231,15 @@ begin
   Result.RRank := Ord(AAlgebraicSquare.RRank) - 48;
 end;
 
-operator := (ASquare10x12: TSquare10x12): TAlgebraicSquare;
-begin
-  Result := TSquare8x8(ASquare10x12);
-end;
+//operator := (ASquare10x12: TSquare10x12): TAlgebraicSquare;
+//begin
+//  Result := TSquare8x8(ASquare10x12);
+//end;
 
-operator := (ASquare8x8: TSquare8x8): TSquare10x12;
-begin
-  Result := ASquare8x8.RFile + (10 - ASquare8x8.RRank) * 10;
-end;
+//operator := (ASquare8x8: TSquare8x8): TSquare10x12;
+//begin
+//  Result := ASquare8x8.RFile + (10 - ASquare8x8.RRank) * 10;
+//end;
 
 operator in(AMove: TMove; AMoveList: TMoveList): Boolean;
 var
@@ -255,8 +260,8 @@ end;
 function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType
   ): TMove;
 begin
-  Result.Start:=AStart;
-  Result.Dest:=ADest;
+  Result.Start8x8:=AStart;
+  Result.Dest8x8:=ADest;
   Result.PromotionPiece := APromotionPiece;
 end;
 
@@ -264,29 +269,28 @@ function CreateMoveFromInt(AStart, ADest: Integer; APromotionPiece: TPieceType
   ): TMove;
 begin
   Result := TMove.Create(AStart, ADest, APromotionPiece);
-  //Result.Start.RFile := (AStart mod 8 + 1);
-  //Result.Start.RRank:= (8 -(AStart div 8));
-  //Result.Dest.RFile := (ADest mod 8 + 1);
-  //Result.Dest.RRank:= (8- (ADest div 8));
+  //Result.Start8x8.RFile := (AStart mod 8 + 1);
+  //Result.Start8x8.RRank:= (8 -(AStart div 8));
+  //Result.Dest8x8.RFile := (ADest mod 8 + 1);
+  //Result.Dest8x8.RRank:= (8- (ADest div 8));
   //Result.PromotionPiece := APromotionPiece;
 end;
 
 { TMove }
 
-function TMove.GetDest: TSquare8x8;
-var
-  Temp: Word;
+function TMove.GetDest: Byte;
 begin
-  Temp := (FData and 4032) shr 6;
+  Result := (FData and 4032) shr 6;
+end;
+
+function TMove.GetDest8x8: TSquare8x8;
+var
+  Temp: Byte;
+begin
+  Temp := GetDest;
   Result.RFile := Temp mod 8 + 1;
   Result.RRank := 8 - Temp div 8 ;
 end;
-
-//function TMove.GetPromotionPiece: TPieceType;
-//begin
-//  Result := (Move1.Start = Move2.Start) and (Move1.Dest = Move2.Dest) and
-//              (Move1.PromotionPiece = Move2.PromotionPiece);
-//end;
 
 function TMove.GetPromotionPiece: TPieceType;
 var
@@ -311,18 +315,28 @@ begin
   end;
 end;
 
-function TMove.GetStart: TSquare8x8;
-var
-  Temp: Word;
+function TMove.GetStart: Byte;
 begin
-  Temp := FData and 63;
+  Result := FData and 63;
+end;
+
+function TMove.GetStart8x8: TSquare8x8;
+var
+  Temp: Byte;
+begin
+  Temp := GetStart;
   Result.RFile := Temp mod 8 + 1;
   Result.RRank := 8 - Temp div 8 ;
 end;
 
-procedure TMove.SetDest(AValue: TSquare8x8);
+procedure TMove.SetDest(AValue: Byte);
 begin
- FData := (FData and not Word(4032)) + ((8 - AValue.RRank) * 8 + AValue.RFile - 1) shl 6;
+  FData := (FData and not Word(4032)) + AValue shl 6;
+end;
+
+procedure TMove.SetDest8x8(AValue: TSquare8x8);
+begin
+  SetDest((8 - AValue.RRank) * 8 + AValue.RFile - 1);
 end;
 
 procedure TMove.SetPromotionPiece(AValue: TPieceType);
@@ -348,10 +362,22 @@ begin
   FData := (FData and not 61440) + Temp shl 12;
 end;
 
-procedure TMove.SetStart(AValue: TSquare8x8);
+procedure TMove.SetStart(AValue: Byte);
 begin
-  FData := (FData and not Word(63)) + (8 - AValue.RRank) * 8 + AValue.RFile - 1;
+  FData := (FData and not Word(63)) + AValue;
 end;
+
+procedure TMove.SetStart8x8(AValue: TSquare8x8);
+begin
+  SetStart((8 - AValue.RRank) * 8 + AValue.RFile - 1);
+end;
+
+//function TMove.GetPromotionPiece: TPieceType;
+//begin
+//  Result := (Move1.Start = Move2.Start) and (Move1.Dest = Move2.Dest) and
+//              (Move1.PromotionPiece = Move2.PromotionPiece);
+//end;
+
 
 function TMove.Copy: TMove;
 begin
