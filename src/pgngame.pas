@@ -43,9 +43,11 @@ type
     procedure AddPGNMoveAsSideLine(const APGNMove: string);
     // deletes all additional tags
     procedure ClearAdditionalTags;
+    function CountAdditionalTags: integer;
     constructor Create; override;
     constructor Create(const AInitialPosition: TPosition); override;
     destructor Destroy; override;
+    function GetPGNNotation: string;
   public
     // Seven Tag Roster
     property Event: string read FEvent write FEvent;
@@ -59,11 +61,22 @@ type
     property AdditionalTags[Index: integer]: PPGNTag read GetAdditionalTags;
   end;
 
-  function ComparePGNTag(const Item1, Item2: PPGNTag): Integer;
+const
+  DefaultPGNNotationStyle: TNotationStyle = (
+    PieceLetters: ('P', 'N', 'B', 'R', 'Q', 'K', 'P', 'N', 'B', 'R', 'Q', 'K');
+    ShowPawnLetter: False;
+    ShowEnPassantSuffix: False;
+    CaptureSymbol: csx;
+    PromotionSymbol: psEqualSign;
+    ShowNAGNumber: True;
+    MaxLineLength: 80;
+    );
+
+function ComparePGNTag(const Item1, Item2: PPGNTag): integer;
 
 implementation
 
-function ComparePGNTag(const Item1, Item2: PPGNTag): Integer;
+function ComparePGNTag(const Item1, Item2: PPGNTag): integer;
 begin
   Result := CompareStr(Item1^.Name, Item2^.Name);
 end;
@@ -164,7 +177,7 @@ begin
     if not (FCurrentPosition as TStandardPosition).ValidateMove(Result,
       Piece, (8 - Dest.RRank) * 8 + Dest.RFile - 1, AFile, ARank) then
     begin
-      WriteLn(Self.Notation);
+    //  WriteLn(inherited GetNotation);
       (FCurrentPosition as TStandardPosition).PrintBoards;
       raise Exception.Create(APGNMove + ' is no valid move.');
     end;
@@ -200,6 +213,8 @@ begin
   Temp^.Name := APGNTag.Name;
   Temp^.Value := APGNTag.Value;
   FAdditionalTags.Add(Temp);
+  { TODO : Insert tags direct to the right spot, so sorting becomes unnecessary }
+  FAdditionalTags.Sort(@ComparePGNTag);
 end;
 
 function TPGNGame.GetAdditionalTags(Index: integer): PPGNTag;
@@ -249,11 +264,15 @@ begin
   FAdditionalTags.Clear;
 end;
 
+function TPGNGame.CountAdditionalTags: integer;
+begin
+  Result := FAdditionalTags.Count;
+end;
+
 constructor TPGNGame.Create;
 begin
   inherited Create;
   FAdditionalTags := TPGNTagList.Create;
-  FAdditionalTags.Sort(@ComparePGNTag);
 end;
 
 constructor TPGNGame.Create(const AInitialPosition: TPosition);
@@ -266,6 +285,11 @@ begin
   ClearAdditionalTags;
   FAdditionalTags.Free;
   inherited Destroy;
+end;
+
+function TPGNGame.GetPGNNotation: string;
+begin
+  Result :='';
 end;
 
 end.
