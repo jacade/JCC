@@ -1,5 +1,5 @@
 object Form1: TForm1
-  Left = 337
+  Left = 335
   Height = 699
   Top = 0
   Width = 742
@@ -179,7 +179,10 @@ object Form1: TForm1
     Top = 0
     Width = 262
     Anchors = [akTop, akLeft, akRight]
+    Font.Height = -13
+    Font.Name = 'Sans'
     HideSelection = False
+    ParentFont = False
     TabOrder = 10
     ZoomFactor = 1
   end

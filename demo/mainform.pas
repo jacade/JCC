@@ -135,26 +135,33 @@ begin
 
   with NotationMemo1.AddLineStyle^ do
   begin
-    CommentaryStyle.Color := clBlue;
-    CommentaryStyle.Style := [fsBold];
+    CommentaryStyle.Color := clGreen;
+    CommentaryStyle.Style := [];
     MoveStyle.Color := clBlack;
     MoveStyle.Style := [fsBold];
     NAGStyle.Color := clRed;
-    NAGStyle.Style := [fsBold];
+    NAGStyle.Style := [];
     NumberStyle.Color := clBlack;
     NumberStyle.Style := [fsBold];
+    CommentaryNewLine := True;
+    CommentaryIndent := 25;
+    NeedsNewLine := False;
+    LineIndent := 0;
   end;
 
   with NotationMemo1.AddLineStyle^ do
   begin
-    CommentaryStyle.Color := clBlue;
+    CommentaryStyle.Color := clGreen;
     CommentaryStyle.Style := [];
-    MoveStyle.Color := clBlack;
+    MoveStyle.Color := clBlue;
     MoveStyle.Style := [];
-    NAGStyle.Color := clRed;
+    NAGStyle.Color := clBlue;
     NAGStyle.Style := [];
-    NumberStyle.Color := clBlack;
+    NumberStyle.Color := clBlue;
     NumberStyle.Style := [];
+    CommentaryNewLine := False;
+    NeedsNewLine := True;
+    LineIndent := 25;
   end;
 end;
 

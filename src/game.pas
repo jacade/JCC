@@ -461,7 +461,10 @@ var
     procedure AddPlyToNotation(const APly: TPly);
     begin
       if Length(APly.CommentTextInFront) > 0 then
+      begin
         Notation.Add(tkComment, APly.CommentTextInFront);
+        NeedsMoveNumber := True;
+      end;
       if NeedsMoveNumber or TempPos.WhitesTurn then
       begin
         if TempPos.WhitesTurn then
@@ -478,7 +481,10 @@ var
       if APly.PositionalAssessment > 0 then
         Notation.Add(tkNAG, IntToStr(APly.PositionalAssessment));
       if Length(APly.CommentTextInBehind) > 0 then
+      begin
         Notation.Add(tkComment, APly.CommentTextInBehind);
+        NeedsMoveNumber := True;
+      end;
     end;
 
   var
@@ -523,7 +529,7 @@ var
 var
   Token: PToken;
 begin
-  Notation:=TGameNotation.Create;
+  Notation := TGameNotation.Create;
   Notation.Add(tkBeginLine, '');
   NeedsMoveNumber := True;
   if FPlyTree.Count > 0 then
