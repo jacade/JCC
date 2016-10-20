@@ -39,7 +39,7 @@ type
     destructor Destroy; override;
     procedure InsertNotation(const TextUTF8: string; ANotationStyle: TNotationStyle;
       InsPos: integer = -1);
-    procedure SetTextFromGameNotation(const AGameNotation: TGameNotation);
+    procedure SetTextFromGame(const AGame: TGame);
   public
     property LineStyles: TLineStyleList read FLineStyles;
   published
@@ -144,12 +144,14 @@ begin
     ANotationStyle.Style, InsPos);
 end;
 
-procedure TNotationMemo.SetTextFromGameNotation(const AGameNotation: TGameNotation);
+procedure TNotationMemo.SetTextFromGame(const AGame: TGame);
 var
   Token: PToken;
   VarLevel: integer;
   Style: TLineStyle;
+  AGameNotation: TGameNotation;
 begin
+  AGameNotation := AGame.GetGameNotation;
   VarLevel := -1;
   if FLineStyles.Count > 0 then
     Style := FLineStyles.items[0]^
@@ -193,6 +195,7 @@ begin
       tkResult: InsertNotation(Token^.Value, Style.MoveStyle);
     end;
   end;
+  AGameNotation.ClearAndFree;
 end;
 
 end.

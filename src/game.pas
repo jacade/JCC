@@ -112,6 +112,7 @@ type
 
   TGameNotationHelper = class helper for TGameNotation
     procedure Add(ATokenKind: TTokenKind; AValue: string); overload;
+    procedure ClearAndFree;
   end;
 
 const
@@ -130,16 +131,13 @@ type
 
   TGame = class
   private
-    FNotation: TGameNotation;
     function GetCurrentPlyNumber: word;
     procedure SetInitialPosition(AValue: TPosition);
   protected
-    //  FBoard: TBoard;
     FCurrentPlyNode: TPlyTreeNode;
     FCurrentPosition: TPosition;
     FInitialPosition: TPosition;
     FPlyTree: TPlyTree;
-    procedure UpdateNotation; virtual; abstract;
   public
     // Simply adds a move at current position
     procedure AddMove(AMove: TMove);
@@ -152,6 +150,7 @@ type
     constructor Create(const AInitialPosition: TPosition); virtual; abstract;
     procedure Clear;
     destructor Destroy; override;
+    function GetGameNotation: TGameNotation; virtual; abstract;
     // This returns the last tree node of in the main line of CurrentPlyNode
     function GetLastPlyNodeInCurrentVariation: TPlyTreeNode;
     // Setups position before last move on board
@@ -169,7 +168,6 @@ type
     property CurrentPlyNode: TPlyTreeNode read FCurrentPlyNode;
     property CurrentPosition: TPosition read FCurrentPosition;
     property InitialPosition: TPosition read FInitialPosition write SetInitialPosition;
-    property Notation: TGameNotation read FNotation;
     // NOTE: PlyTree.Root.Data will always be nil
     property PlyTree: TPlyTree read FPlyTree;
   end;
@@ -181,10 +179,11 @@ type
     procedure SetGameResult(AValue: TGameResult);
   protected
     FGameResult: TGameResult;
-    procedure UpdateNotation; override;
   public
     constructor Create; override;
     constructor Create(const AInitialPosition: TPosition); override;
+    function GetGameNotation: TGameNotation; override;
+  public
     property GameResult: TGameResult read FGameResult write SetGameResult;
   end;
 
@@ -288,6 +287,15 @@ begin
   Self.Add(Token);
 end;
 
+procedure TGameNotationHelper.ClearAndFree;
+var
+  Token: PToken;
+begin
+  for Token in Self do
+    Dispose(Token);
+  Free;
+end;
+
 { TGame }
 
 function TGame.GetCurrentPlyNumber: word;
@@ -313,7 +321,6 @@ begin
   FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
   FCurrentPosition.PlayMove(AMove);
-  UpdateNotation;
 end;
 
 procedure TGame.AddMoveAsNewMainLine(AMove: TMove);
@@ -321,7 +328,6 @@ begin
   FCurrentPlyNode.Children.Insert(0, TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := FCurrentPlyNode.Children.Items[0];
   FCurrentPosition.PlayMove(AMove);
-  UpdateNotation;
 end;
 
 procedure TGame.AddMoveAsSideLine(AMove: TMove);
@@ -329,7 +335,6 @@ begin
   FCurrentPlyNode.Children.PushBack(TPlyTreeNode.Create(TPly.Create(AMove)));
   FCurrentPlyNode := FCurrentPlyNode.Children.Back;
   FCurrentPosition.PlayMove(AMove);
-  UpdateNotation;
 end;
 
 constructor TGame.Create;
@@ -337,7 +342,6 @@ begin
   FPlyTree := TPlyTree.Create;
   FPlyTree.Root := TPlyTreeNode.Create(nil);
   FCurrentPlyNode := FPlyTree.Root;
-  FNotation := TGameNotation.Create;
 end;
 
 procedure TGame.Clear;
@@ -349,7 +353,6 @@ begin
   FCurrentPlyNode := FPlyTree.Root;
   FCurrentPosition.SetupInitialPosition;
   FInitialPosition.SetupInitialPosition;
-  UpdateNotation;
 end;
 
 destructor TGame.Destroy;
@@ -358,9 +361,6 @@ var
 begin
   // We need to delete all plies currently stored in the tree
   FPlyTree.DepthFirstTraverse(@DeletePly);
-  for Token in FNotation do
-    Dispose(Token);
-  FNotation.Free;
   FPlyTree.Free;
   FInitialPosition.Free;
   FCurrentPosition.Free;
@@ -445,163 +445,40 @@ begin
   if FGameResult = AValue then
     Exit;
   FGameResult := AValue;
-  UpdateNotation;
 end;
 
-procedure TStandardGame.UpdateNotation;
+function TStandardGame.GetGameNotation: TGameNotation;
 var
   VarLevel: word;
+  Notation: TGameNotation;
   NeedsMoveNumber: boolean;
 
-  procedure RecursiveLineToString(CurrentRoot: TPlyTreeNode;
+  procedure RecursiveCreateNotation(CurrentRoot: TPlyTreeNode;
     StartPos: TStandardPosition);
   var
     TempPos: TStandardPosition;
 
-    //procedure AddNewLine(var Notation: string);
-    //begin
-    //  // Add a new line and delete the last char if it's a space
-    //  if Notation[Length(Notation)] = ' ' then
-    //    Delete(Notation, Length(Notation), 1);
-    //  Notation := Notation + LineEnding;
-    //  LineLength := 0;
-    //end;
-
-    //procedure AddString(var Notation: string; const s: string);
-    //begin
-    //  if (ANotationStyle.MaxLineLength > 0) and (LineLength +
-    //    Length(s) > ANotationStyle.MaxLineLength) then
-    //    AddNewLine(Notation);
-    //  Notation := Notation + s;
-    //  LineLength := Length(s);
-    //end;
-
-    //procedure AddComment(var Notation: string; const AComment: string);
-    //var
-    //  s, NextWord: string;
-    //  p, Min: integer;
-    //begin
-    //  s := AComment;
-    //  if ANotationStyle.FormatRTF then
-    //    Notation := Notation + StartRTF(ANotationStyle.CommentTextStyle);
-    //  if (ANotationStyle.MaxLineLength > 0) and
-    //    (LineLength + Length(s) > ANotationStyle.MaxLineLength) then
-    //  begin
-    //    // Comment too long
-    //    // calculate the the minimal start position
-    //    Min := (VarLevel + 1) * ANotationStyle.CommentStyle.Indentation;
-    //    if ANotationStyle.CommentStyle.LongCommentInNewline then
-    //    begin
-    //      // begin new line
-    //      AddNewLine(Notation);
-    //      Notation := Notation + StringOfChar(' ', Min);
-    //      LineLength := Min;
-    //    end;
-    //    AddString(Notation, ANotationStyle.CommentStyle.BeginChar);
-    //    while Length(s) > 0 do
-    //    begin
-    //      p := Pos(' ', s);
-    //      if p > 0 then
-    //      begin
-    //        NextWord := Copy(s, 1, p);
-    //      end
-    //      else
-    //        NextWord := s;
-    //      if (LineLength = Min) and (Length(NextWord) + Min >
-    //        ANotationStyle.MaxLineLength) then
-    //        // word is too long
-    //        NextWord := Copy(s, 1, ANotationStyle.MaxLineLength - Min);
-    //      if Length(NextWord) + LineLength <= ANotationStyle.MaxLineLength then
-    //      begin
-    //        // Add next word to notation
-    //        Notation := Notation + NextWord;
-    //        Delete(s, 1, Length(NextWord));
-    //      end
-    //      else
-    //      begin
-    //        // begin new line
-    //        AddNewLine(Notation);
-    //        Notation := Notation + StringOfChar(' ', Min);
-    //        LineLength := Min;
-    //      end;
-    //    end;
-    //    AddString(Notation, ANotationStyle.CommentStyle.EndChar);
-    //  if LineLength < ANotationStyle.MaxLineLength then
-    //    Notation := Notation + ' '
-    //  else
-    //  end
-    //  else
-    //    Notation := Notation + ANotationStyle.CommentStyle.BeginChar +
-    //      AComment + ANotationStyle.CommentStyle.EndChar + ' ';
-    //end;
-
-    //    procedure AddNAG(var Notation: string; const ANAG: TNAG);
-    //    var
-    //      NextWord: string;
-    //    begin
-    //      if ANotationStyle.FormatRTF then
-    //        Notation := Notation + ANotationStyle.NAGStyle;
-    //      if ANotationStyle.ShowNAGNumber then
-    //        NextWord := '$' + IntToStr(ANAG)
-    //      else
-    //        NextWord := NAGToStr(ANAG);
-    //      Notation := Notation + ' ';
-    //    end;
-
-    //function PlyToStr(APly: TPly; FirstMoveInVariation: boolean): string;
-    //begin
-    //  Result := '';
-    //  // in front comment
-    //  if Length(APly.CommentTextInFront) > 0 then
-    //  begin
-    //    AddComment(Result, APly.CommentTextInFront);
-    //  end;
-    //  if APly.NonStandardGlyph > 0 then
-    //    Result := Result + NAGToStr(APly.NonStandardGlyph,
-    //      ANotationStyle.ShowNAGNumber) + ' ';
-    //  if TempPos.WhitesTurn then
-    //    Result := Result + IntToStr(TempPos.MoveNumber) + '.'
-    //  else
-    //  if FirstMoveInVariation then
-    //    Result := Result + IntToStr(TempPos.MoveNumber) + '...';
-    //  Result := Result + TempPos.MoveToSAN(APly.Move, ANotationStyle.PieceLetters,
-    //    ANotationStyle.ShowPawnLetter, ANotationStyle.ShowEnPassantSuffix,
-    //    ANotationStyle.CaptureSymbol, ANotationStyle.PromotionSymbol);
-    //  if APly.MoveAssessment > 0 then
-    //    Result := Result + NAGToStr(APly.MoveAssessment,
-    //      ANotationStyle.ShowNAGNumber) + ' ';
-    //  if APly.PositionalAssessment > 0 then
-    //    Result := Result + NAGToStr(APly.PositionalAssessment,
-    //      ANotationStyle.ShowNAGNumber) + ' ';
-    //  if Result[Length(Result)] <> ' ' then
-    //    Result := Result + ' ';
-    //  if Length(APly.CommentTextInBehind) > 0 then
-    //    Result := Result + APly.CommentTextInBehind + ' ';
-    //end;
-
-    { TODO : Zugnummern }
-
     procedure AddPlyToNotation(const APly: TPly);
     begin
       if Length(APly.CommentTextInFront) > 0 then
-        FNotation.Add(tkComment, APly.CommentTextInFront);
+        Notation.Add(tkComment, APly.CommentTextInFront);
       if NeedsMoveNumber or TempPos.WhitesTurn then
       begin
         if TempPos.WhitesTurn then
-          FNotation.Add(tkNumber, IntToStr(TempPos.MoveNumber) + '.')
+          Notation.Add(tkNumber, IntToStr(TempPos.MoveNumber) + '.')
         else
-          FNotation.Add(tkNumber, IntToStr(TempPos.MoveNumber) + '...');
+          Notation.Add(tkNumber, IntToStr(TempPos.MoveNumber) + '...');
         NeedsMoveNumber := False;
       end;
       if APly.NonStandardGlyph > 0 then
-        FNotation.Add(tkNAG, IntToStr(APly.NonStandardGlyph));
-      FNotation.Add(tkMove, TempPos.MoveToSAN(APly.Move));
+        Notation.Add(tkNAG, IntToStr(APly.NonStandardGlyph));
+      Notation.Add(tkMove, TempPos.MoveToSAN(APly.Move));
       if APly.MoveAssessment > 0 then
-        FNotation.Add(tkNAG, IntToStr(APly.MoveAssessment));
+        Notation.Add(tkNAG, IntToStr(APly.MoveAssessment));
       if APly.PositionalAssessment > 0 then
-        FNotation.Add(tkNAG, IntToStr(APly.PositionalAssessment));
+        Notation.Add(tkNAG, IntToStr(APly.PositionalAssessment));
       if Length(APly.CommentTextInBehind) > 0 then
-        FNotation.Add(tkComment, APly.CommentTextInBehind);
+        Notation.Add(tkComment, APly.CommentTextInBehind);
     end;
 
   var
@@ -610,7 +487,7 @@ var
   begin
     if CurrentRoot.Children.Size = 0 then
     begin // End of line
-      FNotation.Add(tkEndLine, '');
+      Notation.Add(tkEndLine, '');
       Exit;
     end;
     TempPos := TStandardPosition.Create;
@@ -627,10 +504,10 @@ var
         TempPos.Copy(StartPos);
         Ply := CurrentRoot.Children.Items[i].Data;
         // Write side lines
-        FNotation.Add(tkBeginLine, '');
+        Notation.Add(tkBeginLine, '');
         AddPlyToNotation(Ply);
         TempPos.PlayMove(Ply.Move);
-        RecursiveLineToString(CurrentRoot.Children.Items[i], TempPos);
+        RecursiveCreateNotation(CurrentRoot.Children.Items[i], TempPos);
       end;
       Dec(VarLevel);
       NeedsMoveNumber := True;
@@ -639,24 +516,23 @@ var
     Ply := CurrentRoot.Children.Items[0].Data;
     TempPos.PlayMove(Ply.Move);
     // Write the rest of main line
-    RecursiveLineToString(CurrentRoot.Children.Items[0], TempPos);
+    RecursiveCreateNotation(CurrentRoot.Children.Items[0], TempPos);
     TempPos.Free;
   end;
 
 var
   Token: PToken;
 begin
-  for Token in FNotation do
-    Dispose(Token);
-  FNotation.Clear;
-  FNotation.Add(tkBeginLine, '');
+  Notation:=TGameNotation.Create;
+  Notation.Add(tkBeginLine, '');
   NeedsMoveNumber := True;
   if FPlyTree.Count > 0 then
   begin
     Varlevel := 0;
-    RecursiveLineToString(FPlyTree.Root, FInitialPosition as TStandardPosition);
+    RecursiveCreateNotation(FPlyTree.Root, FInitialPosition as TStandardPosition);
   end;
-  FNotation.Add(tkResult, GameResultToStr(GameResult));
+  Notation.Add(tkResult, GameResultToStr(GameResult));
+  Result := Notation;
 end;
 
 end.

@@ -175,7 +175,7 @@ begin
   if Selected then
   begin
     MyPGNGame := PGNDatabase.Items[ListView1.Items.IndexOf(Item)];
-    NotationMemo1.SetTextFromGameNotation(MyPGNGame.Notation);
+    NotationMemo1.SetTextFromGame(MyPGNGame);
     MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
     (Board1.CurrentPosition as TStandardPosition).FromFEN(
       (MyPGNGame.CurrentPosition as TStandardPosition).ToFEN);
@@ -293,7 +293,7 @@ begin
     end;
   end;
   Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
-  NotationMemo1.SetTextFromGameNotation(MyGame.Notation);
+  NotationMemo1.SetTextFromGame(MyGame);
   UpdateButtons;
 end;
 
