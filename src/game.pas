@@ -99,21 +99,19 @@ type
 
   TTokenKind = (tkMove, tkNumber, tkBeginLine, tkEndLine, tkComment, tkNAG, tkResult);
 
-  TToken = record
-    Kind: TTokenKind;
-    Value: string;
+  { TToken }
+
+  TToken = class
+  private
+    FTokenKind: TTokenKind;
+    FValue: string;
+  public
+    constructor Create(const ATokenKind: TTokenKind; const AValue: string);
+    property Kind: TTokenKind read FTokenKind write FTokenKind;
+    property Value: string read FValue write FValue;
   end;
 
-  PToken = ^TToken;
-
-  TGameNotation = specialize TFPGList<PToken>;
-
-  { TGameNotationHelper }
-
-  TGameNotationHelper = class helper for TGameNotation
-    procedure Add(ATokenKind: TTokenKind; AValue: string); overload;
-    procedure ClearAndFree;
-  end;
+  TGameNotation = specialize TFPGObjectList<TToken>;
 
 const
   DefaultNotationStyle: TNotationStyle = (
@@ -275,25 +273,13 @@ begin
   Result := Result + '\cf' + IntToStr(ATextStyle.ColorIndex);
 end;
 
-{ TGameNotationHelper }
+{ TToken }
 
-procedure TGameNotationHelper.Add(ATokenKind: TTokenKind; AValue: string);
-var
-  Token: PToken;
+constructor TToken.Create(const ATokenKind: TTokenKind; const AValue: string);
 begin
-  New(Token);
-  Token^.Kind := ATokenKind;
-  Token^.Value := AValue;
-  Self.Add(Token);
-end;
-
-procedure TGameNotationHelper.ClearAndFree;
-var
-  Token: PToken;
-begin
-  for Token in Self do
-    Dispose(Token);
-  Free;
+  inherited Create;
+  FTokenKind := ATokenKind;
+  FValue := AValue;
 end;
 
 { TGame }
@@ -356,8 +342,6 @@ begin
 end;
 
 destructor TGame.Destroy;
-var
-  Token: PToken;
 begin
   // We need to delete all plies currently stored in the tree
   FPlyTree.DepthFirstTraverse(@DeletePly);
@@ -462,27 +446,27 @@ var
     begin
       if Length(APly.CommentTextInFront) > 0 then
       begin
-        Notation.Add(tkComment, APly.CommentTextInFront);
+        Notation.Add(TToken.Create(tkComment, APly.CommentTextInFront));
         NeedsMoveNumber := True;
       end;
       if NeedsMoveNumber or TempPos.WhitesTurn then
       begin
         if TempPos.WhitesTurn then
-          Notation.Add(tkNumber, IntToStr(TempPos.MoveNumber) + '.')
+          Notation.Add(TToken.Create(tkNumber, IntToStr(TempPos.MoveNumber) + '.'))
         else
-          Notation.Add(tkNumber, IntToStr(TempPos.MoveNumber) + '...');
+          Notation.Add(TToken.Create(tkNumber, IntToStr(TempPos.MoveNumber) + '...'));
         NeedsMoveNumber := False;
       end;
       if APly.NonStandardGlyph > 0 then
-        Notation.Add(tkNAG, IntToStr(APly.NonStandardGlyph));
-      Notation.Add(tkMove, TempPos.MoveToSAN(APly.Move));
+        Notation.Add(TToken.Create(tkNAG, IntToStr(APly.NonStandardGlyph)));
+      Notation.Add(TToken.Create(tkMove, TempPos.MoveToSAN(APly.Move)));
       if APly.MoveAssessment > 0 then
-        Notation.Add(tkNAG, IntToStr(APly.MoveAssessment));
+        Notation.Add(TToken.Create(tkNAG, IntToStr(APly.MoveAssessment)));
       if APly.PositionalAssessment > 0 then
-        Notation.Add(tkNAG, IntToStr(APly.PositionalAssessment));
+        Notation.Add(TToken.Create(tkNAG, IntToStr(APly.PositionalAssessment)));
       if Length(APly.CommentTextInBehind) > 0 then
       begin
-        Notation.Add(tkComment, APly.CommentTextInBehind);
+        Notation.Add(TToken.Create(tkComment, APly.CommentTextInBehind));
         NeedsMoveNumber := True;
       end;
     end;
@@ -493,7 +477,7 @@ var
   begin
     if CurrentRoot.Children.Size = 0 then
     begin // End of line
-      Notation.Add(tkEndLine, '');
+      Notation.Add(TToken.Create(tkEndLine, ''));
       Exit;
     end;
     TempPos := TStandardPosition.Create;
@@ -510,7 +494,7 @@ var
         TempPos.Copy(StartPos);
         Ply := CurrentRoot.Children.Items[i].Data;
         // Write side lines
-        Notation.Add(tkBeginLine, '');
+        Notation.Add(TToken.Create(tkBeginLine, ''));
         AddPlyToNotation(Ply);
         TempPos.PlayMove(Ply.Move);
         RecursiveCreateNotation(CurrentRoot.Children.Items[i], TempPos);
@@ -526,18 +510,16 @@ var
     TempPos.Free;
   end;
 
-var
-  Token: PToken;
 begin
-  Notation := TGameNotation.Create;
-  Notation.Add(tkBeginLine, '');
+  Notation := TGameNotation.Create(True);
+  Notation.Add(TToken.Create(tkBeginLine, ''));
   NeedsMoveNumber := True;
   if FPlyTree.Count > 0 then
   begin
     Varlevel := 0;
     RecursiveCreateNotation(FPlyTree.Root, FInitialPosition as TStandardPosition);
   end;
-  Notation.Add(tkResult, GameResultToStr(GameResult));
+  Notation.Add(TToken.Create(tkResult, GameResultToStr(GameResult)));
   Result := Notation;
 end;
 

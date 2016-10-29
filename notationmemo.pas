@@ -55,6 +55,7 @@ type
   TNotationMemo = class(TCustomRichMemo)
   private
     FLineStyles: TLineStyleList;
+
   protected
     { Protected declarations }
   public
@@ -180,7 +181,7 @@ end;
 
 procedure TNotationMemo.SetTextFromGame(const AGame: TGame);
 var
-  Token: PToken;
+  Token: TToken;
   VarLevel, Start: integer;
   Style: TLineStyle;
   AGameNotation: TGameNotation;
@@ -229,15 +230,15 @@ begin
   Self.Lines.Clear;
   for Token in AGameNotation do
   begin
-    case Token^.Kind of
+    case Token.Kind of
       tkMove:
       begin
-        InsertNotation(Token^.Value + ' ', Style.MoveStyle);
+        InsertNotation(Token.Value + ' ', Style.MoveStyle);
         AtStartOfLine := False;
       end;
       tkNumber:
       begin
-        InsertNotation(Token^.Value, Style.NumberStyle);
+        InsertNotation(Token.Value, Style.NumberStyle);
         AtStartOfLine := False;
       end;
       tkBeginLine:
@@ -282,7 +283,7 @@ begin
         begin
           EndParagraph(LineIndent);
           BeginParagraph;
-          InsertNotation(LineEnding + Token^.Value, Style.CommentaryStyle);
+          InsertNotation(LineEnding + Token.Value, Style.CommentaryStyle);
           EndParagraph(CommentaryIndent);
           InsertNotation(LineEnding, Style.CommentaryStyle);
           BeginParagraph;
@@ -290,15 +291,15 @@ begin
         end
         else
         begin
-          InsertNotation(Token^.Value + ' ', Style.CommentaryStyle);
+          InsertNotation(Token.Value + ' ', Style.CommentaryStyle);
         end;
       end;
-      tkNAG: InsertNotation(NAGToStr(StrToInt(Token^.Value)) +
+      tkNAG: InsertNotation(NAGToStr(StrToInt(Token.Value)) +
           ' ', Style.NAGStyle);
-      tkResult: InsertNotation(Token^.Value, Style.MoveStyle);
+      tkResult: InsertNotation(Token.Value, Style.MoveStyle);
     end;
   end;
-  AGameNotation.ClearAndFree;
+  AGameNotation.Free;
 end;
 
 end.
