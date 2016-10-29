@@ -39,63 +39,6 @@ type
   {$PACKENUM 1}
   TModeType = (mtNone, mtOverTheBoard, mtPaperMail, mtElectronicMail, mtICS,
     mtGeneralTelecommunication);
-  // The following styles are used for representation of sublines
-  TRAVStyle = (rsPGN, rsChessbase, rsSCID, rsJose, rsChessX);
-
-  TTextStyle = record
-    ColorIndex: integer; // the index in the color table
-    Bold: boolean;
-    Italic: boolean;
-  end;
-
-  TRGBColor = record
-    Red: byte;
-    Green: byte;
-    Blue: byte;
-  end;
-
-  TSubLineStyle = record
-    Newline: boolean;      // Begin comment in next line
-    BeginChar: char;       // first character in sub line e.g. (, [
-    EndChar: char;         // last character in sub line e.g. ), ]
-    Indentation: integer;  // number of spaces used for indentation
-    // should a space char be used in front/behind End/Begin-Char
-    SpaceInBetween: boolean;
-  end;
-
-  TCommentStyle = record
-    // If a comment is too long to fit in current line, then start it in the next one
-    LongCommentInNewline: boolean;
-    // only used when line is too short. Number of spaces for indentation of comment
-    Indentation: integer;
-    BeginChar: char; // a special char to start the comment e.g. {
-    EndChar: char;   // a special char to stop the comment e.g. }
-  end;
-
-  TNotationStyle = record
-    PieceLetters: TChessPieceLetters;   // the piece letters that should be used
-    ShowPawnLetter: boolean;            // show the letter on pawn moves e.g. Pe4
-    ShowEnPassantSuffix: boolean;       // show e.p. if a pawn is taken en passant
-    CaptureSymbol: TCaptureSymbol;      // how to write a capture e.g. exd5, ed5
-    PromotionSymbol: TPromotionSymbol;  // how to write a promotion e.g. e8Q, e8=Q
-    ShowNAGNumber: boolean;    // display the raw number or convert it to its meaning
-    MaxLineLength: integer;             // the max length of the generated notation text
-    CommentStyle: TCommentStyle;        // the format for commentary
-    SubLineStyle: TSubLineStyle;        // the used format for sub lines
-    SecondarySubLineStyle: TSubLineStyle; // when there is at least one more sub line
-    FormatRTF: boolean;                 // Should the output be in rich text format
-    // The following are only used if FormatRTF is true
-
-    ColorTable: array[1..8] of TRGBColor;  // color table for the following text styles
-    MainLineMoveStyle: TTextStyle;      // normal text style for moves in main line
-    MainLineNumberStyle: TTextStyle;   // normal text style for move numbers in main line
-    SecondaryMainLineMoveStyle: TTextStyle; // is used when there are also sub lines
-    SecondaryMainLineNumberStyle: TTextStyle; // is used when there are also sub lines
-    SubLineMoveStyle: TTextStyle;       // text style for moves in the sub lines
-    SubLineNumberStyle: TTextStyle;     // text style for move numbers the sub lines
-    CommentTextStyle: TTextStyle;           // text style for comments
-    NAGStyle: TTextStyle;               // text style for NAG
-  end;
 
   TTokenKind = (tkMove, tkNumber, tkBeginLine, tkEndLine, tkComment, tkNAG, tkResult);
 
@@ -112,16 +55,6 @@ type
   end;
 
   TGameNotation = specialize TFPGObjectList<TToken>;
-
-const
-  DefaultNotationStyle: TNotationStyle = (
-    PieceLetters: ('P', 'N', 'B', 'R', 'Q', 'K', 'P', 'N', 'B', 'R', 'Q', 'K');
-    ShowPawnLetter: False;
-    ShowEnPassantSuffix: False;
-    CaptureSymbol: csx;
-    PromotionSymbol: psNone;
-    ShowNAGNumber: False;
-    MaxLineLength: 0);
 
 type
 
@@ -263,15 +196,6 @@ begin
   end;
 end;
 
-function StartRTF(const ATextStyle: TTextStyle): string;
-begin
-  Result := '';
-  if ATextStyle.Bold then
-    Result := Result + '\b';
-  if ATextStyle.Italic then
-    Result := Result + '\i';
-  Result := Result + '\cf' + IntToStr(ATextStyle.ColorIndex);
-end;
 
 { TToken }
 

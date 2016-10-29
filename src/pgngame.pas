@@ -61,16 +61,6 @@ type
     property AdditionalTags[Index: integer]: PPGNTag read GetAdditionalTags;
   end;
 
-const
-  DefaultPGNNotationStyle: TNotationStyle = (
-    PieceLetters: ('P', 'N', 'B', 'R', 'Q', 'K', 'P', 'N', 'B', 'R', 'Q', 'K');
-    ShowPawnLetter: False;
-    ShowEnPassantSuffix: False;
-    CaptureSymbol: csx;
-    PromotionSymbol: psEqualSign;
-    ShowNAGNumber: True;
-    MaxLineLength: 80;
-    );
 
 function ComparePGNTag(const Item1, Item2: PPGNTag): integer;
 
