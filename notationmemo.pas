@@ -289,7 +289,6 @@ var
     m.FirstLine := m.HeadIndent;
     Self.SetRangeParaParams(Start + 1, Length(Self.Text) - Start,
       [pmm_HeadIndent, pmm_FirstLine], m);
-    WriteLn(Start, ' ', Length(Self.Text));
   end;
 
 begin
