@@ -66,6 +66,7 @@ type
     { private declarations }
     MyGame: TGame;
     PGNDatabase: TPGNDatabase;
+    procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TToken);
     procedure UpdateButtons;
   public
     { public declarations }
@@ -163,6 +164,7 @@ begin
     NeedsNewLine := True;
     LineIndent := 25;
   end;
+  NotationMemo1.OnMouseOverToken:=@NotationMemo1MouseOverToken;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -197,6 +199,16 @@ begin
   btInitial.Enabled := MyGame.PlyTree.Count > 0;
   btLast.Enabled := MyGame.PlyTree.Count > 0;
   Board1.Invalidate;
+end;
+
+procedure TForm1.NotationMemo1MouseOverToken(Sender: TObject; Token: TToken);
+begin
+  if Assigned(Token) then
+  begin
+    NotationMemo1.Cursor:=crHandPoint;
+  end
+  else
+    NotationMemo1.Cursor:=crDefault;
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);

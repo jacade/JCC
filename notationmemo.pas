@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, LResources, Forms, Controls, Graphics, Dialogs,
-  RichMemo, Game, Ply, StdCtrls, RichMemoUtils, fgl;
+  RichMemo, Game, Ply, StdCtrls, RichMemoUtils, fgl, LazUTF8;
 
 type
 
@@ -45,19 +45,39 @@ type
     // gives an indent for this line
     LineIndent: integer;
   end;
-
+  // TODO : Why not use classes??
   PLineStyle = ^TLineStyle;
 
   TLineStyleList = specialize TFPGList<PLineStyle>;
+
+  TTokenPosition = record
+    Start: integer;
+    UTF8Length: integer;
+  end;
+
+  // Note: Token might be nil, if mouse is over a space char or an empty area
+  TMouseOverTokenEvent = procedure(Sender: TObject; Token: TToken) of object;
+
+  TClickMoveToken = procedure(Sender: TObject; Token: TToken;
+    TreePlyNode: TPlyTreeNode) of object;
 
   { TNotationMemo }
 
   TNotationMemo = class(TCustomRichMemo)
   private
+    CurrentToken: TToken;
+    CurrentGameNotation: TGameNotation;
     FLineStyles: TLineStyleList;
-
+    FOnClickMove: TClickMoveToken;
+    FOnMouseOverToken: TMouseOverTokenEvent;
+    TokenLookup: array of TTokenPosition;
+    PlyLookup: array of TPlyTreeNode;
+    function GetTokenFromPosition(const Pos: integer): TToken;
+    procedure SetOnClickMove(AValue: TClickMoveToken);
+    procedure SetOnMouseOverToken(AValue: TMouseOverTokenEvent);
   protected
-    { Protected declarations }
+    procedure Click; override;
+    procedure MouseMove(Shift: TShiftState; X, Y: integer); override;
   public
     function AddLineStyle: PLineStyle;
     procedure ClearLineStyles;
@@ -86,6 +106,7 @@ type
     property Lines;
     property OnChange;
     property OnClick;
+    property OnClickMove: TClickMoveToken read FOnClickMove write SetOnClickMove;
     property OnContextPopup;
     property OnDblClick;
     property OnDragDrop;
@@ -102,6 +123,8 @@ type
     property OnMouseEnter;
     property OnMouseLeave;
     property OnMouseMove;
+    property OnMouseOverToken: TMouseOverTokenEvent
+      read FOnMouseOverToken write SetOnMouseOverToken;
     property OnMouseUp;
     property OnMouseWheel;
     property OnMouseWheelDown;
@@ -134,6 +157,67 @@ end;
 
 { TNotationMemo }
 
+function TNotationMemo.GetTokenFromPosition(const Pos: integer): TToken;
+var
+  i: integer;
+begin
+  for i := 0 to Length(TokenLookup) - 1 do
+  begin
+    if (TokenLookup[i].Start < Pos) and (Pos <= TokenLookup[i].Start +
+      TokenLookup[i].UTF8Length) then
+    begin
+      Result := CurrentGameNotation.Items[i];
+      Exit;
+    end;
+  end;
+  Result := nil;
+end;
+
+procedure TNotationMemo.SetOnClickMove(AValue: TClickMoveToken);
+begin
+  if FOnClickMove = AValue then
+    Exit;
+  FOnClickMove := AValue;
+end;
+
+procedure TNotationMemo.SetOnMouseOverToken(AValue: TMouseOverTokenEvent);
+begin
+  if FOnMouseOverToken = AValue then
+    Exit;
+  FOnMouseOverToken := AValue;
+end;
+
+procedure TNotationMemo.Click;
+begin
+  inherited Click;
+  if Assigned(FOnClickMove) then
+  begin
+    if Assigned(CurrentToken) then
+    begin
+      case CurrentToken.Kind of
+      tkMove: ;
+      tkNumber: ;
+      tkBeginLine: ;
+      tkEndLine: ;
+      tkComment: ;
+      tkNAG: ;
+      tkResult: ;
+      end;
+    end;
+  end;
+end;
+
+procedure TNotationMemo.MouseMove(Shift: TShiftState; X, Y: integer);
+begin
+  inherited MouseMove(Shift, X, Y);
+  // If this is too slow in here, it has to be moved in MouseDown or MouseUp
+  CurrentToken := GetTokenFromPosition(CharAtPos(X, Y));
+  if Assigned(FOnMouseOverToken) then
+  begin
+    FOnMouseOverToken(Self, CurrentToken);
+  end;
+end;
+
 function TNotationMemo.AddLineStyle: PLineStyle;
 var
   LineStyle: PLineStyle;
@@ -159,6 +243,8 @@ begin
   Self.ScrollBars := ssAutoVertical;
   Self.WordWrap := True;
 
+  CurrentGameNotation := TGameNotation.Create(True);
+  CurrentToken := nil;
   FLineStyles := TLineStyleList.Create;
 end;
 
@@ -169,6 +255,7 @@ begin
   for Style in FLineStyles do
     Dispose(Style);
   FLineStyles.Free;
+  CurrentGameNotation.Free;
   inherited Destroy;
 end;
 
@@ -182,9 +269,8 @@ end;
 procedure TNotationMemo.SetTextFromGame(const AGame: TGame);
 var
   Token: TToken;
-  VarLevel, Start: integer;
+  VarLevel, Start, i: integer;
   Style: TLineStyle;
-  AGameNotation: TGameNotation;
   AtStartOfLine: boolean; // Is true, when last char was a line ending
   m: TParaMetric;
   // sums up the indents of the line styles
@@ -208,7 +294,8 @@ var
 
 begin
   AtStartOfLine := False;
-  AGameNotation := AGame.GetGameNotation;
+  CurrentGameNotation.Free;
+  CurrentGameNotation := AGame.GetGameNotation;
   Start := 0;
   CommentaryIndent := 0;
   LineIndent := 0;
@@ -228,8 +315,13 @@ begin
     Style.NumberStyle.Style := [];
   end;
   Self.Lines.Clear;
-  for Token in AGameNotation do
+  SetLength(TokenLookup, CurrentGameNotation.Count);
+  SetLength(PlyLookup, AGame.PlyTree.Count);
+  for i := 0 to CurrentGameNotation.Count - 1 do
   begin
+    Token := CurrentGameNotation.Items[i];
+    TokenLookup[i].Start := UTF8Length(Self.Text);
+    TokenLookup[i].UTF8Length := UTF8Length(Token.Value);
     case Token.Kind of
       tkMove:
       begin
@@ -257,7 +349,8 @@ begin
             AtStartOfLine := False;
         end;
         BeginParagraph;
-        InsertNotation('( ', Style.MoveStyle);
+        if VarLevel > 0 then
+          InsertNotation('( ', Style.MoveStyle);
         if Style.CommentaryNewLine then
           Inc(CommentaryIndent, Style.CommentaryIndent);
         Inc(LineIndent, Style.LineIndent);
@@ -294,12 +387,11 @@ begin
           InsertNotation(Token.Value + ' ', Style.CommentaryStyle);
         end;
       end;
-      tkNAG: InsertNotation(NAGToStr(StrToInt(Token.Value)) +
-          ' ', Style.NAGStyle);
+      tkNAG: InsertNotation(NAGToStr(StrToInt(Token.Value)) + ' ',
+          Style.NAGStyle);
       tkResult: InsertNotation(Token.Value, Style.MoveStyle);
     end;
   end;
-  AGameNotation.Free;
 end;
 
 end.
