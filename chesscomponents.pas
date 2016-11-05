@@ -8,7 +8,7 @@ interface
 
 uses
   Board, EngineView, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, 
-  BitBoard, NotationMemo, LazarusPackageIntf;
+  BitBoard, NotationMemo, NotationToken, LazarusPackageIntf;
 
 implementation
 
