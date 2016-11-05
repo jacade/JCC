@@ -26,7 +26,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
   NotationMemo, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Ply,
-  Position, PGNDbase, PGNGame, {$IFDEF Logging} EpikTimer, {$ENDIF} BitBoard;
+  Position, PGNDbase, PGNGame, {$IFDEF Logging} EpikTimer, {$ENDIF} BitBoard, NotationToken;
 
 type
 
@@ -65,8 +65,10 @@ type
   private
     { private declarations }
     MyGame: TGame;
+    MyPGNGame: TPGNGame;
     PGNDatabase: TPGNDatabase;
-    procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TToken);
+    procedure NotationMemo1ClickMove(Sender: TObject; Token: TNotationToken);
+    procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
     procedure UpdateButtons;
   public
     { public declarations }
@@ -165,6 +167,7 @@ begin
     LineIndent := 25;
   end;
   NotationMemo1.OnMouseOverToken:=@NotationMemo1MouseOverToken;
+  NotationMemo1.OnClickMove:=@NotationMemo1ClickMove;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -178,8 +181,6 @@ end;
 
 procedure TForm1.ListView1SelectItem(Sender: TObject; Item: TListItem;
   Selected: boolean);
-var
-  MyPGNGame: TPGNGame;
 begin
   if Selected then
   begin
@@ -201,7 +202,8 @@ begin
   Board1.Invalidate;
 end;
 
-procedure TForm1.NotationMemo1MouseOverToken(Sender: TObject; Token: TToken);
+procedure TForm1.NotationMemo1MouseOverToken(Sender: TObject;
+  Token: TNotationToken);
 begin
   if Assigned(Token) then
   begin
@@ -209,6 +211,13 @@ begin
   end
   else
     NotationMemo1.Cursor:=crDefault;
+end;
+
+procedure TForm1.NotationMemo1ClickMove(Sender: TObject; Token: TNotationToken);
+begin
+  MyPGNGame.GoToPositionAfterMove(Token.Move);
+  Board1.CurrentPosition.Copy(MyPGNGame.CurrentPosition);
+  Board1.Invalidate;
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);

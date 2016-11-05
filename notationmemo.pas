@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, LResources, Forms, Controls, Graphics, Dialogs,
-  RichMemo, Game, Ply, StdCtrls, RichMemoUtils, fgl, LazUTF8;
+  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken;
 
 type
 
@@ -56,23 +56,21 @@ type
   end;
 
   // Note: Token might be nil, if mouse is over a space char or an empty area
-  TMouseOverTokenEvent = procedure(Sender: TObject; Token: TToken) of object;
+  TMouseOverTokenEvent = procedure(Sender: TObject; Token: TNotationToken) of object;
 
-  TClickMoveToken = procedure(Sender: TObject; Token: TToken;
-    TreePlyNode: TPlyTreeNode) of object;
+  TClickMoveToken = procedure(Sender: TObject; Token: TNotationToken) of object;
 
   { TNotationMemo }
 
   TNotationMemo = class(TCustomRichMemo)
   private
-    CurrentToken: TToken;
+    CurrentToken: TNotationToken;
     CurrentGameNotation: TGameNotation;
     FLineStyles: TLineStyleList;
     FOnClickMove: TClickMoveToken;
     FOnMouseOverToken: TMouseOverTokenEvent;
     TokenLookup: array of TTokenPosition;
-    PlyLookup: array of TPlyTreeNode;
-    function GetTokenFromPosition(const Pos: integer): TToken;
+    function GetTokenFromPosition(const Pos: integer): TNotationToken;
     procedure SetOnClickMove(AValue: TClickMoveToken);
     procedure SetOnMouseOverToken(AValue: TMouseOverTokenEvent);
   protected
@@ -157,7 +155,7 @@ end;
 
 { TNotationMemo }
 
-function TNotationMemo.GetTokenFromPosition(const Pos: integer): TToken;
+function TNotationMemo.GetTokenFromPosition(const Pos: integer): TNotationToken;
 var
   i: integer;
 begin
@@ -194,9 +192,10 @@ begin
   begin
     if Assigned(CurrentToken) then
     begin
-      case CurrentToken.Kind of
-      tkMove: ;
-      tkNumber: ;
+      case CurrentToken.GetKind of
+      tkMove: if Assigned(FOnClickMove) then
+        FOnClickMove(Self, CurrentToken);
+      tkMoveNumber: ;
       tkBeginLine: ;
       tkEndLine: ;
       tkComment: ;
@@ -268,7 +267,7 @@ end;
 
 procedure TNotationMemo.SetTextFromGame(const AGame: TGame);
 var
-  Token: TToken;
+  Token: TNotationToken;
   VarLevel, Start, i: integer;
   Style: TLineStyle;
   AtStartOfLine: boolean; // Is true, when last char was a line ending
@@ -315,21 +314,20 @@ begin
   end;
   Self.Lines.Clear;
   SetLength(TokenLookup, CurrentGameNotation.Count);
-  SetLength(PlyLookup, AGame.PlyTree.Count);
   for i := 0 to CurrentGameNotation.Count - 1 do
   begin
     Token := CurrentGameNotation.Items[i];
     TokenLookup[i].Start := UTF8Length(Self.Text);
-    TokenLookup[i].UTF8Length := UTF8Length(Token.Value);
-    case Token.Kind of
+    TokenLookup[i].UTF8Length := UTF8Length(Token.Text);
+    case Token.GetKind of
       tkMove:
       begin
-        InsertNotation(Token.Value + ' ', Style.MoveStyle);
+        InsertNotation(Token.Text + ' ', Style.MoveStyle);
         AtStartOfLine := False;
       end;
-      tkNumber:
+      tkMoveNumber:
       begin
-        InsertNotation(Token.Value, Style.NumberStyle);
+        InsertNotation(Token.Text, Style.NumberStyle);
         AtStartOfLine := False;
       end;
       tkBeginLine:
@@ -375,7 +373,7 @@ begin
         begin
           EndParagraph(LineIndent);
           BeginParagraph;
-          InsertNotation(LineEnding + Token.Value, Style.CommentaryStyle);
+          InsertNotation(LineEnding + Token.Text, Style.CommentaryStyle);
           EndParagraph(CommentaryIndent);
           InsertNotation(LineEnding, Style.CommentaryStyle);
           BeginParagraph;
@@ -383,12 +381,11 @@ begin
         end
         else
         begin
-          InsertNotation(Token.Value + ' ', Style.CommentaryStyle);
+          InsertNotation(Token.Text + ' ', Style.CommentaryStyle);
         end;
       end;
-      tkNAG: InsertNotation(NAGToStr(StrToInt(Token.Value)) + ' ',
-          Style.NAGStyle);
-      tkResult: InsertNotation(Token.Value, Style.MoveStyle);
+      tkNAG: InsertNotation(Token.Text + ' ', Style.NAGStyle);
+      tkResult: InsertNotation(Token.Text, Style.MoveStyle);
     end;
   end;
 end;

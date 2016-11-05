@@ -23,7 +23,7 @@ interface
 
 // {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, Game, PGNGame, Position, Ply;
+  Classes, SysUtils, FileUtil, fgl, Game, PGNGame, Position, Ply, NotationToken;
 
 const
   TabCharacters = [#9, #11];

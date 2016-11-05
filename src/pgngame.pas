@@ -7,7 +7,7 @@ unit PGNGame;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces, fgl
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces, fgl, NotationToken
   {$IFDEF Logging}
   , Ply
   {$ENDIF}  ;
@@ -167,7 +167,7 @@ begin
     if not (FCurrentPosition as TStandardPosition).ValidateMove(Result,
       Piece, (8 - Dest.RRank) * 8 + Dest.RFile - 1, AFile, ARank) then
     begin
-    //  WriteLn(inherited GetNotation);
+      //  WriteLn(inherited GetNotation);
       (FCurrentPosition as TStandardPosition).PrintBoards;
       raise Exception.Create(APGNMove + ' is no valid move.');
     end;
@@ -278,8 +278,22 @@ begin
 end;
 
 function TPGNGame.GetPGNNotation: string;
+var
+  Token: TNotationToken;
 begin
-  Result :='';
+  for Token in GetGameNotation do
+  begin
+    case Token.GetKind of
+    tkMove: ;//Result := Result + Token.Value;
+    tkMoveNumber: ;
+    tkBeginLine: ;
+    tkEndLine: ;
+    tkComment: ;
+    tkNAG: ;
+    tkResult: ;
+    end;
+  end;
+  Result := '';
 end;
 
 end.

@@ -1,4 +1,4 @@
-{ JCC (Jan's Chess Componenents) - This file contains
+{ JCC (Jan's Chess Componenents) - This file contains a basic class to handle games
   Copyright (C) 2016  Jan Dette
 
   This program is free software: you can redistribute it and/or modify
@@ -22,11 +22,9 @@ unit Game;
 interface
 
 uses
-  Classes, SysUtils, MoveList, Position, Ply, fgl;
+  Classes, SysUtils, MoveList, Position, Ply, fgl, NotationToken;
 
 type
-  {$PACKENUM 1}
-  TGameResult = (grNone, grWhiteWins, grBlackWins, grDraw);
   // TODO: These have to be moved somewhere else
   {$PACKENUM 1}
   TFIDETitle = (ftNone, ftCM, ftFM, ftIM, ftGM, ftWCM, ftWFM, ftWIM, ftWGM);
@@ -40,22 +38,6 @@ type
   TModeType = (mtNone, mtOverTheBoard, mtPaperMail, mtElectronicMail, mtICS,
     mtGeneralTelecommunication);
 
-  TTokenKind = (tkMove, tkNumber, tkBeginLine, tkEndLine, tkComment, tkNAG, tkResult);
-
-  { TToken }
-
-  TToken = class
-  private
-    FTokenKind: TTokenKind;
-    FValue: string;
-  public
-    constructor Create(const ATokenKind: TTokenKind; const AValue: string);
-    property Kind: TTokenKind read FTokenKind write FTokenKind;
-    property Value: string read FValue write FValue;
-  end;
-
-  TGameNotation = specialize TFPGObjectList<TToken>;
-
 type
 
   { TGame }
@@ -63,6 +45,7 @@ type
   TGame = class
   private
     function GetCurrentPlyNumber: word;
+    function GetPlyNodeWithMove(const AMove: TMove): TPlyTreeNode;
     procedure SetInitialPosition(AValue: TPosition);
   protected
     FCurrentPlyNode: TPlyTreeNode;
@@ -88,6 +71,7 @@ type
     procedure GoOneMoveBackward;
     // Setups position after next move on board
     procedure GoOneMoveForward;
+    procedure GoToPositionAfterMove(const AMove: TMove);
     // Setups position after the given tree node
     procedure GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
     // Similiar to AddMoveAsNewMainLine but current main line will be deleted
@@ -118,7 +102,6 @@ type
     property GameResult: TGameResult read FGameResult write SetGameResult;
   end;
 
-function GameResultToStr(const AGameResult: TGameResult): string;
 function StrToFIDETitle(const s: string): TFIDETitle;
 function StrToPlayerType(const s: string): TPlayerType;
 function StrToModeType(const s: string): TModeType;
@@ -129,16 +112,6 @@ implementation
 procedure DeletePly(const AData: TPly);
 begin
   AData.Free;
-end;
-
-function GameResultToStr(const AGameResult: TGameResult): string;
-begin
-  case AGameResult of
-    grNone: Result := '*';
-    grWhiteWins: Result := '1-0';
-    grBlackWins: Result := '0-1';
-    grDraw: Result := '½-½';
-  end;
 end;
 
 function StrToFIDETitle(const s: string): TFIDETitle;
@@ -196,16 +169,6 @@ begin
   end;
 end;
 
-
-{ TToken }
-
-constructor TToken.Create(const ATokenKind: TTokenKind; const AValue: string);
-begin
-  inherited Create;
-  FTokenKind := ATokenKind;
-  FValue := AValue;
-end;
-
 { TGame }
 
 function TGame.GetCurrentPlyNumber: word;
@@ -215,6 +178,35 @@ begin
   Temp := FPlyTree.GetPathTo(FCurrentPlyNode);
   Result := Temp.Size - 1;
   Temp.Free;
+end;
+
+function TGame.GetPlyNodeWithMove(const AMove: TMove): TPlyTreeNode;
+var
+  FoundNode: TPlyTreeNode;
+
+  function Search(const Root: TPlyTreeNode): boolean;
+  var
+    i: Integer;
+  begin
+    Result := False;
+    if Assigned(Root) then
+    begin
+      for i := 0 to Root.Children.Size - 1 do
+      begin
+        if Root.Children[i].Data.Move = AMove then
+        begin
+          FoundNode := Root.Children[i];
+          Exit(True);
+        end;
+        Result := Search(Root.Children[i]);
+      end;
+    end;
+  end;
+
+begin
+  FoundNode := nil;
+  Search(FPlyTree.Root);
+  Result := FoundNode;
 end;
 
 procedure TGame.SetInitialPosition(AValue: TPosition);
@@ -294,6 +286,11 @@ begin
   GoToPositionAfterPlyNode(FCurrentPlyNode.Children.Items[0]);
 end;
 
+procedure TGame.GoToPositionAfterMove(const AMove: TMove);
+begin
+  GoToPositionAfterPlyNode(GetPlyNodeWithMove(AMove));
+end;
+
 procedure TGame.GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
 var
   Temp: TPlyTreeNodeList;
@@ -370,27 +367,27 @@ var
     begin
       if Length(APly.CommentTextInFront) > 0 then
       begin
-        Notation.Add(TToken.Create(tkComment, APly.CommentTextInFront));
+        Notation.Add(TCommentToken.Create(APly.CommentTextInFront));
         NeedsMoveNumber := True;
       end;
       if NeedsMoveNumber or TempPos.WhitesTurn then
       begin
         if TempPos.WhitesTurn then
-          Notation.Add(TToken.Create(tkNumber, IntToStr(TempPos.MoveNumber) + '.'))
+          Notation.Add(TMoveNumberToken.Create(IntToStr(TempPos.MoveNumber) + '.'))
         else
-          Notation.Add(TToken.Create(tkNumber, IntToStr(TempPos.MoveNumber) + '...'));
+          Notation.Add(TMoveNumberToken.Create(IntToStr(TempPos.MoveNumber) + '...'));
         NeedsMoveNumber := False;
       end;
       if APly.NonStandardGlyph > 0 then
-        Notation.Add(TToken.Create(tkNAG, IntToStr(APly.NonStandardGlyph)));
-      Notation.Add(TToken.Create(tkMove, TempPos.MoveToSAN(APly.Move)));
+        Notation.Add(TNAGToken.Create(APly.NonStandardGlyph, NAGToStr(APly.NonStandardGlyph)));
+      Notation.Add(TMoveToken.Create(APly.Move, TempPos.MoveToSAN(APly.Move)));
       if APly.MoveAssessment > 0 then
-        Notation.Add(TToken.Create(tkNAG, IntToStr(APly.MoveAssessment)));
+        Notation.Add(TNAGToken.Create(APly.MoveAssessment, NAGToStr(APly.MoveAssessment)));
       if APly.PositionalAssessment > 0 then
-        Notation.Add(TToken.Create(tkNAG, IntToStr(APly.PositionalAssessment)));
+        Notation.Add(TNAGToken.Create(APly.PositionalAssessment, NAGToStr(APly.PositionalAssessment)));
       if Length(APly.CommentTextInBehind) > 0 then
       begin
-        Notation.Add(TToken.Create(tkComment, APly.CommentTextInBehind));
+        Notation.Add(TCommentToken.Create(APly.CommentTextInBehind));
         NeedsMoveNumber := True;
       end;
     end;
@@ -401,7 +398,7 @@ var
   begin
     if CurrentRoot.Children.Size = 0 then
     begin // End of line
-      Notation.Add(TToken.Create(tkEndLine, ''));
+      Notation.Add(TEndLineToken.Create);
       Exit;
     end;
     TempPos := TStandardPosition.Create;
@@ -418,7 +415,7 @@ var
         TempPos.Copy(StartPos);
         Ply := CurrentRoot.Children.Items[i].Data;
         // Write side lines
-        Notation.Add(TToken.Create(tkBeginLine, ''));
+        Notation.Add(TBeginLineToken.Create);
         AddPlyToNotation(Ply);
         TempPos.PlayMove(Ply.Move);
         RecursiveCreateNotation(CurrentRoot.Children.Items[i], TempPos);
@@ -436,14 +433,14 @@ var
 
 begin
   Notation := TGameNotation.Create(True);
-  Notation.Add(TToken.Create(tkBeginLine, ''));
+  Notation.Add(TBeginLineToken.Create);
   NeedsMoveNumber := True;
   if FPlyTree.Count > 0 then
   begin
     Varlevel := 0;
     RecursiveCreateNotation(FPlyTree.Root, FInitialPosition as TStandardPosition);
   end;
-  Notation.Add(TToken.Create(tkResult, GameResultToStr(GameResult)));
+  Notation.Add(TResultToken.Create(GameResultToStr(GameResult)));
   Result := Notation;
 end;
 
