@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, LResources, Forms, Controls, Graphics, Dialogs,
-  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken;
+  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken, MoveList;
 
 type
 
@@ -58,19 +58,21 @@ type
   // Note: Token might be nil, if mouse is over a space char or an empty area
   TMouseOverTokenEvent = procedure(Sender: TObject; Token: TNotationToken) of object;
 
-  TClickMoveToken = procedure(Sender: TObject; Token: TNotationToken) of object;
+  TClickMoveToken = procedure(Sender: TObject; AMove: TMove;
+    Pos, Len: integer) of object;
 
   { TNotationMemo }
 
   TNotationMemo = class(TCustomRichMemo)
   private
-    CurrentToken: TNotationToken;
     CurrentGameNotation: TGameNotation;
+    CurrentToken: TNotationToken;
+    CurrentPosition: integer;
     FLineStyles: TLineStyleList;
     FOnClickMove: TClickMoveToken;
     FOnMouseOverToken: TMouseOverTokenEvent;
     TokenLookup: array of TTokenPosition;
-    function GetTokenFromPosition(const Pos: integer): TNotationToken;
+    function IndexOfTokenAtPos(const Pos: integer): integer;
     procedure SetOnClickMove(AValue: TClickMoveToken);
     procedure SetOnMouseOverToken(AValue: TMouseOverTokenEvent);
   protected
@@ -155,7 +157,7 @@ end;
 
 { TNotationMemo }
 
-function TNotationMemo.GetTokenFromPosition(const Pos: integer): TNotationToken;
+function TNotationMemo.IndexOfTokenAtPos(const Pos: integer): integer;
 var
   i: integer;
 begin
@@ -164,11 +166,11 @@ begin
     if (TokenLookup[i].Start < Pos) and (Pos <= TokenLookup[i].Start +
       TokenLookup[i].UTF8Length) then
     begin
-      Result := CurrentGameNotation.Items[i];
+      Result := i;
       Exit;
     end;
   end;
-  Result := nil;
+  Result := -1;
 end;
 
 procedure TNotationMemo.SetOnClickMove(AValue: TClickMoveToken);
@@ -186,6 +188,8 @@ begin
 end;
 
 procedure TNotationMemo.Click;
+var
+  Index, i, Pos, Len: longint;
 begin
   inherited Click;
   if Assigned(FOnClickMove) then
@@ -193,24 +197,62 @@ begin
     if Assigned(CurrentToken) then
     begin
       case CurrentToken.GetKind of
-      tkMove: if Assigned(FOnClickMove) then
-        FOnClickMove(Self, CurrentToken);
-      tkMoveNumber: ;
-      tkBeginLine: ;
-      tkEndLine: ;
-      tkComment: ;
-      tkNAG: ;
-      tkResult: ;
+        tkMove:
+        begin
+          if Assigned(FOnClickMove) then
+          begin
+            // Check if there is a previous move number token
+            Index := CurrentGameNotation.IndexOf(CurrentToken);
+            if CurrentGameNotation.Items[Index - 1].GetKind = tkMoveNumber then
+            begin
+              Pos := TokenLookup[Index - 1].Start;
+              Len := TokenLookup[Index - 1].UTF8Length + TokenLookup[Index].UTF8Length;
+            end
+            else
+            begin
+              Pos := CurrentPosition;
+              Len := TokenLookup[Index].UTF8Length;
+            end;
+            FOnClickMove(Self, CurrentToken.Move, Pos, Len);
+          end;
+        end;
+        tkMoveNumber: // Find next move token
+          if Assigned(FOnClickMove) then
+          begin
+            Index := CurrentGameNotation.IndexOf(CurrentToken);
+            for i := Index to CurrentGameNotation.Count - 1 do
+              if CurrentGameNotation.Items[i].GetKind = tkMove then
+              begin
+                FOnClickMove(Self, CurrentGameNotation.Items[i].Move,
+                  CurrentPosition, TokenLookup[i].UTF8Length +
+                  TokenLookup[Index].UTF8Length);
+                Exit;
+              end;
+          end;
+        tkBeginLine: ;
+        tkEndLine: ;
+        tkComment: ;
+        tkNAG: ;
+        tkResult: ;
       end;
     end;
   end;
 end;
 
 procedure TNotationMemo.MouseMove(Shift: TShiftState; X, Y: integer);
+var
+  Index: integer;
 begin
   inherited MouseMove(Shift, X, Y);
   // If this is too slow in here, it has to be moved in MouseDown or MouseUp
-  CurrentToken := GetTokenFromPosition(CharAtPos(X, Y));
+  Index := IndexOfTokenAtPos(CharAtPos(X, Y));
+  if Index >= 0 then
+  begin
+    CurrentToken := CurrentGameNotation.Items[Index];
+    CurrentPosition := TokenLookup[Index].Start;
+  end
+  else
+    CurrentToken := nil;
   if Assigned(FOnMouseOverToken) then
   begin
     FOnMouseOverToken(Self, CurrentToken);
@@ -322,7 +364,10 @@ begin
     case Token.GetKind of
       tkMove:
       begin
-        InsertNotation(Token.Text + ' ', Style.MoveStyle);
+        if CurrentGameNotation.Items[i + 1].GetKind <> tkNAG then
+          InsertNotation(Token.Text + ' ', Style.MoveStyle)
+        else
+          InsertNotation(Token.Text, Style.MoveStyle);
         AtStartOfLine := False;
       end;
       tkMoveNumber:

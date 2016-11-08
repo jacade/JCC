@@ -26,7 +26,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
   NotationMemo, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Ply,
-  Position, PGNDbase, PGNGame, {$IFDEF Logging} EpikTimer, {$ENDIF} BitBoard, NotationToken;
+  Position, PGNDbase, PGNGame, {$IFDEF Logging} EpikTimer, {$ENDIF} BitBoard,
+  NotationToken, LazUTF8, RichMemo;
 
 type
 
@@ -62,13 +63,13 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure ListView1SelectItem(Sender: TObject; Item: TListItem;
       Selected: boolean);
+    procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
+    procedure NotationMemo1ClickMove(Sender: TObject; AMove: TMove; Pos, Len: integer);
   private
-    { private declarations }
     MyGame: TGame;
     MyPGNGame: TPGNGame;
     PGNDatabase: TPGNDatabase;
-    procedure NotationMemo1ClickMove(Sender: TObject; Token: TNotationToken);
-    procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
+    SelLength, SelStart: integer;
     procedure UpdateButtons;
   public
     { public declarations }
@@ -166,8 +167,8 @@ begin
     NeedsNewLine := True;
     LineIndent := 25;
   end;
-  NotationMemo1.OnMouseOverToken:=@NotationMemo1MouseOverToken;
-  NotationMemo1.OnClickMove:=@NotationMemo1ClickMove;
+  SelStart := 0;
+  SelLength := 0;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -193,30 +194,44 @@ begin
   end;
 end;
 
+procedure TForm1.NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
+begin
+  if Assigned(Token) then
+  begin
+    NotationMemo1.Cursor := crHandPoint;
+  end
+  else
+    NotationMemo1.Cursor := crDefault;
+end;
+
+procedure TForm1.NotationMemo1ClickMove(Sender: TObject; AMove: TMove;
+  Pos, Len: integer);
+var
+  Params: TFontParams;
+begin
+  if SelLength > 0 then
+  begin
+    NotationMemo1.GetTextAttributes(SelStart, Params);
+    Params.BkColor := clWhite;
+    NotationMemo1.SetTextAttributes(SelStart, SelLength, Params);
+  end;
+  SelStart := Pos;
+  SelLength := Len;
+  NotationMemo1.GetTextAttributes(Pos, Params);
+  Params.BkColor := clSkyBlue;
+  Params.HasBkClr := True;
+  MyPGNGame.GoToPositionAfterMove(AMove);
+  NotationMemo1.SetTextAttributes(Pos, Len, Params);
+  Board1.CurrentPosition.Copy(MyPGNGame.CurrentPosition);
+  Board1.Invalidate;
+end;
+
 procedure TForm1.UpdateButtons;
 begin
   btBackward.Enabled := MyGame.CurrentPlyNumber > 0;
   btForward.Enabled := MyGame.CurrentPlyNode.Children.Size > 0;
   btInitial.Enabled := MyGame.PlyTree.Count > 0;
   btLast.Enabled := MyGame.PlyTree.Count > 0;
-  Board1.Invalidate;
-end;
-
-procedure TForm1.NotationMemo1MouseOverToken(Sender: TObject;
-  Token: TNotationToken);
-begin
-  if Assigned(Token) then
-  begin
-    NotationMemo1.Cursor:=crHandPoint;
-  end
-  else
-    NotationMemo1.Cursor:=crDefault;
-end;
-
-procedure TForm1.NotationMemo1ClickMove(Sender: TObject; Token: TNotationToken);
-begin
-  MyPGNGame.GoToPositionAfterMove(Token.Move);
-  Board1.CurrentPosition.Copy(MyPGNGame.CurrentPosition);
   Board1.Invalidate;
 end;
 

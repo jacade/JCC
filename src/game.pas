@@ -198,7 +198,8 @@ var
           FoundNode := Root.Children[i];
           Exit(True);
         end;
-        Result := Search(Root.Children[i]);
+        if Search(Root.Children[i]) then
+          Exit(True);
       end;
     end;
   end;
