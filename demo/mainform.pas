@@ -25,9 +25,9 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, StdCtrls, Board,
-  NotationMemo, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs, Ply,
-  Position, PGNDbase, PGNGame, {$IFDEF Logging} EpikTimer, {$ENDIF} BitBoard,
-  NotationToken, LazUTF8, RichMemo;
+  NotationMemo, MoveList, Pieces, Game, Types, LCLType, ComCtrls, Dialogs,
+  Grids, Ply, Position, PGNDbase, PGNGame, BitBoard, NotationToken, LazUTF8,
+  RichMemo;
 
 type
 
@@ -45,9 +45,9 @@ type
     ComboBox1: TComboBox;
     Label1: TLabel;
     Label2: TLabel;
-    ListView1: TListView;
     NotationMemo1: TNotationMemo;
     OpenDialog1: TOpenDialog;
+    StringGrid1: TStringGrid;
     procedure Board1MouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
     procedure Board1MovePlayed(AMove: TMove);
@@ -61,10 +61,12 @@ type
     procedure Button3Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure ListView1SelectItem(Sender: TObject; Item: TListItem;
-      Selected: boolean);
+    procedure NotationMemo1Enter(Sender: TObject);
     procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
     procedure NotationMemo1ClickMove(Sender: TObject; AMove: TMove; Pos, Len: integer);
+    procedure NotationMemo1SelectionChange(Sender: TObject);
+    procedure StringGrid1SelectCell(Sender: TObject; aCol, aRow: integer;
+      var CanSelect: boolean);
   private
     MyGame: TGame;
     MyPGNGame: TPGNGame;
@@ -180,18 +182,10 @@ begin
   PGNDatabase.Free;
 end;
 
-procedure TForm1.ListView1SelectItem(Sender: TObject; Item: TListItem;
-  Selected: boolean);
+procedure TForm1.NotationMemo1Enter(Sender: TObject);
 begin
-  if Selected then
-  begin
-    MyPGNGame := PGNDatabase.Items[ListView1.Items.IndexOf(Item)];
-    NotationMemo1.SetTextFromGame(MyPGNGame);
-    MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
-    (Board1.CurrentPosition as TStandardPosition).FromFEN(
-      (MyPGNGame.CurrentPosition as TStandardPosition).ToFEN);
-    Board1.Invalidate;
-  end;
+  // never allow focus on NotationMemo1
+  ActiveControl := Board1;
 end;
 
 procedure TForm1.NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
@@ -224,6 +218,27 @@ begin
   NotationMemo1.SetTextAttributes(Pos, Len, Params);
   Board1.CurrentPosition.Copy(MyPGNGame.CurrentPosition);
   Board1.Invalidate;
+end;
+
+procedure TForm1.NotationMemo1SelectionChange(Sender: TObject);
+begin
+  // Don't allow any selection
+  if NotationMemo1.SelLength > 0 then
+    NotationMemo1.SelLength := 0;
+end;
+
+procedure TForm1.StringGrid1SelectCell(Sender: TObject; aCol, aRow: integer;
+  var CanSelect: boolean);
+begin
+  if aRow > 0 then
+  begin
+    MyPGNGame := PGNDatabase.Items[aRow - 1];
+    NotationMemo1.SetTextFromGame(MyPGNGame);
+    MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
+    (Board1.CurrentPosition as TStandardPosition).FromFEN(
+      (MyPGNGame.CurrentPosition as TStandardPosition).ToFEN);
+    Board1.Invalidate;
+  end;
 end;
 
 procedure TForm1.UpdateButtons;
@@ -267,6 +282,7 @@ var
   LItem: TListItem;
   i, sum: integer;
   a: extended;
+  Temp: TPGNGame;
 begin
   a := 0;
   if OpenDialog1.Execute then
@@ -275,21 +291,17 @@ begin
     {$IFDEF Logging}
     a := ET.Elapsed;
     {$ENDIF}
-    ListView1.BeginUpdate;
+    StringGrid1.BeginUpdate;
     sum := 0;
     for i := 0 to PGNDatabase.Count - 1 do
     begin
-      LItem := ListView1.Items.Add;
-      LItem.Caption := PGNDatabase.Items[i].White;
-      LItem.SubItems.Add(PGNDatabase.Items[i].Black);
-      LItem.SubItems.Add(PGNDatabase.Items[i].Date);
-      LItem.SubItems.Add(PGNDatabase.Items[i].Event);
-      LItem.SubItems.Add(PGNDatabase.Items[i].Site);
-      LItem.SubItems.Add(PGNDatabase.Items[i].Round);
-      LItem.SubItems.Add(GameResultToStr(PGNDatabase.Items[i].GameResult));
+      Temp := PGNDatabase.Items[i];
+      StringGrid1.InsertRowWithValues(StringGrid1.RowCount,
+        [Temp.White, Temp.Black, Temp.Date, Temp.Event, Temp.Site,
+        Temp.Round, GameResultToStr(Temp.GameResult)]);
       sum := sum + PGNDatabase.Items[i].PlyTree.Count div 2;
     end;
-    ListView1.EndUpdate;
+    StringGrid1.EndUpdate;
     Label2.Caption := Label2.Caption + FloatToStr(sum / PGNDatabase.Count);
   end;
   {$IFDEF Logging}
