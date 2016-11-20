@@ -101,9 +101,9 @@ const
   WhiteSquares: TBitBoard = 12273903644374837845;
 
 function BitBoardToStr(ABitBoard: TBitBoard): string;
-function IsBitSet(ABitBoard: TBitBoard; Index: byte): boolean;
-function NumberOfLeadingZeroes(const ABitBoard: TBitBoard): integer;
-function NumberOfTrailingZeroes(const ABitBoard: TBitBoard): integer;
+function IsBitSet(ABitBoard: TBitBoard; Index: byte): boolean; inline;
+function NumberOfLeadingZeroes(const ABitBoard: TBitBoard): integer; inline;
+function NumberOfTrailingZeroes(const ABitBoard: TBitBoard): integer; inline;
 function ReverseBitBoard(ABitBoard: TBitBoard): TBitBoard;
 
 implementation
@@ -125,17 +125,17 @@ begin
     Insert(LineEnding, Result, j * 8 + 1);
 end;
 
-function IsBitSet(ABitBoard: TBitBoard; Index: byte): boolean;
+function IsBitSet(ABitBoard: TBitBoard; Index: byte): boolean; inline;
 begin
   Result := ((ABitBoard shr Index) and 1) = 1;
 end;
 
-function NumberOfLeadingZeroes(const ABitBoard: TBitBoard): integer;
+function NumberOfLeadingZeroes(const ABitBoard: TBitBoard): integer; inline;
 begin
   Result := 63 - BsrQWord(ABitBoard);
 end;
 
-function NumberOfTrailingZeroes(const ABitBoard: TBitBoard): integer;
+function NumberOfTrailingZeroes(const ABitBoard: TBitBoard): integer; inline;
 begin
   Result := BsfQWord(ABitBoard);
 end;
