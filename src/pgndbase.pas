@@ -218,7 +218,10 @@ var
       c := getChar(Index);
       while not (c = '}') do
       begin
-        if c <> #10 then
+        // TODO Check for an existing space
+        if c = #10 then
+          Result := Result + ' '
+        else
           Result := Result + c;
         Inc(Index);
         //if Index > Len then
