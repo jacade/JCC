@@ -1,5 +1,5 @@
 object Form1: TForm1
-  Left = 329
+  Left = 325
   Height = 699
   Top = 0
   Width = 742
@@ -106,56 +106,6 @@ object Form1: TForm1
     OnClick = btLastClick
     TabOrder = 7
   end
-  object ListView1: TListView
-    Left = 0
-    Height = 187
-    Top = 512
-    Width = 742
-    Align = alBottom
-    Columns = <    
-      item
-        AutoSize = True
-        Caption = 'White'
-        MaxWidth = 300
-        Width = 52
-      end    
-      item
-        AutoSize = True
-        Caption = 'Black'
-        MaxWidth = 300
-        Width = 48
-      end    
-      item
-        AutoSize = True
-        Caption = 'Date'
-        Width = 44
-      end    
-      item
-        AutoSize = True
-        Caption = 'Event'
-        Width = 51
-      end    
-      item
-        AutoSize = True
-        Caption = 'Site'
-        Width = 39
-      end    
-      item
-        AutoSize = True
-        Caption = 'Round'
-        Width = 56
-      end    
-      item
-        AutoSize = True
-        Caption = 'Result'
-        Width = 450
-      end>
-    ReadOnly = True
-    ScrollBars = ssAutoVertical
-    TabOrder = 8
-    ViewStyle = vsReport
-    OnSelectItem = ListView1SelectItem
-  end
   object Button3: TButton
     Left = 480
     Height = 25
@@ -163,7 +113,7 @@ object Form1: TForm1
     Width = 136
     Caption = 'Load PGN'
     OnClick = Button3Click
-    TabOrder = 9
+    TabOrder = 8
   end
   object Label2: TLabel
     Left = 8
@@ -181,12 +131,84 @@ object Form1: TForm1
     Anchors = [akTop, akLeft, akRight]
     Font.Height = -13
     Font.Name = 'Sans'
-    HideSelection = False
+    HideSelection = True
     OnClickMove = NotationMemo1ClickMove
+    OnEnter = NotationMemo1Enter
     OnMouseOverToken = NotationMemo1MouseOverToken
+    OnSelectionChange = NotationMemo1SelectionChange
     ParentFont = False
-    TabOrder = 10
+    TabOrder = 9
+    TabStop = False
     ZoomFactor = 1
+  end
+  object StringGrid1: TStringGrid
+    Left = 0
+    Height = 172
+    Top = 527
+    Width = 742
+    Align = alBottom
+    AutoFillColumns = True
+    ColCount = 7
+    ColumnClickSorts = True
+    Columns = <    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'White'
+        Width = 105
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Black'
+        Width = 105
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Date'
+        Width = 105
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Event'
+        Width = 105
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Site'
+        Width = 105
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Round'
+        Width = 105
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Result'
+        Width = 110
+      end>
+    FixedCols = 0
+    MouseWheelOption = mwGrid
+    Options = [goFixedVertLine, goFixedHorzLine, goRangeSelect, goColSizing, goRowSelect, goSmoothScroll]
+    RowCount = 1
+    TabAdvance = aaNone
+    TabOrder = 10
+    TitleFont.Style = [fsBold]
+    OnSelectCell = StringGrid1SelectCell
+    ColWidths = (
+      105
+      105
+      105
+      105
+      105
+      105
+      110
+    )
+    Cells = (
+      1
+      0
+      0
+      'White'
+    )
   end
   object OpenDialog1: TOpenDialog
     Filter = 'Portable Game Notation (*.pgn)|*.pgn'

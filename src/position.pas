@@ -52,6 +52,8 @@ type
 
   TPosition = class
   private
+    LegalMovesNeedUpdate: boolean;
+    function GetLegalMoves: TMoveList;
   protected
     FBlackWins: TNotifyEvent;
     FDraw: TNotifyEvent;
@@ -72,15 +74,16 @@ type
     function GetSquares(Index: integer): TPieceType; virtual; abstract;
     procedure WhiteWins;
   public
+    constructor Create;
     // Copies important values from Source to Self
     procedure Copy(Source: TPosition); virtual;
     function IsLegal(AMove: TMove): boolean; virtual;
-    procedure PlayMove(AMove: TMove); virtual; abstract;
+    procedure PlayMove(AMove: TMove); virtual;
     procedure SetupInitialPosition; virtual; abstract;
   public
     property CountOfFiles: byte read GetCountOfFiles;
     property CountOfRanks: byte read GetCountOfRanks;
-    property LegalMoves: TMoveList read FLegalMoves;
+    property LegalMoves: TMoveList read GetLegalMoves;
     property MoveNumber: integer read FMoveNumber write FMoveNumber;
     property OnBlackWins: TNotifyEvent read FBlackWins write FBlackWins;
     property OnDraw: TNotifyEvent read FDraw write FDraw;
@@ -202,6 +205,9 @@ var
 
     {$ENDIF}
 
+const
+  PAWN_MOVE = -1;
+
 // Returns a Bitboard with zeroes and a 1 at the given position
 function SquareToBitBoard(const ASquare: TSquare8x8): QWord;
 
@@ -214,6 +220,16 @@ begin
 end;
 
 { TPosition }
+
+function TPosition.GetLegalMoves: TMoveList;
+begin
+  if LegalMovesNeedUpdate then
+  begin
+    GenerateLegalMoves;
+    LegalMovesNeedUpdate := False;
+  end;
+  Result := FLegalMoves;
+end;
 
 procedure TPosition.BlackWins;
 begin
@@ -233,20 +249,31 @@ begin
     FWhiteWins(Self);
 end;
 
+constructor TPosition.Create;
+begin
+  LegalMovesNeedUpdate := True;
+end;
+
 procedure TPosition.Copy(Source: TPosition);
 var
   Move: TMove;
 begin
   FMoveNumber := Source.FMoveNumber;
   FWhitesTurn := Source.FWhitesTurn;
+  LegalMovesNeedUpdate := Source.LegalMovesNeedUpdate;
   FLegalMoves.Clear;
   for Move in Source.FLegalMoves do
-    FLegalMoves.Add(Move);
+    FLegalMoves.Add(Move.Copy);
 end;
 
 function TPosition.IsLegal(AMove: TMove): boolean;
 begin
   Result := AMove in LegalMoves;
+end;
+
+procedure TPosition.PlayMove(AMove: TMove);
+begin
+  LegalMovesNeedUpdate := True;
 end;
 
 { TStandardPosition }
@@ -323,7 +350,7 @@ procedure TStandardPosition.AddBitBoardToMoveList(PossibleMoves: TBitBoard;
 var
   i: integer;
 begin
-  if Start < 0 then // This should be used for pawn moves
+  if Start = PAWN_MOVE then // Moving piece is a pawn
   begin
     while PossibleMoves > 0 do
     begin
@@ -397,17 +424,17 @@ begin
   // Black pawn captures to the right
   PawnMoves := ((Pawns and not Files[8]) shl 9) and
     (WhitePiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, -9);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -9);
   // Black pawn captures to the left
   PawnMoves := ((Pawns and not Files[1]) shl 7) and
     (WhitePiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, -7);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -7);
   // Black pawn goes one forward
   PawnMoves := (Pawns shl 8) and Empty;
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, -8);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -8);
   // Black pawn goes two forward
   PawnMoves := ((Pawns and Ranks[7]) shl 16) and Empty and (Empty shl 8);
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, -16);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -16);
 end;
 
 procedure TStandardPosition.GenerateWhitePawnPseudoMoves(Pawns: TBitBoard;
@@ -420,17 +447,17 @@ begin
   // White pawn captures to the right
   PawnMoves := ((Pawns and not Files[8]) shr 7) and
     (BlackPiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, 7);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 7);
   // White pawn captures to the left
   PawnMoves := ((Pawns and not Files[1]) shr 9) and
     (BlackPiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, 9);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 9);
   // White pawn goes one forward
   PawnMoves := (Pawns shr 8) and Empty;
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, 8);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 8);
   // White pawn goes two forward
   PawnMoves := ((Pawns and Ranks[2]) shr 16) and Empty and (Empty shr 8);
-  AddBitBoardToMoveList(PawnMoves, -1, AMoveList, 16);
+  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 16);
 end;
 
 procedure TStandardPosition.GenerateQueenPseudoMoves(Queens,
@@ -782,7 +809,7 @@ begin
   // Illegal en passants
   if EnPassant > 0 then
   begin
-    // En passnats to the right
+    // En passants to the right
     if FWhitesTurn then
     begin
       Pinner := R and Ranks[5];
@@ -806,7 +833,7 @@ begin
       Pinned[5] := Pinned[5] or (HorizontalAttacks(i) and SuperKingAttacks and Blocker);
       Pinner := Pinner and (Pinner - 1);
     end;
-    // En passnats to the left
+    // En passants to the left
     if FWhitesTurn then
     begin
       Pinner := R and Ranks[5];
@@ -1008,6 +1035,7 @@ var
   rk, fl, i, Coordinate: byte;
   temp: string;
   RegFEN: TRegExpr;
+  piece, color: integer;
 begin
   RegFEN := TRegExpr.Create;
   RegFEN.Expression := '(([prnbqkPRNBQK1-8]){1,8}\/){7}([prnbqkPRNBQK1-8]){1,8} ' +
@@ -1027,72 +1055,27 @@ begin
     for i := 1 to Length(temp) do
     begin
       Coordinate := rk * 8 + fl;
-      // TODO:
-      //if FSquares[Coordinate] = ptOff then
-      //  raise EInvalidFEN.Create('FEN is invalid');
+      if fl > 7 then
+        raise EInvalidFEN.Create('FEN is invalid');
       case temp[i] of
-        '1'..'8': Inc(fl, StrToInt(temp[i]) - 1);
-        'p':
+        '1'..'8':
         begin
-          FBitBoards[1] := FBitBoards[1] or QWord(1) shl Coordinate;
-          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
+          Inc(fl, StrToInt(temp[i]));
+          Continue;
         end;
-        'r':
+        'p', 'r', 'n', 'b', 'q', 'k':
         begin
-          FBitBoards[2] := FBitBoards[2] or QWord(1) shl Coordinate;
-          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
+          piece := Pos(temp[i], 'prnbqk');
+          color := 8;
         end;
-        'n':
+        'P', 'R', 'N', 'B', 'Q', 'K':
         begin
-          FBitBoards[3] := FBitBoards[3] or QWord(1) shl Coordinate;
-          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
-        end;
-        'b':
-        begin
-          FBitBoards[4] := FBitBoards[4] or QWord(1) shl Coordinate;
-          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
-        end;
-        'q':
-        begin
-          FBitBoards[5] := FBitBoards[5] or QWord(1) shl Coordinate;
-          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
-        end;
-        'k':
-        begin
-          FBitBoards[6] := FBitBoards[6] or QWord(1) shl Coordinate;
-          FBitBoards[8] := FBitBoards[8] or QWord(1) shl Coordinate;
-        end;
-        'P':
-        begin
-          FBitBoards[1] := FBitBoards[1] or QWord(1) shl Coordinate;
-          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
-        end;
-        'R':
-        begin
-          FBitBoards[2] := FBitBoards[2] or QWord(1) shl Coordinate;
-          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
-        end;
-        'N':
-        begin
-          FBitBoards[3] := FBitBoards[3] or QWord(1) shl Coordinate;
-          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
-        end;
-        'B':
-        begin
-          FBitBoards[4] := FBitBoards[4] or QWord(1) shl Coordinate;
-          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
-        end;
-        'Q':
-        begin
-          FBitBoards[5] := FBitBoards[5] or QWord(1) shl Coordinate;
-          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
-        end;
-        'K':
-        begin
-          FBitBoards[6] := FBitBoards[6] or QWord(1) shl Coordinate;
-          FBitBoards[7] := FBitBoards[7] or QWord(1) shl Coordinate;
+          piece := Pos(temp[i], 'PRNBQK');
+          color := 7;
         end;
       end;
+      FBitBoards[piece] := FBitBoards[piece] or QWord(1) shl Coordinate;
+      FBitBoards[color] := FBitBoards[color] or QWord(1) shl Coordinate;
       Inc(fl);
     end;
   end;
@@ -1289,6 +1272,7 @@ end;
 
 constructor TStandardPosition.Create;
 begin
+  inherited Create;
   FLegalMoves := TMoveList.Create;
 end;
 
