@@ -38,19 +38,21 @@ type
     // Used to mark that we are off the board
     ptOff = 255);
 
+  TPieceTypes = set of TPieceType;
+
 
 const
   WhitePieces = [ptWPawn, ptWKnight, ptWBishop, ptWRook, ptWQueen, ptWKing];
   BlackPieces = [ptBPawn, ptBKnight, ptBBishop, ptBRook, ptBQueen, ptBKing];
 
-function BasisPieceType(APiece: TPieceType): TBasicPieceType;
+function BasicPieceType(APiece: TPieceType): TBasicPieceType;
 function IsWhite(Piece: TPieceType): boolean;
 function PieceType(ABasicPieceType: TBasicPieceType; WhiteColor: boolean): TPieceType;
 function SameColor(Piece1, Piece2: TPieceType): boolean;
 
 implementation
 
-function BasisPieceType(APiece: TPieceType): TBasicPieceType;
+function BasicPieceType(APiece: TPieceType): TBasicPieceType;
 begin
   case APiece of
     ptEmpty, ptOff: raise Exception.Create('There exist no basictype for these!');
