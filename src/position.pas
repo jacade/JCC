@@ -51,39 +51,32 @@ type
   { TPosition }
 
   TPosition = class
-  private
-    LegalMovesNeedUpdate: boolean;
-    function GetLegalMoves: TMoveList;
   protected
     FBlackWins: TNotifyEvent;
     FDraw: TNotifyEvent;
-    FLegalMoves: TMoveList;
     FMoveNumber: integer;
     FWhitesTurn: boolean;
     FWhiteWins: TNotifyEvent;
-  const
-    DiagonalMoves = [9, 11];   // Too bad, that negative values are not allowed
-    HorzVertMoves = [1, 10];
-    KnightMoves = [8, 12, 19, 21];
+    //const
+    //  DiagonalMoves = [9, 11];   // Too bad, that negative values are not allowed
+    //  HorzVertMoves = [1, 10];
+    //  KnightMoves = [8, 12, 19, 21];
 
     procedure BlackWins;
     procedure Draw;
-    procedure GenerateLegalMoves; virtual; abstract;
     function GetCountOfFiles: byte; virtual; abstract;
     function GetCountOfRanks: byte; virtual; abstract;
     function GetSquares(Index: integer): TPieceType; virtual; abstract;
     procedure WhiteWins;
   public
-    constructor Create;
     // Copies important values from Source to Self
     procedure Copy(Source: TPosition); virtual;
-    function IsLegal(AMove: TMove): boolean; virtual;
-    procedure PlayMove(AMove: TMove); virtual;
+    procedure PlayMove(AMove: TMove); virtual; abstract;
     procedure SetupInitialPosition; virtual; abstract;
+    function ValidateMove(AMove: TMove): boolean; virtual; abstract;
   public
     property CountOfFiles: byte read GetCountOfFiles;
     property CountOfRanks: byte read GetCountOfRanks;
-    property LegalMoves: TMoveList read GetLegalMoves;
     property MoveNumber: integer read FMoveNumber write FMoveNumber;
     property OnBlackWins: TNotifyEvent read FBlackWins write FBlackWins;
     property OnDraw: TNotifyEvent read FDraw write FDraw;
@@ -108,44 +101,38 @@ type
     FEnPassant: TBitBoard;
     // 1. Pawns 2. Rooks 3. Knights 4. Bishops 5. Queens 6. Kings 7. White 8. Black
     FBitBoards: array[1..8] of TBitBoard;
-    // 1. White 2. Black
-    FAttackMaps: array[1..2] of TBitBoard;
     // Occupied Squares
-    FOccupied: TBitBoard; // = FBitBoards[7] and FBitBoards[8]
+    // FOccupied: TBitBoard; // = FBitBoards[7] and FBitBoards[8]
 
     procedure Changed;
-    function AntiDiagonalAttacks(index: integer): TBitBoard;
-    function DiagonalAttacks(index: integer): TBitBoard;
-    function HorizontalAttacks(Index: integer): TBitBoard;
-    function VerticalAttacks(Index: integer): TBitBoard;
-    function DiagonalAndAntiDiagonalAttacks(Index: integer): TBitBoard;
-    function HorizontalAndVerticalAttacks(Index: integer): TBitBoard;
-    // Adds moves given as bitboard to given move list
-    procedure AddBitBoardToMoveList(PossibleMoves: TBitBoard;
-      Start: integer; AMoveList: TMoveList; RelativeStart: integer = 0);
-    // In the following we create pseudo-legal moves and store them in given move list
-    procedure GenerateBishopPseudoMoves(Bishops, OppositeColorWithoutKingOrEmpty:
-      TBitBoard; AMoveList: TMoveList);
-    procedure GenerateKingPseudoMoves(Kings, OppositeColorWithoutKingOrEmpty: TBitBoard;
-      AMoveList: TMoveList);
-    procedure GenerateKnightPseudoMoves(Knights, OppositeColorWithoutKingOrEmpty:
-      TBitBoard; AMoveList: TMoveList);
-    procedure GenerateBlackPawnPseudoMoves(Pawns: TBitBoard; AMoveList: TMoveList);
-    procedure GenerateWhitePawnPseudoMoves(Pawns: TBitBoard; AMoveList: TMoveList);
-    procedure GenerateQueenPseudoMoves(Queens, OppositeColorWithoutKingOrEmpty:
-      TBitBoard; AMoveList: TMoveList);
-    procedure GenerateRookPseudoMoves(Rooks, OppositeColorWithoutKingOrEmpty: TBitBoard;
-      AMoveList: TMoveList);
-    function FilterMoveList(AMoveList: TMoveList; APiece: TPieceType = ptEmpty;
+    function AntiDiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
+    function DiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
+    function HorizontalAttacks(Index: integer; Occupied: TBitBoard): TBitBoard;
+    function VerticalAttacks(Index: integer; Occupied: TBitBoard): TBitBoard;
+    function DiagonalAndAntiDiagonalAttacks(Index: integer;
+      Occupied: TBitBoard): TBitBoard;
+    function HorizontalAndVerticalAttacks(Index: integer;
+      Occupied: TBitBoard): TBitBoard;
+    function PawnAttacks(Pawns, Occupied: TBitBoard;
+      WhitePawns: boolean): TBitBoard;
+    function PawnForwards(Pawns, Occupied: TBitBoard;
+      WhitePawns: boolean): TBitBoard;
+    function PawnForwardTwo(Pawns, Occupied, StartRank: TBitBoard;
+      WhitePawns: boolean): TBitBoard;
+    function CanEvadeCheck: boolean;
+    function GenerateLegalMovesToSquare(MovingPiece: TPieceType;
+      Dest: byte): TMoveList;
+    function GetAttackerPosition(Index: byte; PossibleAttackers: TPieceTypes): TBitBoard;
+    procedure FilterMoveList(AMoveList: TMoveList; APiece: TPieceType = ptEmpty;
       StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 0;
-      APromotionPiece: TPieceType = ptEmpty): TMoveList;
+      APromotionPiece: TPieceType = ptEmpty);
+    function GetPinnedPieces: TBitBoard;
     // Checks if the side not to move is attacking the given square
-    function IsAttacked(Index: integer): boolean;
+    function IsAttacked(Index: integer; ByWhite: boolean): boolean;
     procedure SilentFromFEN(const AFEN: string);
     // Plays the move without triggering Changed
     procedure SilentPlayMove(AMove: TMove);
   protected
-    procedure GenerateLegalMoves; override;
     function GetCountOfFiles: byte; override;
     function GetCountOfRanks: byte; override;
     function GetSquares(Index: integer): TPieceType; override;
@@ -155,14 +142,8 @@ type
 
     // Just for debugging
     procedure PrintBoards;
-    constructor Create;
-    constructor Create(AFEN: string);
+    constructor Create(AFEN: string); overload;
     procedure Copy(Source: TPosition); override;
-    destructor Destroy; override;
-    // Returns a sub list of LegalMoves with those moves which fulfill the parameters
-    function FilterLegalMoves(APiece: TPieceType = ptEmpty;
-      StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 0;
-      APromotionPiece: TPieceType = ptEmpty): TMoveList;
     procedure FromFEN(const AFEN: string);
     // Checks if the side to move is check
     function IsCheck: boolean;
@@ -172,7 +153,6 @@ type
     function IsMovePseudoLegal(APiece: TPieceType; Start, Dest: TSquare8x8): boolean;
     function IsStaleMate: boolean;
     function IsValid: boolean;
-    function MoveFromSAN(ASAN: string): TMove;
     // This uses the english piece letters
     function MoveToSAN(AMove: TMove; ShowPawnLetter: boolean = False;
       ShowEnPassantSuffix: boolean = False; CaptureSymbol: TCaptureSymbol = csx;
@@ -186,7 +166,7 @@ type
     // If true, the converted move can be found in ResultMove
     function ValidateMove(var ResultMove: TMove; MovingPiece: TPieceType;
       Dest: byte; StartingFile: byte = 0; StartingRank: byte = 0): boolean;
-    function ValidateMove(AMove: TMove): boolean;
+    function ValidateMove(AMove: TMove): boolean; override;
     function ToFEN: string;
   public
     property CastlingAbility: TCastlingAbility
@@ -210,6 +190,7 @@ const
 
 // Returns a Bitboard with zeroes and a 1 at the given position
 function SquareToBitBoard(const ASquare: TSquare8x8): QWord;
+function SquareToInt(const ASquare: TSquare8x8): integer;
 
 implementation
 
@@ -219,17 +200,12 @@ begin
   Result := Ranks[ASquare.RRank] and Files[ASquare.RFile];
 end;
 
-{ TPosition }
-
-function TPosition.GetLegalMoves: TMoveList;
+function SquareToInt(const ASquare: TSquare8x8): integer;
 begin
-  if LegalMovesNeedUpdate then
-  begin
-    GenerateLegalMoves;
-    LegalMovesNeedUpdate := False;
-  end;
-  Result := FLegalMoves;
+  Result := (8 - ASquare.RRank) * 8 + ASquare.RFile - 1;
 end;
+
+{ TPosition }
 
 procedure TPosition.BlackWins;
 begin
@@ -249,31 +225,10 @@ begin
     FWhiteWins(Self);
 end;
 
-constructor TPosition.Create;
-begin
-  LegalMovesNeedUpdate := True;
-end;
-
 procedure TPosition.Copy(Source: TPosition);
-var
-  Move: TMove;
 begin
   FMoveNumber := Source.FMoveNumber;
   FWhitesTurn := Source.FWhitesTurn;
-  LegalMovesNeedUpdate := Source.LegalMovesNeedUpdate;
-  FLegalMoves.Clear;
-  for Move in Source.FLegalMoves do
-    FLegalMoves.Add(Move.Copy);
-end;
-
-function TPosition.IsLegal(AMove: TMove): boolean;
-begin
-  Result := AMove in LegalMoves;
-end;
-
-procedure TPosition.PlayMove(AMove: TMove);
-begin
-  LegalMovesNeedUpdate := True;
 end;
 
 { TStandardPosition }
@@ -286,222 +241,390 @@ begin
     FOnChange(Self);
 end;
 
-function TStandardPosition.AntiDiagonalAttacks(index: integer): TBitBoard;
+function TStandardPosition.AntiDiagonalAttacks(index: integer;
+  Occupied: TBitBoard): TBitBoard;
 var
   Temp: QWord;
   CurrentAntiDiag: TBitBoard;
 begin
   Temp := QWord(1) shl Index;
   CurrentAntiDiag := AntiDiagonals[(Index div 8) - (Index mod 8) + 8];
-  Result := ((FOccupied and CurrentAntiDiag) - (2 * Temp)) xor
-    ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentAntiDiag) -
+  Result := ((Occupied and CurrentAntiDiag) - (2 * Temp)) xor
+    ReverseBitBoard(ReverseBitBoard(Occupied and CurrentAntiDiag) -
     (2 * ReverseBitBoard(Temp)));
   Result := Result and CurrentAntiDiag;
 end;
 
-function TStandardPosition.DiagonalAttacks(index: integer): TBitBoard;
+function TStandardPosition.DiagonalAttacks(index: integer;
+  Occupied: TBitBoard): TBitBoard;
 var
   Temp: QWord;
   CurrentDiag: TBitBoard;
 begin
   Temp := QWord(1) shl Index;
   CurrentDiag := Diagonals[(Index div 8) + (Index mod 8) + 1];
-  Result := ((FOccupied and CurrentDiag) - 2 * Temp) xor
-    ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentDiag) -
-    2 * ReverseBitBoard(Temp));
+  Result := ((Occupied and CurrentDiag) - 2 * Temp) xor
+    ReverseBitBoard(ReverseBitBoard(Occupied and CurrentDiag) - 2 *
+    ReverseBitBoard(Temp));
   Result := Result and CurrentDiag;
 end;
 
-function TStandardPosition.HorizontalAttacks(Index: integer): TBitBoard;
+function TStandardPosition.HorizontalAttacks(Index: integer;
+  Occupied: TBitBoard): TBitBoard;
 var
   Temp: QWord;
 begin
   Temp := QWord(1) shl Index;
-  Result := (FOccupied - 2 * Temp) xor ReverseBitBoard(ReverseBitBoard(FOccupied) -
+  Result := (Occupied - 2 * Temp) xor ReverseBitBoard(ReverseBitBoard(Occupied) -
     2 * ReverseBitBoard(Temp));
   Result := Result and Ranks[8 - (Index div 8)];
 end;
 
-function TStandardPosition.VerticalAttacks(Index: integer): TBitBoard;
+function TStandardPosition.VerticalAttacks(Index: integer;
+  Occupied: TBitBoard): TBitBoard;
 var
   Temp: QWord;
   CurrentFile: TBitBoard;
 begin
   Temp := QWord(1) shl Index;
   CurrentFile := Files[(Index mod 8) + 1];
-  Result := ((FOccupied and CurrentFile) - (2 * Temp)) xor
-    ReverseBitBoard(ReverseBitBoard(FOccupied and CurrentFile) -
+  Result := ((Occupied and CurrentFile) - (2 * Temp)) xor
+    ReverseBitBoard(ReverseBitBoard(Occupied and CurrentFile) -
     (2 * ReverseBitBoard(Temp)));
   Result := Result and CurrentFile;
 end;
 
-function TStandardPosition.DiagonalAndAntiDiagonalAttacks(Index: integer): TBitBoard;
+function TStandardPosition.DiagonalAndAntiDiagonalAttacks(Index: integer;
+  Occupied: TBitBoard): TBitBoard;
 begin
-  Result := AntiDiagonalAttacks(Index) or DiagonalAttacks(Index);
+  Result := AntiDiagonalAttacks(Index, Occupied) or DiagonalAttacks(Index, Occupied);
 end;
 
-function TStandardPosition.HorizontalAndVerticalAttacks(Index: integer): TBitBoard;
+function TStandardPosition.HorizontalAndVerticalAttacks(Index: integer;
+  Occupied: TBitBoard): TBitBoard;
 begin
-  Result := HorizontalAttacks(Index) or VerticalAttacks(Index);
+  Result := HorizontalAttacks(Index, Occupied) or VerticalAttacks(Index, Occupied);
 end;
 
-procedure TStandardPosition.AddBitBoardToMoveList(PossibleMoves: TBitBoard;
-  Start: integer; AMoveList: TMoveList; RelativeStart: integer);
-var
-  i: integer;
+function TStandardPosition.PawnAttacks(Pawns, Occupied: TBitBoard;
+  WhitePawns: boolean): TBitBoard;
 begin
-  if Start = PAWN_MOVE then // Moving piece is a pawn
+  if WhitePawns then
   begin
-    while PossibleMoves > 0 do
+    Result := ((Pawns and not Files[8]) shr 7) or ((Pawns and not Files[1]) shr 9);
+  end
+  else
+  begin
+    Result := ((Pawns and not Files[8]) shl 9) or ((Pawns and not Files[1]) shl 7);
+  end;
+  Result := Result and Occupied;
+end;
+
+function TStandardPosition.PawnForwards(Pawns, Occupied: TBitBoard;
+  WhitePawns: boolean): TBitBoard;
+var
+  Empty: TBitBoard;
+begin
+  Empty := not Occupied;
+  if WhitePawns then
+  begin
+    Result := (Pawns shr 8) and Empty;
+  end
+  else
+  begin
+    Result := (Pawns shl 8) and Empty;
+  end;
+end;
+
+function TStandardPosition.PawnForwardTwo(Pawns, Occupied, StartRank: TBitBoard;
+  WhitePawns: boolean): TBitBoard;
+var
+  Empty: TBitBoard;
+begin
+  Empty := not Occupied;
+  if WhitePawns then
+  begin
+    Result := ((Pawns and StartRank) shr 16) and (Empty shr 8) and Empty;
+  end
+  else
+  begin
+    Result := ((Pawns and StartRank) shl 16) and (Empty shl 8) and Empty;
+  end;
+end;
+
+function TStandardPosition.CanEvadeCheck: boolean;
+var
+  KingPos, Index: byte;
+  King: TPieceType;
+  OwnPieces, OppPieces: TPieceTypes;
+  Attackers, Moves, OwnPiecePos, OppPiecePos, Temp, PinnedPieces: TBitBoard;
+begin
+  Result := False;
+  if FWhitesTurn then
+  begin
+    KingPos := NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[7]);
+    King := ptWKing;
+    OwnPieces := WhitePieces;
+    OppPieces := BlackPieces;
+    OwnPiecePos := FBitBoards[7];
+    OppPiecePos := FBitBoards[8];
+  end
+  else
+  begin
+    KingPos := NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[8]);
+    King := ptBKing;
+    OwnPieces := BlackPieces;
+    OppPieces := WhitePieces;
+    OwnPiecePos := FBitBoards[8];
+    OppPiecePos := FBitBoards[7];
+  end;
+  Attackers := GetAttackerPosition(KingPos, OppPieces);
+  if Attackers > 0 then // check if we are really in check
+  begin
+    // First look if the king can move
+    Moves := KingMoves[KingPos] and not OwnPiecePos;
+    Temp := Moves;
+    while Temp > 0 do
     begin
-      i := NumberOfTrailingZeroes(PossibleMoves);
-      AMoveList.Add(CreateMoveFromInt(i + RelativeStart, i));
-      PossibleMoves := PossibleMoves and (PossibleMoves - 1);
+      if not IsAttacked(NumberOfTrailingZeroes(Temp), not FWhitesTurn) then
+        Exit(True);
+      Temp := Temp and (Temp - 1);
+    end;
+    if PopCnt(Attackers) = 1 then
+    begin
+      // we are not in double check, so we first try to capture the attacker
+      Index := NumberOfTrailingZeroes(Attackers);
+      PinnedPieces := GetPinnedPieces;
+      if GetAttackerPosition(Index, OwnPieces) and not PinnedPieces > 0 then
+        Exit(True);
+      if (BasicPieceType(Squares[Index]) <> bptKnight) and (Attackers and Moves = 0) then
+      begin
+        // Attacker is not a knight or next to the king, so we can try to block the check
+        Temp := InBetweens[KingPos, Index];
+        while Temp > 0 do
+        begin
+          if GetAttackerPosition(NumberOfTrailingZeroes(Temp), OwnPieces) and
+            not PinnedPieces > 0 then
+            Exit(True);
+          Temp := Temp and (Temp - 1);
+        end;
+      end;
     end;
   end
-  else  // This is for the other pieces
+  else
+    Result := True;
+end;
+
+function TStandardPosition.GenerateLegalMovesToSquare(MovingPiece: TPieceType;
+  Dest: byte): TMoveList;
+var
+  Starts, Occupied, Occ, PawnMoves: TBitBoard;
+  i: integer;
+  Clone: TStandardPosition;
+  Rank: byte;
+begin
+  Result := TMoveList.Create(True);
+  Occupied := FBitBoards[7] or FBitBoards[8];
+  if BasicPieceType(MovingPiece) = bptPawn then
   begin
-    while PossibleMoves > 0 do
+    Rank := 8 - (Dest div 8);
+    if IsWhite(MovingPiece) then
     begin
-      i := NumberOfTrailingZeroes(PossibleMoves);
-      AMoveList.Add(CreateMoveFromInt(Start, i));
-      PossibleMoves := PossibleMoves and (PossibleMoves - 1);
+      Occ := Occupied and not (FBitBoards[1] and Ranks[Rank - 1]);
+      PawnMoves := PawnForwards(QWord(1) shl Dest, Occ, False);
+      if ((QWord(1) shl Dest) and (Occupied or FEnPassant)) > 0 then
+        // Check for captures
+        PawnMoves := PawnMoves or PawnAttacks(QWord(1) shl Dest,
+          Occupied or FEnPassant, False);
+      if Rank = 4 then // Check for double moves
+      begin
+        Occ := Occupied and not (FBitBoards[1] and Ranks[2]);
+        PawnMoves := PawnMoves or PawnForwardTwo(QWord(1) shl Dest,
+          Occ, Ranks[4], False);
+      end;
+      Starts := FBitBoards[1] and FBitBoards[7] and PawnMoves;
+    end
+    else
+    begin
+      Occ := Occupied and not (FBitBoards[1] and Ranks[Rank + 1]);
+      PawnMoves := PawnForwards(QWord(1) shl Dest, Occ, True);
+      if ((QWord(1) shl Dest) and (Occupied or FEnPassant)) > 0 then
+        // Check for captures
+        PawnMoves := PawnMoves or PawnAttacks(QWord(1) shl Dest,
+          Occupied or FEnPassant, True);
+      if Rank = 5 then // Check for double moves
+      begin
+        Occ := Occupied and not (FBitBoards[1] and Ranks[7]);
+        PawnMoves := PawnMoves or PawnForwardTwo(QWord(1) shl Dest,
+          Occ, Ranks[5], True);
+      end;
+      Starts := FBitBoards[1] and FBitBoards[8] and PawnMoves;
     end;
-  end;
-end;
-
-procedure TStandardPosition.GenerateBishopPseudoMoves(Bishops,
-  OppositeColorWithoutKingOrEmpty: TBitBoard; AMoveList: TMoveList);
-var
-  i: integer;
-  Moves: TBitBoard;
-begin
-  while Bishops > 0 do
+  end
+  else
+    Starts := GetAttackerPosition(Dest, [MovingPiece]);
+  while Starts > 0 do
   begin
-    i := NumberOfTrailingZeroes(Bishops);
-    Moves := DiagonalAndAntiDiagonalAttacks(i) and OppositeColorWithoutKingOrEmpty;
-    AddBitBoardToMoveList(Moves, i, AMoveList);
-    Bishops := Bishops and (Bishops - 1);
+    Result.Add(CreateMoveFromInt(NumberOfTrailingZeroes(Starts), Dest));
+    Starts := Starts and (Starts - 1);
   end;
-end;
-
-procedure TStandardPosition.GenerateKingPseudoMoves(
-  Kings, OppositeColorWithoutKingOrEmpty: TBitBoard; AMoveList: TMoveList);
-var
-  Moves: TBitBoard;
-  i: integer;
-begin
-  while Kings > 0 do
+  // Check moves for legality
+  Clone := TStandardPosition.Create;
+  i := 0;
+  while i < Result.Count do
   begin
-    i := NumberOfTrailingZeroes(Kings);
-    Moves := KingMoves[i] and OppositeColorWithoutKingOrEmpty;
-    AddBitBoardToMoveList(Moves, i, AMoveList);
-    Kings := Kings and (Kings - 1);
+    Clone.Copy(Self);
+    Clone.SilentPlayMove(Result.Items[i]);
+    if Clone.IsIllegalCheck then
+      Result.Delete(i)
+    else
+      Inc(i);
   end;
+  Clone.Free;
 end;
 
-procedure TStandardPosition.GenerateKnightPseudoMoves(Knights,
-  OppositeColorWithoutKingOrEmpty: TBitBoard; AMoveList: TMoveList);
+function TStandardPosition.GetAttackerPosition(Index: byte;
+  PossibleAttackers: TPieceTypes): TBitBoard;
 var
-  i, Moves: TBitBoard;
+  Occupied, Pieces, Starts: TBitBoard;
+  MovingPiece: TPieceType;
 begin
-  while Knights > 0 do
+  Result := 0;
+  Occupied := FBitBoards[7] or FBitBoards[8];
+  for MovingPiece in PossibleAttackers do
   begin
-    i := NumberOfTrailingZeroes(Knights);
-    Moves := BitBoard.KnightMoves[i] and OppositeColorWithoutKingOrEmpty;
-    AddBitBoardToMoveList(Moves, i, AMoveList);
-    Knights := Knights and (Knights - 1);
+    case MovingPiece of
+      ptWPawn: Pieces := FBitBoards[1] and FBitBoards[7];
+      ptWRook: Pieces := FBitBoards[2] and FBitBoards[7];
+      ptWKnight: Pieces := FBitBoards[3] and FBitBoards[7];
+      ptWBishop: Pieces := FBitBoards[4] and FBitBoards[7];
+      ptWQueen: Pieces := FBitBoards[5] and FBitBoards[7];
+      ptWKing: Pieces := FBitBoards[6] and FBitBoards[7];
+      ptBPawn: Pieces := FBitBoards[1] and FBitBoards[8];
+      ptBRook: Pieces := FBitBoards[2] and FBitBoards[8];
+      ptBKnight: Pieces := FBitBoards[3] and FBitBoards[8];
+      ptBBishop: Pieces := FBitBoards[4] and FBitBoards[8];
+      ptBQueen: Pieces := FBitBoards[5] and FBitBoards[8];
+      ptBKing: Pieces := FBitBoards[6] and FBitBoards[8];
+    end;
+    case BasicPieceType(MovingPiece) of
+      bptPawn:
+      begin
+        Starts := PawnAttacks(QWord(1) shl Index, Pieces, not IsWhite(MovingPiece));
+      end;
+      bptKnight:
+      begin
+        Starts := Pieces and KnightMoves[Index];
+      end;
+      bptBishop:
+      begin
+        Starts := Pieces and DiagonalAndAntiDiagonalAttacks(Index, Occupied);
+      end;
+      bptRook:
+      begin
+        Starts := Pieces and HorizontalAndVerticalAttacks(Index, Occupied);
+      end;
+      bptQueen:
+      begin
+        Starts := Pieces and (DiagonalAndAntiDiagonalAttacks(Index, Occupied) or
+          HorizontalAndVerticalAttacks(Index, Occupied));
+      end;
+      bptKing:
+      begin
+        Starts := Pieces and KingMoves[Index];
+      end;
+    end;
+    Result := Result or Starts;
   end;
 end;
 
-procedure TStandardPosition.GenerateBlackPawnPseudoMoves(Pawns: TBitBoard;
-  AMoveList: TMoveList);
-var
-  WhitePiecesWithoutKing, PawnMoves, Empty: TBitBoard;
-begin
-  WhitePiecesWithoutKing := FBitBoards[7] and not FBitBoards[6];
-  Empty := not (FBitBoards[7] or FBitBoards[8]);
-  // Black pawn captures to the right
-  PawnMoves := ((Pawns and not Files[8]) shl 9) and
-    (WhitePiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -9);
-  // Black pawn captures to the left
-  PawnMoves := ((Pawns and not Files[1]) shl 7) and
-    (WhitePiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -7);
-  // Black pawn goes one forward
-  PawnMoves := (Pawns shl 8) and Empty;
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -8);
-  // Black pawn goes two forward
-  PawnMoves := ((Pawns and Ranks[7]) shl 16) and Empty and (Empty shl 8);
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, -16);
-end;
-
-procedure TStandardPosition.GenerateWhitePawnPseudoMoves(Pawns: TBitBoard;
-  AMoveList: TMoveList);
-var
-  BlackPiecesWithoutKing, PawnMoves, Empty: TBitBoard;
-begin
-  BlackPiecesWithoutKing := FBitBoards[8] and not FBitBoards[6];
-  Empty := not (FBitBoards[7] or FBitBoards[8]);
-  // White pawn captures to the right
-  PawnMoves := ((Pawns and not Files[8]) shr 7) and
-    (BlackPiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 7);
-  // White pawn captures to the left
-  PawnMoves := ((Pawns and not Files[1]) shr 9) and
-    (BlackPiecesWithoutKing or FEnPassant);
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 9);
-  // White pawn goes one forward
-  PawnMoves := (Pawns shr 8) and Empty;
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 8);
-  // White pawn goes two forward
-  PawnMoves := ((Pawns and Ranks[2]) shr 16) and Empty and (Empty shr 8);
-  AddBitBoardToMoveList(PawnMoves, PAWN_MOVE, AMoveList, 16);
-end;
-
-procedure TStandardPosition.GenerateQueenPseudoMoves(Queens,
-  OppositeColorWithoutKingOrEmpty: TBitBoard; AMoveList: TMoveList);
-begin
-  GenerateBishopPseudoMoves(Queens, OppositeColorWithoutKingOrEmpty, AMoveList);
-  GenerateRookPseudoMoves(Queens, OppositeColorWithoutKingOrEmpty, AMoveList);
-end;
-
-procedure TStandardPosition.GenerateRookPseudoMoves(
-  Rooks, OppositeColorWithoutKingOrEmpty: TBitBoard; AMoveList: TMoveList);
-var
-  i, Moves: TBitBoard;
-begin
-  while Rooks > 0 do
-  begin
-    i := NumberOfTrailingZeroes(Rooks);
-    Moves := HorizontalAndVerticalAttacks(i) and OppositeColorWithoutKingOrEmpty;
-    AddBitBoardToMoveList(Moves, i, AMoveList);
-    Rooks := Rooks and (Rooks - 1);
-  end;
-end;
-
-function TStandardPosition.FilterMoveList(AMoveList: TMoveList;
+procedure TStandardPosition.FilterMoveList(AMoveList: TMoveList;
   APiece: TPieceType; StartFile: byte; StartRank: byte; DestSquare: byte;
-  APromotionPiece: TPieceType): TMoveList;
+  APromotionPiece: TPieceType);
 var
   NoFilterPiece, NoFilterDest, NoFilterPromo, NoFilterStartR, NoFilterStartF: boolean;
   Move: TMove;
+  j: integer;
 begin
   NoFilterPiece := APiece = ptEmpty;
   NoFilterDest := DestSquare = 0;
   NoFilterStartF := StartFile = 0;
   NoFilterStartR := StartRank = 0;
   NoFilterPromo := APromotionPiece = ptEmpty;
-  Result := TMoveList.Create;
-  for Move in AMoveList do
+  j := 0;
+  while j < AMoveList.Count do
   begin
+    Move := AMoveList.Items[j];
     if (NoFilterPiece or (Squares[Move.Start] = APiece)) and
       (NoFilterDest or (Move.Dest = DestSquare)) and
       (NoFilterStartF or (Move.Start8x8.RFile = StartFile)) and
       (NoFilterStartR or (Move.Start8x8.RRank = StartRank)) and
       (NoFilterPromo or (Move.PromotionPiece = APromotionPiece)) then
-      Result.Add(Move);
+      Inc(j)
+    else
+      AMoveList.Delete(j);
+  end;
+end;
+
+function TStandardPosition.GetPinnedPieces: TBitBoard;
+var
+  K, R, B, Blockers, Pinner, SuperKingAttacks, Occupied: TBitBoard;
+  i: integer;
+begin
+  Result := 0;
+  // based on Opposite Ray-Directions http://chessprogramming.wikispaces.com/Checks+and+Pinned+Pieces+(Bitboards)
+  if FWhitesTurn then
+  begin
+    K := FBitBoards[6] and FBitBoards[7];
+    R := (FBitBoards[2] or FBitBoards[5]) or FBitBoards[8];
+    B := (FBitBoards[4] or FBitBoards[5]) or FBitBoards[8];
+    Blockers := FBitBoards[7];
+  end
+  else
+  begin
+    K := FBitBoards[6] and FBitBoards[8];
+    R := (FBitBoards[2] or FBitBoards[5]) or FBitBoards[7];
+    B := (FBitBoards[4] or FBitBoards[5]) or FBitBoards[7];
+    Blockers := FBitBoards[8];
+  end;
+  Occupied := FBitBoards[7] and FBitBoards[8];
+  // Horizontal pins
+  Pinner := R;
+  SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K), Occupied);
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Result := Result or (HorizontalAttacks(i, Occupied) and
+      SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
+  // Vertical pins
+  Pinner := R;
+  SuperKingAttacks := VerticalAttacks(NumberOfTrailingZeroes(K), Occupied);
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Result := Result or (VerticalAttacks(i, Occupied) and SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
+  // Diagonal pins
+  Pinner := B;
+  SuperKingAttacks := DiagonalAttacks(NumberOfTrailingZeroes(K), Occupied);
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Result := Result or (DiagonalAttacks(i, Occupied) and SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
+  end;
+  // Antidiagonal pins
+  Pinner := B;
+  SuperKingAttacks := AntiDiagonalAttacks(NumberOfTrailingZeroes(K), Occupied);
+  while Pinner > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Pinner);
+    Result := Result or (AntiDiagonalAttacks(i, Occupied) and
+      SuperKingAttacks and Blockers);
+    Pinner := Pinner and (Pinner - 1);
   end;
 end;
 
@@ -521,434 +644,6 @@ begin
   end;
 end;
 
-procedure TStandardPosition.GenerateLegalMoves;
-var
-  // Useful variables
-  BlackPiecesWithoutKing: TBitBoard;
-  WhitePiecesWithoutKing: TBitBoard;
-  Empty: TBitBoard;
-  WP, WR, WN, WB, WQ, WK: TBitBoard;
-  BP, BR, BN, BB, BQ, BK: TBitBoard;
-  OppositeColorWithoutKingOrEmpty: TBitBoard;
-  // 1. Horizontal 2. Vertical 3. Diagonal 4. Anti-Diagonal 5. Illegal En Passants right 6. En passants left
-  Pinned: array[1..6] of TBitBoard;
-  InCheck: boolean;
-
-  procedure GenerateBishopMoves(Bishops: TBitBoard);
-  var
-    i, Moves, B: TBitBoard;
-  begin
-    B := Bishops and not Pinned[3];
-    while B > 0 do
-    begin
-      i := NumberOfTrailingZeroes(B);
-      Moves := AntiDiagonalAttacks(i) and OppositeColorWithoutKingOrEmpty;
-      AddBitBoardToMoveList(Moves, i, FLegalMoves);
-      B := B and (B - 1);
-    end;
-    B := Bishops and not Pinned[4];
-    while B > 0 do
-    begin
-      i := NumberOfTrailingZeroes(B);
-      Moves := DiagonalAttacks(i) and OppositeColorWithoutKingOrEmpty;
-      AddBitBoardToMoveList(Moves, i, FLegalMoves);
-      B := B and (B - 1);
-    end;
-  end;
-
-  procedure GenerateCastlingMoves;
-  begin
-    // Check Castlings
-    if FWhitesTurn then
-    begin
-      if (ctWKingside in FCastlingAbility) and ((WK and not FAttackMaps[2]) = WK) and
-        ((CastlingSquares[1] and Empty) = CastlingSquares[1]) and
-        ((CastlingSquares[1] and not FAttackMaps[2]) = CastlingSquares[1]) then
-        FLegalMoves.Add(CreateMoveFromInt(60, 62));
-      if (ctWQueenside in FCastlingAbility) and ((WK and not FAttackMaps[2]) = WK) and
-        ((CastlingSquares[2] and Empty) = CastlingSquares[2]) and
-        ((CastlingSquares[2] and not FAttackMaps[2]) = CastlingSquares[2]) then
-        FLegalMoves.Add(CreateMoveFromInt(60, 58));
-    end
-    else
-    begin
-      if (ctBKingside in FCastlingAbility) and ((BK and not FAttackMaps[1]) = BK) and
-        ((CastlingSquares[3] and Empty) = CastlingSquares[3]) and
-        ((CastlingSquares[3] and not FAttackMaps[1]) = CastlingSquares[3]) then
-        FLegalMoves.Add(CreateMoveFromInt(4, 6));
-      if (ctBQueenside in FCastlingAbility) and ((BK and not FAttackMaps[1]) = BK) and
-        ((CastlingSquares[4] and Empty) = CastlingSquares[4]) and
-        ((CastlingSquares[4] and not FAttackMaps[1]) = CastlingSquares[4]) then
-        FLegalMoves.Add(CreateMoveFromInt(4, 2));
-    end;
-  end;
-
-  procedure GenerateKingMoves(Kings: TBitBoard);
-  var
-    Moves: TBitBoard;
-    i, j: integer;
-  begin
-    while Kings > 0 do
-    begin
-      i := NumberOfTrailingZeroes(Kings);
-      Moves := KingMoves[i] and OppositeColorWithoutKingOrEmpty;
-      while Moves > 0 do
-      begin
-        j := NumberOfTrailingZeroes(Moves);
-        if not IsAttacked(j) then
-          FLegalMoves.Add(CreateMoveFromInt(i, j));
-        Moves := Moves and (Moves - 1);
-      end;
-      // AddBitBoardToMoveList(Moves, i);
-      Kings := Kings and (Kings - 1);
-    end;
-  end;
-
-  procedure GenerateKnightMoves(Knights: TBitBoard);
-  var
-    i, Moves: TBitBoard;
-  begin
-    //while Knights > 0 do
-    //begin
-    //  i := NumberOfTrailingZeroes(Knights);
-    //  Moves := BitBoard.KnightMoves[i] and OppositeColorWithoutKingOrEmpty;
-    //  AddBitBoardToMoveList(Moves, i);
-    //  Knights := Knights and (Knights - 1);
-    //end;
-    GenerateKnightPseudoMoves(Knights, OppositeColorWithoutKingOrEmpty, FLegalMoves);
-  end;
-
-  procedure GeneratePawnPromotionMoves(AMoveList: TMoveList);
-  var
-    temp: TMoveList;
-    Piece: TBasicPieceType;
-    i: integer;
-    Start, Dest: byte;
-  begin
-    temp := TMoveList.Create;
-    i := 0;
-    while i < AMoveList.Count do
-    begin
-      Start := AMoveList.Items[i].Start;
-      Dest := AMoveList.Items[i].Dest;
-      if (FWhitesTurn and (Start in Rank7) and (Squares[Start] = ptWPawn)) or
-        (not FWhitesTurn and (Start in Rank2) and (Squares[Start] = ptBPawn)) then
-      begin
-        for Piece in [bptRook, bptKnight, bptBishop, bptQueen] do
-          temp.Add(TMove.Create(Start, Dest, PieceType(Piece, FWhitesTurn)));
-        AMoveList.Delete(i);
-      end
-      else
-        Inc(i);
-    end;
-    AMoveList.AddList(temp);
-    FreeAndNil(temp);
-  end;
-
-  procedure GeneratePawnCaptureMoves;
-  var
-    PawnMoves: QWord;
-  begin
-    if FWhitesTurn then
-    begin
-      // White pawn captures to the right
-      PawnMoves := ((WP and not (Files[8] or Pinned[1] or Pinned[2] or
-        Pinned[4] or Pinned[5])) shr 7) and (BlackPiecesWithoutKing or FEnPassant);
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, 7);
-      // White pawn captures to the left
-      PawnMoves := ((WP and not (Files[1] or Pinned[1] or Pinned[2] or
-        Pinned[3] or Pinned[6])) shr 9) and (BlackPiecesWithoutKing or FEnPassant);
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, 9);
-    end
-    else
-    begin
-      // Black pawn captures to the right
-      PawnMoves := ((BP and not (Files[8] or Pinned[1] or Pinned[2] or
-        Pinned[3] or Pinned[5])) shl 9) and (WhitePiecesWithoutKing or FEnPassant);
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, -9);
-      // Black pawn captures to the left
-      PawnMoves := ((BP and not (Files[1] or Pinned[1] or Pinned[2] or
-        Pinned[4] or Pinned[6])) shl 7) and (WhitePiecesWithoutKing or FEnPassant);
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, -7);
-    end;
-  end;
-
-  procedure GeneratePawnForwardMoves;
-  var
-    PawnMoves: TBitBoard;
-  begin
-    if FWhitesTurn then
-    begin
-      // White pawn goes one forward
-      PawnMoves := ((WP and not (Pinned[1] or Pinned[3] or Pinned[4])) shr 8) and Empty;
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, 8);
-      // White pawn goes two forward
-      PawnMoves := ((WP and Ranks[2] and not (Pinned[1] or Pinned[3] or Pinned[4])) shr
-        16) and Empty and (Empty shr 8);
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, 16);
-    end
-    else
-    begin
-      // Black pawn goes one forward
-      PawnMoves := ((BP and not (Pinned[1] or Pinned[3] or Pinned[4])) shl 8) and Empty;
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, -8);
-      // Black pawn goes two forward
-      PawnMoves := ((BP and Ranks[7] and not (Pinned[1] or Pinned[3] or Pinned[4])) shl
-        16) and Empty and (Empty shl 8);
-      AddBitBoardToMoveList(PawnMoves, -1, FLegalMoves, -16);
-    end;
-  end;
-
-  procedure GenerateRookMoves(Rooks: TBitBoard);
-  var
-    i, Moves, R: TBitBoard;
-  begin
-    R := Rooks and not Pinned[1];
-    while R > 0 do
-    begin
-      i := NumberOfTrailingZeroes(R);
-      Moves := VerticalAttacks(i) and OppositeColorWithoutKingOrEmpty;
-      AddBitBoardToMoveList(Moves, i, FLegalMoves);
-      R := R and (R - 1);
-    end;
-    R := Rooks and not Pinned[2];
-    while R > 0 do
-    begin
-      i := NumberOfTrailingZeroes(R);
-      Moves := HorizontalAttacks(i) and OppositeColorWithoutKingOrEmpty;
-      AddBitBoardToMoveList(Moves, i, FLegalMoves);
-      R := R and (R - 1);
-    end;
-  end;
-
-var
-  i: byte;
-  j: integer;
-  BCastlingAbility: TCastlingAbility;
-  BEnPassant: TBitBoard;
-  BPliesSinceLastPawnMoveOrCapture: integer;
-  BMoveNumer: integer;
-  BackupBoards: array[1..8] of TBitBoard;
-  d, c, tb, tc: extended;
-  R, B, K, Pinner, SuperKingAttacks, Blockers, Blocker: TBitBoard;
-  {$IFDEF Logging}
-  a: extended;
-  {$ENDIF}
-begin
-  // Initiliaze variables
-  WP := FBitBoards[1] and FBitBoards[7];
-  WR := FBitBoards[2] and FBitBoards[7];
-  WN := FBitBoards[3] and FBitBoards[7];
-  WB := FBitBoards[4] and FBitBoards[7];
-  WQ := FBitBoards[5] and FBitBoards[7];
-  WK := FBitBoards[6] and FBitBoards[7];
-  BP := FBitBoards[1] and FBitBoards[8];
-  BR := FBitBoards[2] and FBitBoards[8];
-  BN := FBitBoards[3] and FBitBoards[8];
-  BB := FBitBoards[4] and FBitBoards[8];
-  BQ := FBitBoards[5] and FBitBoards[8];
-  BK := FBitBoards[6] and FBitBoards[8];
-  BlackPiecesWithoutKing := FBitBoards[8] and not BK;
-  WhitePiecesWithoutKing := FBitBoards[7] and not WK;
-  FOccupied := FBitBoards[7] or FBitBoards[8];
-  Empty := not FOccupied;
-  for i := 1 to 6 do
-    Pinned[i] := 0;
-  // Find all pinned pieces
-  // based on Opposite Ray-Directions http://chessprogramming.wikispaces.com/Checks+and+Pinned+Pieces+(Bitboards)
-  if FWhitesTurn then
-  begin
-    K := WK;
-    R := BR or BQ;
-    B := BB or BQ;
-    Blockers := FBitBoards[7];
-  end
-  else
-  begin
-    K := BK;
-    R := WR or WQ;
-    B := WB or WQ;
-    Blockers := FBitBoards[8];
-  end;
-  // Horizontal pins
-  Pinner := R;
-  SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K));
-  while Pinner > 0 do
-  begin
-    i := NumberOfTrailingZeroes(Pinner);
-    Pinned[1] := Pinned[1] or (HorizontalAttacks(i) and SuperKingAttacks and Blockers);
-    Pinner := Pinner and (Pinner - 1);
-  end;
-  // Vertical pins
-  Pinner := R;
-  SuperKingAttacks := VerticalAttacks(NumberOfTrailingZeroes(K));
-  while Pinner > 0 do
-  begin
-    i := NumberOfTrailingZeroes(Pinner);
-    Pinned[2] := Pinned[2] or (VerticalAttacks(i) and SuperKingAttacks and Blockers);
-    Pinner := Pinner and (Pinner - 1);
-  end;
-  // Diagonal pins
-  Pinner := B;
-  SuperKingAttacks := DiagonalAttacks(NumberOfTrailingZeroes(K));
-  while Pinner > 0 do
-  begin
-    i := NumberOfTrailingZeroes(Pinner);
-    Pinned[3] := Pinned[3] or (DiagonalAttacks(i) and SuperKingAttacks and Blockers);
-    Pinner := Pinner and (Pinner - 1);
-  end;
-  // Antidiagonal pins
-  Pinner := B;
-  SuperKingAttacks := AntiDiagonalAttacks(NumberOfTrailingZeroes(K));
-  while Pinner > 0 do
-  begin
-    i := NumberOfTrailingZeroes(Pinner);
-    Pinned[4] := Pinned[4] or (AntiDiagonalAttacks(i) and SuperKingAttacks and Blockers);
-    Pinner := Pinner and (Pinner - 1);
-  end;
-  // Illegal en passants
-  if EnPassant > 0 then
-  begin
-    // En passants to the right
-    if FWhitesTurn then
-    begin
-      Pinner := R and Ranks[5];
-      // Temporary remove last moved pawn
-      FOccupied := FOccupied and not (FEnPassant shl 8);
-      // Get Pawn that is able to capture en passant
-      Blocker := Blockers and (FEnPassant shl 7);
-    end
-    else
-    begin
-      Pinner := R and Ranks[4];
-      // Temporary remove last moved pawn
-      FOccupied := FOccupied and not (FEnPassant shr 8);
-      // Get Pawn that is able to capture en passant
-      Blocker := Blockers and (FEnPassant shr 9);
-    end;
-    SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K));
-    while Pinner > 0 do
-    begin
-      i := NumberOfTrailingZeroes(Pinner);
-      Pinned[5] := Pinned[5] or (HorizontalAttacks(i) and SuperKingAttacks and Blocker);
-      Pinner := Pinner and (Pinner - 1);
-    end;
-    // En passants to the left
-    if FWhitesTurn then
-    begin
-      Pinner := R and Ranks[5];
-      // Get Pawn that is able to capture en passant
-      Blocker := Blockers and (FEnPassant shl 9);
-    end
-    else
-    begin
-      Pinner := R and Ranks[4];
-      // Get Pawn that is able to capture en passant
-      Blocker := Blockers and (FEnPassant shr 7);
-    end;
-    //WriteLn(BitBoardToStr(Pinner), 'PINNER');
-    //WriteLn(BitBoardToStr(FOccupied), 'OCC');
-    //WriteLn(BitBoardToStr(Blocker), 'BLOCKER');
-    SuperKingAttacks := HorizontalAttacks(NumberOfTrailingZeroes(K));
-    while Pinner > 0 do
-    begin
-      i := NumberOfTrailingZeroes(Pinner);
-      Pinned[6] := Pinned[6] or (HorizontalAttacks(i) and SuperKingAttacks and Blocker);
-      Pinner := Pinner and (Pinner - 1);
-    end;
-    // Add pawns again
-    FOccupied := FOccupied or FBitBoards[1];
-  end;
-  // Check if we are in check reicht nicht brauchen auch doppelschach
-  InCheck := IsCheck;
-  if InCheck then
-  begin
-
-  end;
-  //for i := 1 to 6 do
-  //  WriteLn(BitBoardToStr(Pinned[i]), i);
-  //a := ET.Elapsed;
-  tb := 0;
-  tc := 0;
-  // The following takes up to 1 ms, could this be made faster?
-  {$IFDEF Logging}
-  ET.Start;
-  a := ET.Elapsed;
-{$ENDIF}
-    {$IFDEF Logging}
-  d := ET.Elapsed;
-    {$ENDIF}
-  FLegalMoves.Clear;
-  GeneratePawnCaptureMoves;
-  GeneratePawnForwardMoves;
-  GenerateCastlingMoves;
-  if WhitesTurn then
-  begin
-    OppositeColorWithoutKingOrEmpty := BlackPiecesWithoutKing or Empty;
-    GenerateBishopMoves((WB or WQ) and not (Pinned[1] or Pinned[2]));
-    GenerateRookMoves((WR or WQ) and not (Pinned[3] or Pinned[4]));
-    GenerateKnightMoves(WN and not (Pinned[1] or Pinned[2] or Pinned[3] or Pinned[4]));
-    GenerateKingMoves(WK);
-  end
-  else
-  begin
-    OppositeColorWithoutKingOrEmpty := WhitePiecesWithoutKing or Empty;
-    GenerateBishopMoves((BB or BQ) and not (Pinned[1] or Pinned[2]));
-    GenerateRookMoves((BR or BQ) and not (Pinned[3] or Pinned[4]));
-    GenerateKnightMoves(BN and not (Pinned[1] or Pinned[2] or Pinned[3] or Pinned[4]));
-    GenerateKingMoves(BK);
-  end;
-    {$IFDEF Logging}
-  tb := tb + ET.Elapsed - d;
-
-    {$ENDIF}
-  // Backup Position, Play Move, Position Valid?
-  j := 0;
-  // Backup current Position
-  BEnPassant := FEnPassant;
-  BPliesSinceLastPawnMoveOrCapture := FPliesSinceLastPawnMoveOrCapture;
-  BCastlingAbility := FCastlingAbility;
-  BMoveNumer := FMoveNumber;
-  //for i := 1 to 8 do
-  //  BackupBoards[i] := FBitBoards[i];
-  //while j < FLegalMoves.Count do
-  //begin
-  //  Self.SilentPlayMove(FLegalMoves.Items[j]);
-  //  {$IFDEF Logging}
-  //  c := ET.Elapsed;
-  //  {$ENDIF}
-  //  //if not Self.IsIllegalCheck then
-  //  //  Inc(j)
-  //  //else
-  //  //  FLegalMoves.Delete(j);
-  //  Inc(j);
-  //  {$IFDEF Logging}
-  //  tc := tc + ET.Elapsed - c;
-  //  {$ENDIF}
-  //  // Restore inital values
-  //  FEnPassant := BEnPassant;
-  //  FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;
-  //  FCastlingAbility := BCastlingAbility;
-  //  FMoveNumber := BMoveNumer;
-  //  FBlackKing := BBlackKing;
-  //  FWhiteKing := BWhiteKing;
-  //  FWhitesTurn := not FWhitesTurn;
-  //  for i := 1 to 8 do
-  //    FBitBoards[i] := BackupBoards[i];
-  //end;
-  GeneratePawnPromotionMoves(FLegalMoves);
-  //Write(' 1: ', FormatFloat('0.##', (tb) * 1000000), 'µs');
-  //Write('  2: ', FormatFloat('0.##', (tc) * 1000000), 'µs');
-  //Writeln('  Total: ', FormatFloat('0.##', (ET.Elapsed - a) * 1000000), 'µs');
-  //  WriteLn('Zahl der möglichen Züge: ', FLegalMoves.Count);
-
-  {$IFDEF Logging}
-  Inc(Zuege, FLegalMoves.Count);
-  Zeit := Zeit + (ET.Elapsed - a);
-  ET.Stop;
-{$ENDIF}
-end;
-
 function TStandardPosition.GetCountOfFiles: byte;
 begin
   Result := 8;
@@ -963,7 +658,6 @@ function TStandardPosition.GetSquares(Index: integer): TPieceType;
 var
   i, j: integer;
 begin
-  // Result := FSquares[Index];
   Result := ptEmpty;
   for i := 1 to 6 do
   begin
@@ -982,49 +676,16 @@ begin
   end;
 end;
 
-function TStandardPosition.IsAttacked(Index: integer): boolean;
-var
-  Opp: integer;
-  Moves: TBitBoard;
+function TStandardPosition.IsAttacked(Index: integer; ByWhite: boolean): boolean;
+
 begin
-  if FWhitesTurn then
+  if ByWhite then
   begin
-    Opp := 8;
+    Result := GetAttackerPosition(Index, WhitePieces) > 0;
   end
   else
   begin
-    Opp := 7;
-  end;
-  Result := False;
-  FOccupied := FBitBoards[7] or FBitBoards[8];
-  // Do rook moves from start
-  Moves := HorizontalAndVerticalAttacks(Index) and FOccupied;
-  if (FBitBoards[2] or FBitBoards[5]) and FBitBoards[Opp] and Moves > 0 then
-    Exit(True);
-  // Do bishop moves from start
-  Moves := DiagonalAndAntiDiagonalAttacks(Index) and FOccupied;
-  if (FBitBoards[4] or FBitBoards[5]) and FBitBoards[Opp] and Moves > 0 then
-    Exit(True);
-  // Do knight moves from start
-  Moves := BitBoard.KnightMoves[Index] and FOccupied;
-  if FBitBoards[3] and FBitBoards[Opp] and Moves > 0 then
-    Exit(True);
-  // Do king moves from start
-  Moves := KingMoves[Index] and FOccupied;
-  if FBitBoards[6] and FBitBoards[Opp] and Moves > 0 then
-    Exit(True);
-  // Do opposite pawn Moves
-  if not FWhitesTurn then
-  begin
-    Moves := (((FBitBoards[1] and FBitBoards[7] and not Files[8]) shr 7)) or
-      (((FBitBoards[1] and FBitBoards[7] and not Files[1]) shr 9));
-    Result := (QWord(1) shl Index) and Moves > 0;
-  end
-  else
-  begin
-    Moves := (((FBitBoards[1] and FBitBoards[8] and not Files[8]) shl 9)) or
-      (((FBitBoards[1] and FBitBoards[8] and not Files[1]) shl 7));
-    Result := (QWord(1) shl Index) and Moves > 0;
+    Result := GetAttackerPosition(Index, BlackPieces) > 0;
   end;
 end;
 
@@ -1135,7 +796,8 @@ begin
     FBitBoards[7] := FBitBoards[7] and not Dest;
   end;
 
-  if ((Start and FBitBoards[1]) > 0) or ((Dest and FOccupied) > 0) then
+  if ((Start and FBitBoards[1]) > 0) or
+    ((Dest and FBitBoards[7] and FBitBoards[8]) > 0) then
     FPliesSinceLastPawnMoveOrCapture := 0
   else
     Inc(FPliesSinceLastPawnMoveOrCapture);
@@ -1270,49 +932,9 @@ begin
   end;
 end;
 
-constructor TStandardPosition.Create;
-begin
-  inherited Create;
-  FLegalMoves := TMoveList.Create;
-end;
-
 constructor TStandardPosition.Create(AFEN: string);
 begin
-  Create;
   FromFEN(AFEN);
-end;
-
-destructor TStandardPosition.Destroy;
-begin
-  FreeAndNil(FLegalMoves);
-  inherited Destroy;
-end;
-
-function TStandardPosition.FilterLegalMoves(APiece: TPieceType;
-  StartFile: byte; StartRank: byte; DestSquare: byte;
-  APromotionPiece: TPieceType): TMoveList;
-  //var
-  //  NoFilterPiece, NoFilterDest, NoFilterPromo, NoFilterStartR, NoFilterStartF: boolean;
-  //  Move: TMove;
-  //begin
-  //  NoFilterPiece := APiece = ptEmpty;
-  //  NoFilterDest := DestSquare = 0;
-  //  NoFilterStartF := StartFile = 0;
-  //  NoFilterStartR := StartRank = 0;
-  //  NoFilterPromo := APromotionPiece = ptEmpty;
-  //  Result := TMoveList.Create;
-  //  for Move in FLegalMoves do
-  //  begin
-  //    if (NoFilterPiece or (Squares[TSquare10x12(Move.Start)] = APiece)) and
-  //      (NoFilterDest or (Move.Dest = DestSquare)) and
-  //      (NoFilterStartF or (Move.Start.RFile = StartFile)) and
-  //      (NoFilterStartR or (Move.Start.RRank = StartRank)) and
-  //      (NoFilterPromo or (Move.PromotionPiece = APromotionPiece)) then
-  //      Result.Add(Move);
-  //  end;
-begin
-  Result := FilterMoveList(FLegalMoves, APiece, StartFile, StartRank,
-    DestSquare, APromotionPiece);
 end;
 
 procedure TStandardPosition.FromFEN(const AFEN: string);
@@ -1325,9 +947,9 @@ function TStandardPosition.IsCheck: boolean;
 begin
   // Assumes that exact one black and one white king exist
   if FWhitesTurn then
-    Result := IsAttacked(NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[7]))
+    Result := IsAttacked(NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[7]), False)
   else
-    Result := IsAttacked(NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[8]));
+    Result := IsAttacked(NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[8]), True);
 end;
 
 function TStandardPosition.IsIllegalCheck: boolean;
@@ -1339,40 +961,41 @@ end;
 
 function TStandardPosition.IsMate: boolean;
 begin
-  Result := (FLegalMoves.Count = 0) and IsCheck;
+  Result := IsCheck and not CanEvadeCheck;
 end;
 
 function TStandardPosition.IsMovePseudoLegal(APiece: TPieceType;
   Start, Dest: TSquare8x8): boolean;
 var
   i: integer;
-  Destination: TBitBoard;
+  Destination, Occupied: TBitBoard;
 begin
   // TODO: Castling
   i := (Start.RFile + 63 - Start.RRank * 8);
   Destination := SquareToBitBoard(dest);
+  Occupied := FBitBoards[7] and FBitBoards[8];
   case APiece of
     ptEmpty, ptOff: Result := False;
     ptWPawn: ;
     ptBPawn: ;
     else
-      case BasisPieceType(APiece) of
+      case BasicPieceType(APiece) of
         bptKnight:
         begin
           Result := BitBoard.KnightMoves[i] and Destination > 0;
         end;
         bptBishop:
         begin
-          Result := DiagonalAndAntiDiagonalAttacks(i) and Destination > 0;
+          Result := DiagonalAndAntiDiagonalAttacks(i, Occupied) and Destination > 0;
         end;
         bptRook:
         begin
-          Result := HorizontalAndVerticalAttacks(i) and Destination > 0;
+          Result := HorizontalAndVerticalAttacks(i, Occupied) and Destination > 0;
         end;
         bptQueen:
         begin
-          Result := (DiagonalAndAntiDiagonalAttacks(i) or
-            HorizontalAndVerticalAttacks(i)) and Destination > 0;
+          Result := (DiagonalAndAntiDiagonalAttacks(i, Occupied) or
+            HorizontalAndVerticalAttacks(i, Occupied)) and Destination > 0;
         end;
         bptKing:
         begin
@@ -1384,7 +1007,9 @@ end;
 
 function TStandardPosition.IsStaleMate: boolean;
 begin
-  Result := (FLegalMoves.Count = 0) and not IsCheck;
+
+  // TODO FindLegalMove function
+  // Result := (FLegalMoves.Count = 0) and not IsCheck;
 end;
 
 function TStandardPosition.IsValid: boolean;
@@ -1414,25 +1039,6 @@ begin
   //  Result := Result and (FSquares[25] = ptBKing) and (FSquares[21] = ptBRook);
   // Check if a king is in illegal check
   Result := Result and not IsIllegalCheck;
-end;
-
-function TStandardPosition.MoveFromSAN(ASAN: string): TMove;
-var
-  i: integer;
-  NotValid: boolean;
-begin
-  NotValid := True;
-  // This is one way, but SAN is not unique
-  for i := 0 to FLegalMoves.Count - 1 do
-  begin
-    if MoveToSAN(FLegalMoves.Items[i]) = ASAN then
-    begin
-      Result := FLegalMoves.Items[i];
-      NotValid := False;
-    end;
-  end;
-  if NotValid then
-    raise Exception.Create(ASAN + ' is no valid move.');
 end;
 
 function TStandardPosition.MoveToSAN(AMove: TMove; ShowPawnLetter: boolean;
@@ -1487,7 +1093,6 @@ var
   Castling: boolean;
   AppendColon: boolean;
 begin
-  SameDest := TMoveList.Create;
   Clone := TStandardPosition.Create;
   Piece := Squares[AMove.Start];
   Castling := False;
@@ -1518,13 +1123,17 @@ begin
     else // every other piece could be multiple times on the board
     begin
       Result := PieceToStr(Piece);
-      for j := 0 to FLegalMoves.Count - 1 do
+      WriteLn('Move: ' + AlgebraicMoveToString(AMove));
+      SameDest := GenerateLegalMovesToSquare(Piece, AMove.Dest);
+      // Check if there is another piece of the same kind, which can go to the current square
+      for j := 0 to SameDest.Count - 1 do
       begin
-        // Check if there is another piece of the same kind, which can go to the current square
-        if (AMove.Start8x8 <> FLegalMoves.Items[j].Start8x8) and
-          (FLegalMoves.Items[j].Dest8x8 = AMove.Dest8x8) and
-          (Squares[FLegalMoves.Items[j].Start] = Piece) then
-          SameDest.Add(FLegalMoves.Items[j]);
+        // We need to delete the played move from the list
+        if AMove.Start8x8 = SameDest.Items[j].Start8x8 then
+        begin
+          SameDest.Delete(j);
+          Break;
+        end;
       end;
       if SameDest.Count > 0 then  // We need to distinguish
       begin
@@ -1554,6 +1163,8 @@ begin
             Result := Result + SquareToString(AMove.Start8x8);
         end;
       end;
+      SameDest.Clear;
+      SameDest.Free;
     end;
   end;
   if not Castling then
@@ -1598,14 +1209,12 @@ begin
   Clone.PlayMove(AMove);
   if Clone.IsCheck then
   begin
-    if Clone.LegalMoves.Count > 0 then
+    if Clone.CanEvadeCheck then
       Result := Result + '+'
     else
       Result := Result + '#';
   end;
-  SameDest.Clear;
   Clone.Free;
-  SameDest.Free;
 end;
 
 procedure TStandardPosition.PlayMove(AMove: TMove);
@@ -1629,203 +1238,31 @@ end;
 function TStandardPosition.ValidateMove(var ResultMove: TMove;
   MovingPiece: TPieceType; Dest: byte; StartingFile: byte; StartingRank: byte): boolean;
 var
-  Candidates, OppositePiecesWithoutKingOrEmpty, FilterFile, FilterRank,
-  BEnPassant, Attacks: TBitBoard;
-  PseudoLegalMoves, FoundMoves: TMoveList;
-  j, BPliesSinceLastPawnMoveOrCapture, BMoveNumber, i: integer;
-  BackupBoards: array[1..8] of TBitBoard;
-  BCastlingAbility: TCastlingAbility;
-  a, b, c, d, e, f: extended;
-  Move: TMove;
+  FoundMoves: TMoveList;
 begin
-  {$IFDEF Logging}
-  b := ET.Elapsed;
-  {$ENDIF}
-  if StartingFile > 0 then
-    FilterFile := Files[StartingFile]
-  else
-    FilterFile := not QWOrd(0);
-  if StartingRank > 0 then
-    FilterRank := Ranks[StartingRank]
-  else
-    FilterRank := not QWord(0);
-  case MovingPiece of
-    ptEmpty, ptOff: raise Exception.Create('Moving piece cannot be empty or off!');
-    ptWPawn: Candidates := FBitBoards[1] and FBitBoards[7] and FilterFile and FilterRank;
-    ptWKnight: Candidates := FBitBoards[3] and FBitBoards[7] and
-        FilterFile and FilterRank;
-    ptWBishop: Candidates := FBitBoards[4] and FBitBoards[7] and
-        FilterFile and FilterRank;
-    ptWRook: Candidates := FBitBoards[2] and FBitBoards[7] and FilterFile and FilterRank;
-    ptWQueen: Candidates := FBitBoards[5] and FBitBoards[7] and
-        FilterFile and FilterRank;
-    ptWKing: Candidates := FBitBoards[6] and FBitBoards[7] and FilterFile and FilterRank;
-    ptBPawn: Candidates := FBitBoards[1] and FBitBoards[8] and FilterFile and FilterRank;
-    ptBKnight: Candidates := FBitBoards[3] and FBitBoards[8] and
-        FilterFile and FilterRank;
-    ptBBishop: Candidates := FBitBoards[4] and FBitBoards[8] and
-        FilterFile and FilterRank;
-    ptBRook: Candidates := FBitBoards[2] and FBitBoards[8] and FilterFile and FilterRank;
-    ptBQueen: Candidates := FBitBoards[5] and FBitBoards[8] and
-        FilterFile and FilterRank;
-    ptBKing: Candidates := FBitBoards[6] and FBitBoards[8] and FilterFile and FilterRank;
-  end;
-  if Candidates = 0 then
-    Exit(False);
-
-  //Write(' 1: ', FormatFloat('0.##', (ET.Elapsed - b) * 1000000), 'µs');
-  {$IFDEF Logging}
-  c := ET.Elapsed;
-  a := ET.Elapsed;
-  {$ENDIF}
-  PseudoLegalMoves := TMoveList.Create(True);
-  if IsWhite(MovingPiece) then
+  // TODO special validation of castling
+  // Get all possible moves to Dest
+  FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
+  if FoundMoves.Count > 1 then  // We can filter with more information
   begin
-    OppositePiecesWithoutKingOrEmpty :=
-      (FBitBoards[8] and not FBitBoards[6]) or not (FBitBoards[7] or FBitBoards[8]);
-    if BasisPieceType(MovingPiece) = bptPawn then
-      GenerateWhitePawnPseudoMoves(Candidates, PseudoLegalMoves);
-  end
-  else
-  begin
-    OppositePiecesWithoutKingOrEmpty :=
-      (FBitBoards[7] and not FBitBoards[6]) or not (FBitBoards[7] or FBitBoards[8]);
-    if BasisPieceType(MovingPiece) = bptPawn then
-      GenerateBlackPawnPseudoMoves(Candidates, PseudoLegalMoves);
+    FilterMoveList(FoundMoves, ptEmpty, StartingFile, StartingRank);
   end;
-  //Write(' 2: ', FormatFloat('0.##', (ET.Elapsed - c) * 1000000), 'µs');
-  {$IFDEF Logging}
-  d := ET.Elapsed;
-  {$ENDIF}
-  case BasisPieceType(MovingPiece) of
-    bptKnight:
-    begin
-      //GenerateKnightPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
-      //  PseudoLegalMoves);
-      Attacks := BitBoard.KnightMoves[Dest] and Candidates;
-      while Attacks > 0 do
-      begin
-        i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
-        Attacks := Attacks and (Attacks - 1);
-      end;
-    end;
-    bptBishop:
-    begin
-      //if SquareToBitBoard(Dest) and WhiteSquares > 0 then
-      //  Candidates := Candidates and WhiteSquares
-      //else
-      //  Candidates := Candidates and BlackSquares;
-      //GenerateBishopPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
-      //  PseudoLegalMoves);
-      Attacks := DiagonalAndAntiDiagonalAttacks(Dest) and Candidates;
-      while Attacks > 0 do
-      begin
-        i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
-        Attacks := Attacks and (Attacks - 1);
-      end;
-    end;
-    bptRook:
-    begin
-      //Candidates := Candidates and (Files[TSquare8x8(Dest).RFile] or
-      //  Ranks[TSquare8x8(Dest).RRank]);
-      //GenerateRookPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
-      //  PseudoLegalMoves);
-      Attacks := HorizontalAndVerticalAttacks(Dest) and Candidates;
-      while Attacks > 0 do
-      begin
-        i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
-        Attacks := Attacks and (Attacks - 1);
-      end;
-    end;
-    bptQueen:
-    begin
-      //GenerateQueenPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
-      //    PseudoLegalMoves);
-      Attacks := (DiagonalAndAntiDiagonalAttacks(Dest) or
-        HorizontalAndVerticalAttacks(Dest)) and Candidates;
-      while Attacks > 0 do
-      begin
-        i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
-        Attacks := Attacks and (Attacks - 1);
-      end;
-    end;
-    bptKing:
-    begin
-      //GenerateKingPseudoMoves(Candidates, OppositePiecesWithoutKingOrEmpty,
-      //  PseudoLegalMoves);
-      Attacks := BitBoard.KingMoves[Dest] and Candidates;
-      while Attacks > 0 do
-      begin
-        i := NumberOfTrailingZeroes(Attacks);
-        PseudoLegalMoves.Add(CreateMoveFromInt(i, Dest));
-        Attacks := Attacks and (Attacks - 1);
-      end;
-    end;
-  end;
-  //Write(' 3: ', FormatFloat('0.##', (ET.Elapsed - d) * 1000000), 'µs ', MovingPiece);
-  {$IFDEF Logging}
-  e := ET.Elapsed;
-  {$ENDIF}
-  if PseudoLegalMoves.Count > 0 then
-  begin
-    FoundMoves := TMoveList.Create(False);
-    for Move in PseudoLegalMoves do
-      if Move.Dest = Dest then
-        FoundMoves.Add(Move);
-    // Save inital values
-    BEnPassant := FEnPassant;
-    BPliesSinceLastPawnMoveOrCapture := FPliesSinceLastPawnMoveOrCapture;
-    BCastlingAbility := FCastlingAbility;
-    BMoveNumber := FMoveNumber;
-    for i := 1 to 8 do
-      BackupBoards[i] := FBitBoards[i];
-    j := 0;
-    //Write(' 4: ', FormatFloat('0.##', (ET.Elapsed - e) * 1000000), 'µs');
-    while j < FoundMoves.Count do
-    begin
-      SilentPlayMove(FoundMoves.Items[j]);
-      {$IFDEF Logging}
-      f := ET.Elapsed;
-      {$ENDIF}
-      if not IsIllegalCheck then
-        Inc(j)
-      else
-        FoundMoves.Delete(j);
-      //Write(' 5: ', FormatFloat('0.##', (ET.Elapsed - f) * 1000000), 'µs');
-      // Restore inital values
-      FEnPassant := BEnPassant;
-      FPliesSinceLastPawnMoveOrCapture := BPliesSinceLastPawnMoveOrCapture;
-      FCastlingAbility := BCastlingAbility;
-      FMoveNumber := BMoveNumber;
-      FWhitesTurn := not FWhitesTurn;
-      for i := 1 to 8 do
-        FBitBoards[i] := BackupBoards[i];
-    end;
-    Result := FoundMoves.Count = 1;
-    if Result then
-      ResultMove := FoundMoves.Items[0].Copy;
-    FoundMoves.Free;
-  end
-  else
-    Result := False;
-  PseudoLegalMoves.Free;
-  {$IFDEF Logging}
-  //WriteLn;
-  Inc(Zuege);
-  Zeit := Zeit + (ET.Elapsed - a);
-  {$ENDIF}
+  Result := FoundMoves.Count = 1;
+  if Result then
+    ResultMove := FoundMoves.Items[0].Copy;
+  FoundMoves.Free;
 end;
 
 function TStandardPosition.ValidateMove(AMove: TMove): boolean;
 var
   Dummy: TMove;
 begin
+  if (IsWhite(Squares[AMove.Start]) <> FWhitesTurn) or
+    (Squares[AMove.Start] in [ptEmpty, ptOff]) then
+    Exit(False);
   Result := ValidateMove(Dummy, Squares[AMove.Start], AMove.Dest,
     AMove.Start mod 8 + 1, 8 - AMove.Start div 8);
+  Dummy.Free;
 end;
 
 function TStandardPosition.ToFEN: string;
