@@ -1,5 +1,5 @@
 object Form1: TForm1
-  Left = 325
+  Left = 323
   Height = 699
   Top = 0
   Width = 742
@@ -148,43 +148,48 @@ object Form1: TForm1
     Width = 742
     Align = alBottom
     AutoFillColumns = True
-    ColCount = 7
+    ColCount = 8
     ColumnClickSorts = True
     Columns = <    
       item
         Title.Alignment = taCenter
         Title.Caption = 'White'
-        Width = 105
+        Width = 92
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Black'
-        Width = 105
+        Width = 92
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Date'
-        Width = 105
+        Width = 92
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Event'
-        Width = 105
+        Width = 92
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Site'
-        Width = 105
+        Width = 92
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Round'
-        Width = 105
+        Width = 92
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Result'
-        Width = 110
+        Width = 92
+      end    
+      item
+        Title.Alignment = taCenter
+        Title.Caption = 'Nr.'
+        Width = 96
       end>
     FixedCols = 0
     MouseWheelOption = mwGrid
@@ -195,13 +200,14 @@ object Form1: TForm1
     TitleFont.Style = [fsBold]
     OnSelectCell = StringGrid1SelectCell
     ColWidths = (
-      105
-      105
-      105
-      105
-      105
-      105
-      110
+      92
+      92
+      92
+      92
+      92
+      92
+      92
+      96
     )
     Cells = (
       1

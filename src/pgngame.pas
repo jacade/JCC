@@ -143,7 +143,7 @@ begin
     AFile := 0;
     Arank := 0;
     case Length(s) of
-      0: ;// Noting
+      0: ;// Nothing
       1:
       begin  // There is either a file or a rank left
         if s[1] in ['a'..'h'] then

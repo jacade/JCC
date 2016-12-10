@@ -232,7 +232,7 @@ procedure TForm1.StringGrid1SelectCell(Sender: TObject; aCol, aRow: integer;
 begin
   if aRow > 0 then
   begin
-    MyPGNGame := PGNDatabase.Items[aRow - 1];
+    MyPGNGame := PGNDatabase.Items[StrToInt(StringGrid1.Cells[7, aRow]) - 1];
     NotationMemo1.SetTextFromGame(MyPGNGame);
     MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
     (Board1.CurrentPosition as TStandardPosition).FromFEN(
@@ -298,7 +298,7 @@ begin
       Temp := PGNDatabase.Items[i];
       StringGrid1.InsertRowWithValues(StringGrid1.RowCount,
         [Temp.White, Temp.Black, Temp.Date, Temp.Event, Temp.Site,
-        Temp.Round, GameResultToStr(Temp.GameResult)]);
+        Temp.Round, GameResultToStr(Temp.GameResult), IntToStr(i+1)]);
       sum := sum + PGNDatabase.Items[i].PlyTree.Count div 2;
     end;
     StringGrid1.EndUpdate;
@@ -316,7 +316,7 @@ procedure TForm1.Board1MovePlayed(AMove: TMove);
 var
   Child: TPlyTreeNode;
 begin
-  if Board1.CurrentPosition.IsLegal(AMove) then
+  if Board1.CurrentPosition.ValidateMove(AMove) then
   begin
     if MyGame.CurrentPlyNode.Children.Size = 0 then
     begin

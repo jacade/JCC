@@ -383,7 +383,7 @@ begin
       // Check for Promotion and request the user to choose a piece
       PromoPiece := ptEmpty;
       if (FCurrentPosition.Squares[Start] in [ptWPawn, ptBPawn]) and
-        (Dest in [40..47, 16..23]) then
+        (Dest in (Rank1 + Rank8)) then
       begin
         if Assigned(FOnPromotion) then
         begin
