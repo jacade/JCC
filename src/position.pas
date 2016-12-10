@@ -357,12 +357,13 @@ var
   KingPos, Index: byte;
   King: TPieceType;
   OwnPieces, OppPieces: TPieceTypes;
-  Attackers, Moves, OwnPiecePos, OppPiecePos, Temp, PinnedPieces: TBitBoard;
+  Attackers, Moves, OwnPiecePos, OppPiecePos, Temp, PinnedPieces, K: TBitBoard;
 begin
   Result := False;
   if FWhitesTurn then
   begin
-    KingPos := NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[7]);
+    K := FBitBoards[6] and FBitBoards[7];
+    KingPos := NumberOfTrailingZeroes(K);
     King := ptWKing;
     OwnPieces := WhitePieces;
     OppPieces := BlackPieces;
@@ -371,7 +372,8 @@ begin
   end
   else
   begin
-    KingPos := NumberOfTrailingZeroes(FBitBoards[6] and FBitBoards[8]);
+    K := FBitBoards[6] and FBitBoards[8];
+    KingPos := NumberOfTrailingZeroes(K);
     King := ptBKing;
     OwnPieces := BlackPieces;
     OppPieces := WhitePieces;
@@ -395,7 +397,7 @@ begin
       // we are not in double check, so we first try to capture the attacker
       Index := NumberOfTrailingZeroes(Attackers);
       PinnedPieces := GetPinnedPieces;
-      if GetAttackerPosition(Index, OwnPieces) and not PinnedPieces > 0 then
+      if GetAttackerPosition(Index, OwnPieces) and not (PinnedPieces or K) > 0 then
         Exit(True);
       if (BasicPieceType(Squares[Index]) <> bptKnight) and (Attackers and Moves = 0) then
       begin
@@ -404,7 +406,7 @@ begin
         while Temp > 0 do
         begin
           if GetAttackerPosition(NumberOfTrailingZeroes(Temp), OwnPieces) and
-            not PinnedPieces > 0 then
+            not (PinnedPieces or K) > 0 then
             Exit(True);
           Temp := Temp and (Temp - 1);
         end;
@@ -1123,7 +1125,6 @@ begin
     else // every other piece could be multiple times on the board
     begin
       Result := PieceToStr(Piece);
-      WriteLn('Move: ' + AlgebraicMoveToString(AMove));
       SameDest := GenerateLegalMovesToSquare(Piece, AMove.Dest);
       // Check if there is another piece of the same kind, which can go to the current square
       for j := 0 to SameDest.Count - 1 do
