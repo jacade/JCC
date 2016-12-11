@@ -134,7 +134,8 @@ begin
   // FEN := '8/5bk1/8/2P1p3/8/1K6/8/8 w - d6 0 1';
   //  FEN := 'rnbqkbnr/p1p1p1p1/8/1p1p1p1p/P1P1P1P1/8/1P1P1P1P/RNBQKBNR w KQkq - 0 5';
   //FEN := 'rnbqkbnr/p5p1/8/1ppPpP1p/P5P1/8/1P1P1P1P/RNBQKBNR w KQkq e6 0 7';
-  FEN := '8/8/8/K7/R3Pppk/8/8/8 b - e3 0 1';
+  // FEN := '8/8/8/K7/R3Pppk/8/8/8 b - e3 0 1';
+  FEN := 'rnk5/pp1b2P1/3QQ3/8/8/8/8/K w - - 0 1';
   (Board1.CurrentPosition as TStandardPosition).FromFEN(FEN);
   // (Board1.CurrentPosition as TStandardPosition).PrintBoards;
   MyGame := TStandardGame.Create(Board1.CurrentPosition);

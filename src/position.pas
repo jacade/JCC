@@ -34,9 +34,9 @@ type
   // Main resource is https://de.wikipedia.org/wiki/Schachprogramm#12.C3.9710-Darstellung
   // Bitboard stuff is based on https://www.youtube.com/playlist?list=PLQV5mozTHmacMeRzJCW_8K3qw2miYqd0c
 
-  TCastlingTypes = (ctWKingside, ctWQueenside, ctBKingside, ctBQueenside);
+  TCastlingType = (ctWKingside, ctWQueenside, ctBKingside, ctBQueenside);
 
-  TCastlingAbility = set of TCastlingTypes;
+  TCastlingAbility = set of TCastlingType;
 
   // The following allows more control over the output of the function MoveToSAN
   // Based on https://en.wikipedia.org/wiki/Algebraic_notation_%28chess%29
@@ -129,9 +129,11 @@ type
     function GetPinnedPieces: TBitBoard;
     // Checks if the side not to move is attacking the given square
     function IsAttacked(Index: integer; ByWhite: boolean): boolean;
+    function MayMove(Start, Dest: byte; Occupied: TBitBoard): boolean;
     procedure SilentFromFEN(const AFEN: string);
     // Plays the move without triggering Changed
     procedure SilentPlayMove(AMove: TMove);
+    function ValidateCastling(Castling: TCastlingType): boolean;
   protected
     function GetCountOfFiles: byte; override;
     function GetCountOfRanks: byte; override;
@@ -150,7 +152,6 @@ type
     // Checks if the side not to move is in check
     function IsIllegalCheck: boolean;
     function IsMate: boolean;
-    function IsMovePseudoLegal(APiece: TPieceType; Start, Dest: TSquare8x8): boolean;
     function IsStaleMate: boolean;
     function IsValid: boolean;
     // This uses the english piece letters
@@ -355,30 +356,25 @@ end;
 function TStandardPosition.CanEvadeCheck: boolean;
 var
   KingPos, Index: byte;
-  King: TPieceType;
   OwnPieces, OppPieces: TPieceTypes;
-  Attackers, Moves, OwnPiecePos, OppPiecePos, Temp, PinnedPieces, K: TBitBoard;
+  Attackers, Moves, OwnPiecePos, Temp, PinnedPieces, King: TBitBoard;
 begin
   Result := False;
   if FWhitesTurn then
   begin
-    K := FBitBoards[6] and FBitBoards[7];
-    KingPos := NumberOfTrailingZeroes(K);
-    King := ptWKing;
+    King := FBitBoards[6] and FBitBoards[7];
+    KingPos := NumberOfTrailingZeroes(King);
     OwnPieces := WhitePieces;
     OppPieces := BlackPieces;
     OwnPiecePos := FBitBoards[7];
-    OppPiecePos := FBitBoards[8];
   end
   else
   begin
-    K := FBitBoards[6] and FBitBoards[8];
-    KingPos := NumberOfTrailingZeroes(K);
-    King := ptBKing;
+    King := FBitBoards[6] and FBitBoards[8];
+    KingPos := NumberOfTrailingZeroes(King);
     OwnPieces := BlackPieces;
     OppPieces := WhitePieces;
     OwnPiecePos := FBitBoards[8];
-    OppPiecePos := FBitBoards[7];
   end;
   Attackers := GetAttackerPosition(KingPos, OppPieces);
   if Attackers > 0 then // check if we are really in check
@@ -397,7 +393,7 @@ begin
       // we are not in double check, so we first try to capture the attacker
       Index := NumberOfTrailingZeroes(Attackers);
       PinnedPieces := GetPinnedPieces;
-      if GetAttackerPosition(Index, OwnPieces) and not (PinnedPieces or K) > 0 then
+      if GetAttackerPosition(Index, OwnPieces) and not (PinnedPieces or King) > 0 then
         Exit(True);
       if (BasicPieceType(Squares[Index]) <> bptKnight) and (Attackers and Moves = 0) then
       begin
@@ -406,7 +402,7 @@ begin
         while Temp > 0 do
         begin
           if GetAttackerPosition(NumberOfTrailingZeroes(Temp), OwnPieces) and
-            not (PinnedPieces or K) > 0 then
+            not (PinnedPieces or King) > 0 then
             Exit(True);
           Temp := Temp and (Temp - 1);
         end;
@@ -691,6 +687,12 @@ begin
   end;
 end;
 
+function TStandardPosition.MayMove(Start, Dest: byte; Occupied: TBitBoard): boolean;
+begin
+  // https://chessprogramming.wikispaces.com/Square+Attacked+By#Legality%20Test
+  Result := (InBetweens[Start, Dest] and Occupied) = 0;
+end;
+
 procedure TStandardPosition.SilentFromFEN(const AFEN: string);
 var
   c: char;
@@ -896,6 +898,51 @@ begin
   // GenerateAttackMaps;
 end;
 
+function TStandardPosition.ValidateCastling(Castling: TCastlingType): boolean;
+var
+  HasToBeEmpty: TBitBoard;
+  CantBeAttacked: set of byte;
+  Attackers: TPieceTypes;
+  i: byte;
+begin
+  if (Castling in FCastlingAbility) and not IsCheck then
+  begin
+    case Castling of
+      ctWKingside:
+      begin
+        HasToBeEmpty := CastlingSquares[1];
+        CantBeAttacked := [61, 62];
+        Attackers := BlackPieces;
+      end;
+      ctWQueenside:
+      begin
+        HasToBeEmpty := CastlingSquares[2];
+        CantBeAttacked := [58, 59];
+        Attackers := BlackPieces;
+      end;
+      ctBKingside:
+      begin
+        HasToBeEmpty := CastlingSquares[3];
+        CantBeAttacked := [5, 6];
+        Attackers := WhitePieces;
+      end;
+      ctBQueenside:
+      begin
+        HasToBeEmpty := CastlingSquares[4];
+        CantBeAttacked := [3, 4];
+        Attackers := WhitePieces;
+      end;
+    end;
+    Result := (FBitBoards[7] and FBitBoards[8] and HasToBeEmpty) = 0;
+    for i in CantBeAttacked do
+    begin
+      Result := Result and (GetAttackerPosition(i, Attackers) = 0);
+    end;
+  end
+  else
+    Result := False;
+end;
+
 procedure TStandardPosition.PrintBoards;
 var
   i, k: integer;
@@ -964,47 +1011,6 @@ end;
 function TStandardPosition.IsMate: boolean;
 begin
   Result := IsCheck and not CanEvadeCheck;
-end;
-
-function TStandardPosition.IsMovePseudoLegal(APiece: TPieceType;
-  Start, Dest: TSquare8x8): boolean;
-var
-  i: integer;
-  Destination, Occupied: TBitBoard;
-begin
-  // TODO: Castling
-  i := (Start.RFile + 63 - Start.RRank * 8);
-  Destination := SquareToBitBoard(dest);
-  Occupied := FBitBoards[7] and FBitBoards[8];
-  case APiece of
-    ptEmpty, ptOff: Result := False;
-    ptWPawn: ;
-    ptBPawn: ;
-    else
-      case BasicPieceType(APiece) of
-        bptKnight:
-        begin
-          Result := BitBoard.KnightMoves[i] and Destination > 0;
-        end;
-        bptBishop:
-        begin
-          Result := DiagonalAndAntiDiagonalAttacks(i, Occupied) and Destination > 0;
-        end;
-        bptRook:
-        begin
-          Result := HorizontalAndVerticalAttacks(i, Occupied) and Destination > 0;
-        end;
-        bptQueen:
-        begin
-          Result := (DiagonalAndAntiDiagonalAttacks(i, Occupied) or
-            HorizontalAndVerticalAttacks(i, Occupied)) and Destination > 0;
-        end;
-        bptKing:
-        begin
-          Result := KingMoves[i] and Destination > 0;
-        end;
-      end;
-  end;
 end;
 
 function TStandardPosition.IsStaleMate: boolean;
@@ -1242,6 +1248,36 @@ var
   FoundMoves: TMoveList;
 begin
   // TODO special validation of castling
+  case MovingPiece of
+    ptWKing: if StartingFile = 5 then // e-file
+      begin
+        if Dest = 62 then
+        begin
+          ResultMove := TMove.Create(60, 62);
+          Exit(ValidateCastling(ctWKingside));
+        end
+        else
+        if Dest = 58 then
+        begin
+          ResultMove := TMove.Create(60, 58);
+          Exit(ValidateCastling(ctWQueenside));
+        end;
+      end;
+    ptBKing: if StartingFile = 5 then // e-file
+      begin
+        if Dest = 6 then
+        begin
+          ResultMove := TMove.Create(4, 6);
+          Exit(ValidateCastling(ctBKingside));
+        end
+        else
+        if Dest = 2 then
+        begin
+          ResultMove := TMove.Create(4, 2);
+          Exit(ValidateCastling(ctBQueenside));
+        end;
+      end;
+  end;
   // Get all possible moves to Dest
   FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
   if FoundMoves.Count > 1 then  // We can filter with more information
