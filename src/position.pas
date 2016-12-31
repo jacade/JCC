@@ -1280,10 +1280,8 @@ begin
   end;
   // Get all possible moves to Dest
   FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
-  if FoundMoves.Count > 1 then  // We can filter with more information
-  begin
-    FilterMoveList(FoundMoves, ptEmpty, StartingFile, StartingRank);
-  end;
+  // We need to test the found moves with more information
+  FilterMoveList(FoundMoves, ptEmpty, StartingFile, StartingRank);
   Result := FoundMoves.Count = 1;
   if Result then
     ResultMove := FoundMoves.Items[0].Copy;
@@ -1297,14 +1295,19 @@ begin
   if (IsWhite(Squares[AMove.Start]) <> FWhitesTurn) or
     (Squares[AMove.Start] in [ptEmpty, ptOff]) then
     Exit(False);
+  if Squares[AMove.Dest] <> ptEmpty then
+    if IsWhite(Squares[AMove.Start]) = IsWhite(Squares[AMove.Dest]) then
+      Exit(False);
+  Dummy := nil;
   Result := ValidateMove(Dummy, Squares[AMove.Start], AMove.Dest,
     AMove.Start mod 8 + 1, 8 - AMove.Start div 8);
-  Dummy.Free;
+  if Dummy <> nil then
+    Dummy.Free;
 end;
 
 function TStandardPosition.ToFEN: string;
 var
-  i, z, j: integer;
+  i, z: integer;
 begin
   Result := '';
   z := 0;
