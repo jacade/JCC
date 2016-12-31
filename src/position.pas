@@ -429,33 +429,43 @@ begin
     if IsWhite(MovingPiece) then
     begin
       Occ := Occupied and not (FBitBoards[1] and Ranks[Rank - 1]);
-      PawnMoves := PawnForwards(QWord(1) shl Dest, Occ, False);
+      if (QWord(1) shl Dest) and Occupied = 0 then // if Dest is empty
+      begin
+        PawnMoves := PawnForwards(QWord(1) shl Dest, Occ, False);
+        if Rank = 4 then // Check for double moves
+        begin
+          Occ := Occupied and not (FBitBoards[1] and Ranks[2]);
+          PawnMoves := PawnMoves or PawnForwardTwo(QWord(1) shl Dest,
+            Occ, Ranks[4], False);
+        end;
+      end
+      else
+        PawnMoves := 0;
       if ((QWord(1) shl Dest) and (Occupied or FEnPassant)) > 0 then
         // Check for captures
         PawnMoves := PawnMoves or PawnAttacks(QWord(1) shl Dest,
           Occupied or FEnPassant, False);
-      if Rank = 4 then // Check for double moves
-      begin
-        Occ := Occupied and not (FBitBoards[1] and Ranks[2]);
-        PawnMoves := PawnMoves or PawnForwardTwo(QWord(1) shl Dest,
-          Occ, Ranks[4], False);
-      end;
       Starts := FBitBoards[1] and FBitBoards[7] and PawnMoves;
     end
     else
     begin
       Occ := Occupied and not (FBitBoards[1] and Ranks[Rank + 1]);
-      PawnMoves := PawnForwards(QWord(1) shl Dest, Occ, True);
+      if (QWord(1) shl Dest) and Occupied = 0 then // if Dest is empty
+      begin
+        PawnMoves := PawnForwards(QWord(1) shl Dest, Occ, True);
+        if Rank = 5 then // Check for double moves
+        begin
+          Occ := Occupied and not (FBitBoards[1] and Ranks[7]);
+          PawnMoves := PawnMoves or PawnForwardTwo(QWord(1) shl Dest,
+            Occ, Ranks[5], True);
+        end;
+      end
+      else
+        PawnMoves := 0;
       if ((QWord(1) shl Dest) and (Occupied or FEnPassant)) > 0 then
         // Check for captures
         PawnMoves := PawnMoves or PawnAttacks(QWord(1) shl Dest,
           Occupied or FEnPassant, True);
-      if Rank = 5 then // Check for double moves
-      begin
-        Occ := Occupied and not (FBitBoards[1] and Ranks[7]);
-        PawnMoves := PawnMoves or PawnForwardTwo(QWord(1) shl Dest,
-          Occ, Ranks[5], True);
-      end;
       Starts := FBitBoards[1] and FBitBoards[8] and PawnMoves;
     end;
   end
