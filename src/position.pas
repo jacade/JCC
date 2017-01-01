@@ -24,14 +24,13 @@ unit Position;
 interface
 
 uses
-  Classes, SysUtils, RegExpr, ArrayTools, MoveList, Pieces, StrTools, BitBoard
+  Classes, SysUtils, fgl, RegExpr, ArrayTools, MoveList, Pieces, StrTools,
+  BitBoard
   {$IFDEF Logging} , EpikTimer {$ENDIF}  ;
 
 {$INCLUDE ChessPieceLetters.inc}
 
 type
-  // Constants are taken from http://chessprogramming.wikispaces.com/10x12+Board
-  // Main resource is https://de.wikipedia.org/wiki/Schachprogramm#12.C3.9710-Darstellung
   // Bitboard stuff is based on https://www.youtube.com/playlist?list=PLQV5mozTHmacMeRzJCW_8K3qw2miYqd0c
 
   TCastlingType = (ctWKingside, ctWQueenside, ctBKingside, ctBQueenside);
@@ -57,11 +56,6 @@ type
     FMoveNumber: integer;
     FWhitesTurn: boolean;
     FWhiteWins: TNotifyEvent;
-    //const
-    //  DiagonalMoves = [9, 11];   // Too bad, that negative values are not allowed
-    //  HorzVertMoves = [1, 10];
-    //  KnightMoves = [8, 12, 19, 21];
-
     procedure BlackWins;
     procedure Draw;
     function GetCountOfFiles: byte; virtual; abstract;
@@ -91,18 +85,13 @@ type
   TStandardPosition = class(TPosition)//(TPersistent)
   private
   var      // Note: If Variables are added, they need to be added to Assign, too
-    //  FBlackKing: TSquare10x12;
     FCastlingAbility: TCastlingAbility;
     FOnChange: TNotifyEvent;
     FPliesSinceLastPawnMoveOrCapture: integer; // Important for 50 move rule
-    // FSquares: array[0..119] of TPieceType;
-    //  FWhiteKing: TSquare10x12;
     // BitBoards
     FEnPassant: TBitBoard;
     // 1. Pawns 2. Rooks 3. Knights 4. Bishops 5. Queens 6. Kings 7. White 8. Black
     FBitBoards: array[1..8] of TBitBoard;
-    // Occupied Squares
-    // FOccupied: TBitBoard; // = FBitBoards[7] and FBitBoards[8]
 
     procedure Changed;
     function AntiDiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
@@ -147,6 +136,7 @@ type
     constructor Create(AFEN: string); overload;
     procedure Copy(Source: TPosition); override;
     procedure FromFEN(const AFEN: string);
+    function GetAllLegalMoves: TMoveList;
     // Checks if the side to move is check
     function IsCheck: boolean;
     // Checks if the side not to move is in check
@@ -197,7 +187,6 @@ implementation
 
 function SquareToBitBoard(const ASquare: TSquare8x8): QWord;
 begin
-  // Result := QWord(1) shl (8 * (8 - ASquare.RRank) + ASquare.RFile - 1);
   Result := Ranks[ASquare.RRank] and Files[ASquare.RFile];
 end;
 
@@ -1002,6 +991,61 @@ begin
   Changed;
 end;
 
+function TStandardPosition.GetAllLegalMoves: TMoveList;
+var
+  Temp: TBitBoard;
+  i, j: byte;
+  Move: TMove;
+begin
+  Result := TMoveList.Create;
+  if WhitesTurn then
+    Temp := FBitBoards[7]
+  else
+    Temp := FBitBoards[8];
+  while Temp > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Temp);
+    for j := 0 to 63 do
+    begin
+      Move := TMove.Create(i, j);
+      if ValidateMove(Move) then
+      begin
+        if FWhitesTurn then
+        begin
+          // Pawn Promotion
+          if (j in Rank8) and (Squares[i] = ptWPawn) then
+          begin
+            Result.Add(TMove.Create(i, j, ptWQueen));
+            Result.Add(TMove.Create(i, j, ptWKnight));
+            Result.Add(TMove.Create(i, j, ptWBishop));
+            Result.Add(TMove.Create(i, j, ptWRook));
+            Move.Free;
+          end
+          else
+            Result.Add(Move);
+        end
+        else
+        begin
+          // Pawn Promotion
+          if (j in Rank1) and (Squares[i] = ptBPawn) then
+          begin
+            Result.Add(TMove.Create(i, j, ptBQueen));
+            Result.Add(TMove.Create(i, j, ptBKnight));
+            Result.Add(TMove.Create(i, j, ptBBishop));
+            Result.Add(TMove.Create(i, j, ptBRook));
+            Move.Free;
+          end
+          else
+            Result.Add(Move);
+        end;
+      end
+      else
+        Move.Free;
+    end;
+    Temp := Temp and (Temp - 1);
+  end;
+end;
+
 function TStandardPosition.IsCheck: boolean;
 begin
   // Assumes that exact one black and one white king exist
@@ -1024,10 +1068,12 @@ begin
 end;
 
 function TStandardPosition.IsStaleMate: boolean;
+var
+  Temp: TMoveList;
 begin
-
-  // TODO FindLegalMove function
-  // Result := (FLegalMoves.Count = 0) and not IsCheck;
+  Temp := GetAllLegalMoves;
+  Result := (Temp.Count = 0) and not IsCheck;
+  Temp.Free;
 end;
 
 function TStandardPosition.IsValid: boolean;
