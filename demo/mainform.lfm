@@ -1,5 +1,5 @@
 object Form1: TForm1
-  Left = 322
+  Left = 318
   Height = 699
   Top = 0
   Width = 742
@@ -19,6 +19,8 @@ object Form1: TForm1
     Border.Font.Color = clWhite
     Border.Font.Style = [fsBold]
     Border.Style = [bsBottom, bsLeft, bsRight, bsTop]
+    HighlightStyle = hsAll
+    OnHighLightSquare = Board1HighLightSquare
     OnMovePlayed = Board1MovePlayed
     OnMouseWheel = Board1MouseWheel
     OnPromotion = Board1Promotion

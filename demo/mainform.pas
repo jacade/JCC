@@ -48,6 +48,8 @@ type
     NotationMemo1: TNotationMemo;
     OpenDialog1: TOpenDialog;
     StringGrid1: TStringGrid;
+    procedure Board1HighLightSquare(const SquareCanvas: TCanvas;
+      const VisibleRect: TRect; IsWhite: boolean);
     procedure Board1MouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
     procedure Board1MovePlayed(AMove: TMove);
@@ -234,6 +236,7 @@ begin
   if aRow > 0 then
   begin
     MyPGNGame := PGNDatabase.Items[StrToInt(StringGrid1.Cells[7, aRow]) - 1];
+    WriteLn(MyPGNGame.GetPGNNotation); // DEBUG
     NotationMemo1.SetTextFromGame(MyPGNGame);
     MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
     (Board1.CurrentPosition as TStandardPosition).FromFEN(
@@ -299,7 +302,7 @@ begin
       Temp := PGNDatabase.Items[i];
       StringGrid1.InsertRowWithValues(StringGrid1.RowCount,
         [Temp.White, Temp.Black, Temp.Date, Temp.Event, Temp.Site,
-        Temp.Round, GameResultToStr(Temp.GameResult), IntToStr(i+1)]);
+        Temp.Round, GameResultToStr(Temp.GameResult), IntToStr(i + 1)]);
       sum := sum + PGNDatabase.Items[i].PlyTree.Count div 2;
     end;
     StringGrid1.EndUpdate;
@@ -347,7 +350,9 @@ begin
         MyGame.AddMoveAsSideLine(AMove);
       end;
     end;
-  end;
+  end
+  else
+    AMove.Free;
   Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   NotationMemo1.SetTextFromGame(MyGame);
   UpdateButtons;
@@ -383,6 +388,19 @@ begin
     end;
     Handled := True;
   end;
+end;
+
+procedure TForm1.Board1HighLightSquare(const SquareCanvas: TCanvas;
+  const VisibleRect: TRect; IsWhite: boolean);
+begin
+  SquareCanvas.Pen.Color := clBlue;
+  SquareCanvas.Pen.Width := 6;
+  SquareCanvas.MoveTo(0, 0);
+  SquareCanvas.LineTo(SquareCanvas.Width-1, 0);
+  SquareCanvas.LineTo(SquareCanvas.Width-1, SquareCanvas.Height-1);
+  SquareCanvas.LineTo(0, SquareCanvas.Height-1);
+  SquareCanvas.LineTo(0, 0);
+  //SquareCanvas.FillRect(VisibleRect);
 end;
 
 procedure TForm1.Board1Promotion(var PromotionPiece: TPieceType);
