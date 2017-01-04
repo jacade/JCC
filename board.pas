@@ -25,7 +25,7 @@ uses
   Classes, SysUtils, LazFileUtils, LResources, Forms, Controls, Graphics, Dialogs,
   Math, Types,
   // fpvectorial, svgvectorialreader, do not work properly
-  Position, MoveList, Pieces;
+  Position, MoveList, Pieces, Geom2DTools;
 
 const
   // 47 sizes from 8x8 to 100x100
@@ -68,6 +68,13 @@ type
   TMovePlayedEvent = procedure(AMove: TMove) of object;
   // GUI should ask the user for the desired piece, otherwise we throw an Exception
   TPromotionEvent = procedure(var PromotionPiece: TPieceType) of object;
+  // the following is fired, when the user selects a piece and a possible destination
+  // should be highlighted
+  THighlightSquareEvent = procedure(const SquareCanvas: TCanvas;
+    const VisibleRect: TRect; IsWhite: boolean) of object;
+
+  // Determines whether zero, one or all possible destinations should be highlighted
+  THighlightStyle = (hsNone, hsBest, hsAll);
 
   { TBoard }
 
@@ -80,6 +87,8 @@ type
     FCountOfFiles: byte;
     FCountOfRanks: byte;
     FCurrentPosition: TPosition;
+    FHighlightStyle: THighlightStyle;
+    FOnHighLightSquare: THighlightSquareEvent;
     FPieceDirectory: string;
     FReversed: boolean;
     FOnMovePlayed: TMovePlayedEvent;
@@ -117,6 +126,10 @@ type
     property BlackSquareColor: TColor read FBlackSquareColor
       write SetBlackSquareColor default clBlack;
     property Border: TBorder read FBorder write SetBorder;
+    property HighlightStyle: THighlightStyle read FHighlightStyle
+      write FHighlightStyle default hsNone;
+    property OnHighLightSquare: THighlightSquareEvent
+      read FOnHighLightSquare write FOnHighLightSquare;
     // is invoked, when the user moves a piece
     property OnMovePlayed: TMovePlayedEvent read FOnMovePlayed write FOnMovePlayed;
     property OnMouseWheel;
@@ -408,6 +421,11 @@ var
   d, i, j, k, r, f, s, t: integer;
   TextStyle: TTextStyle;
   IsMoving: boolean;
+  Temp, Filtered: TMoveList;
+  TempCanvas: TCanvas;
+  Move: TMove;
+  TempBitmap: TBitmap;
+  Source: TRect;
 begin
   inherited Paint;
   Canvas.Brush.Style := bsSolid;
@@ -421,8 +439,8 @@ begin
   if bsBottom in Border.Style then
     Dec(InnerBoard.Bottom, Border.Size);
   // Let's make it a square
-  InnerBoard := Rect(InnerBoard.Left, InnerBoard.Top, InnerBoard.Left +
-    FCountOfFiles * SizePerSquare, InnerBoard.Top + FCountOfRanks * SizePerSquare);
+  InnerBoard := InnerBoard.TopLeft + Rect(0, 0, FCountOfFiles *
+    SizePerSquare, FCountOfRanks * SizePerSquare);
   Canvas.Brush.Color := Border.Background;
   Canvas.FillRect(0, 0, Width, Height);
   d := SizePerSquare;
@@ -434,8 +452,7 @@ begin
         Canvas.Brush.Color := FWhiteSquareColor
       else
         Canvas.Brush.Color := FBlackSquareColor;
-      Canvas.FillRect(InnerBoard.Left + i * d, InnerBoard.Top + j * d,
-        InnerBoard.Left + (i + 1) * d, InnerBoard.Top + (j + 1) * d + 1);
+      Canvas.FillRect(InnerBoard.TopLeft + Point(i * d, j * d) + Rect(0, 0, d, d));
     end;
   // Draw Border
   if Border.Size > 0 then
@@ -462,33 +479,64 @@ begin
     if bsTop in Border.Style then
     begin
       for i := 0 to FCountOfFiles - 1 do
-        Canvas.TextRect(Rect(InnerBoard.Left + i * d, 0, InnerBoard.Left +
-          (i + 1) * d, Border.Size), 0, 0, Chr(c1 + s * i), TextStyle);
+        Canvas.TextRect(Point(InnerBoard.Left + i * d, 0) +
+          Rect(0, 0, d, Border.Size), 0, 0, Chr(c1 + s * i), TextStyle);
     end;
     if bsBottom in Border.Style then
     begin
       for i := 0 to FCountOfFiles - 1 do
-        Canvas.TextRect(Rect(InnerBoard.Left + i * d, InnerBoard.Bottom,
-          InnerBoard.Left + (i + 1) * d, InnerBoard.Bottom + Border.Size), 0,
-          0, Chr(c1 + s * i), TextStyle);
+        Canvas.TextRect(Point(InnerBoard.Left + i * d, InnerBoard.Bottom) +
+          Rect(0, 0, d, Border.Size), 0, 0, Chr(c1 + s * i), TextStyle);
     end;
     if bsLeft in Border.Style then
     begin
       for i := 0 to FCountOfRanks - 1 do
-        Canvas.TextRect(Rect(0, InnerBoard.Top + i * d, Border.Size,
-          InnerBoard.Top + (i + 1) * d), 0, 0, Chr(c2 - s * i), TextStyle);
+        Canvas.TextRect(Point(0, InnerBoard.Top + i * d) +
+          Rect(0, 0, Border.Size, d), 0, 0, Chr(c2 - s * i), TextStyle);
     end;
     if bsRight in Border.Style then
     begin
       for i := 0 to FCountOfRanks - 1 do
-        Canvas.TextRect(Rect(InnerBoard.Right, InnerBoard.Top + i *
-          d, InnerBoard.Right + Border.Size, InnerBoard.Top + (i + 1) * d),
-          0, 0, Chr(c2 - s * i), TextStyle);
+        Canvas.TextRect(Point(InnerBoard.Right, InnerBoard.Top + i * d) +
+          Rect(0, 0, Border.Size, d), 0, 0, Chr(c2 - s * i), TextStyle);
     end;
   end;
   // in design-time we need to exit here
   if not Assigned(FCurrentPosition) then
     Exit;
+  // draw custom highlighting
+  if ClickedDown then
+  begin
+    if Assigned(FOnHighLightSquare) then
+    begin
+      if FHighlightStyle = hsAll then
+      begin                     // Reversed Board??
+        Temp := FCurrentPosition.GetAllLegalMoves;
+        if not FReversed then
+          Filtered := Temp.Filter(ClickedFile + ClickedRank * 8)
+        else
+          Filtered := Temp.Filter(63 - (ClickedFile + ClickedRank * 8));
+        TempBitmap := TBitmap.Create;
+        TempBitmap.SetSize(d + 1, d + 1);
+        for Move in Filtered do
+        begin
+          if not FReversed then
+            Source := InnerBoard.TopLeft + Point(
+              (Move.Dest8x8.RFile - 1) * d, (8 - Move.Dest8x8.RRank) * d) + Rect(0, 0, d, d)
+          else
+            Source := InnerBoard.TopLeft + Point(
+              (8 - Move.Dest8x8.RFile) * d, (Move.Dest8x8.RRank - 1) * d) + Rect(0, 0, d, d);
+          TempBitmap.Canvas.CopyRect(Rect(0, 0, d, d), Self.Canvas, Source);
+          FOnHighLightSquare(TempBitmap.Canvas, Rect(0, 0, d, d),
+            Move.Dest mod 2 = (Move.Dest div 8) mod 2);
+          Self.Canvas.CopyRect(Source, TempBitmap.Canvas, Rect(0, 0, d, d));
+        end;
+        TempBitmap.Free;
+        Filtered.Free;
+        Temp.Free;
+      end;
+    end;
+  end;
   // draw the pieces
   if ImagesAreLoaded then
   begin
@@ -528,23 +576,22 @@ begin
           r := 7 - r;
         end;
         if ClickedDown and (f = ClickedFile) and (r = ClickedRank) and
-          (IsWhite(FCurrentPosition.Squares[i]) = CurrentPosition.WhitesTurn) then
+          (IsWhite(FCurrentPosition.Squares[i]) = FCurrentPosition.WhitesTurn) then
         begin
           IsMoving := True;
           t := j;
         end
         else
-          Canvas.CopyRect(Rect(f * d + InnerBoard.Left, r * d +
-            InnerBoard.Top, (f + 1) * d + InnerBoard.Left, (r + 1) * d + InnerBoard.Top),
-            PieceImages[k][j].Canvas,
-            Rect(0, 0, d, d));
+          Canvas.CopyRect(InnerBoard.TopLeft + Point(f * d, r * d) + Rect(0, 0, d, d),
+            PieceImages[k][j].Canvas, Rect(0, 0, d, d));
       end;
     end;
     if IsMoving then
+    begin
       // Drawing the moving piece last ensures that it stays on top
-      Canvas.CopyRect(Rect(CurrentPos.X - d div 2, CurrentPos.Y -
-        d div 2, CurrentPos.X + d div 2, CurrentPos.Y + d div 2),
+      Canvas.CopyRect(CurrentPos + Rect(-d div 2, -d div 2, d div 2, d div 2),
         PieceImages[k][t].Canvas, Rect(0, 0, d, d));
+    end;
   end;
 end;
 
@@ -558,6 +605,7 @@ begin
   // FCurrentPosition := TStandardPosition.Create;
   FCountOfFiles := 8;
   FCountOfRanks := 8;
+  FHighlightStyle := hsNone;
   FReversed := False;
   FWhiteSquareColor := clWhite;
   ImagesAreLoaded := False;
