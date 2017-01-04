@@ -65,6 +65,7 @@ type
   public
     // Copies important values from Source to Self
     procedure Copy(Source: TPosition); virtual;
+    function GetAllLegalMoves: TMoveList; virtual; abstract;
     procedure PlayMove(AMove: TMove); virtual; abstract;
     procedure SetupInitialPosition; virtual; abstract;
     function ValidateMove(AMove: TMove): boolean; virtual; abstract;
@@ -113,7 +114,7 @@ type
       Dest: byte): TMoveList;
     function GetAttackerPosition(Index: byte; PossibleAttackers: TPieceTypes): TBitBoard;
     procedure FilterMoveList(AMoveList: TMoveList; APiece: TPieceType = ptEmpty;
-      StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 0;
+      StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 255;
       APromotionPiece: TPieceType = ptEmpty);
     function GetPinnedPieces: TBitBoard;
     // Checks if the side not to move is attacking the given square
@@ -136,7 +137,7 @@ type
     constructor Create(AFEN: string); overload;
     procedure Copy(Source: TPosition); override;
     procedure FromFEN(const AFEN: string);
-    function GetAllLegalMoves: TMoveList;
+    function GetAllLegalMoves: TMoveList; override;
     // Checks if the side to move is check
     function IsCheck: boolean;
     // Checks if the side not to move is in check
@@ -544,7 +545,7 @@ var
   j: integer;
 begin
   NoFilterPiece := APiece = ptEmpty;
-  NoFilterDest := DestSquare = 0;
+  NoFilterDest := DestSquare = 255;
   NoFilterStartF := StartFile = 0;
   NoFilterStartR := StartRank = 0;
   NoFilterPromo := APromotionPiece = ptEmpty;
@@ -658,17 +659,20 @@ begin
   Result := ptEmpty;
   for i := 1 to 6 do
   begin
-    for j := 7 to 8 do
+    if (QWord(1) shl Index) and FBitBoards[i] > 0 then
     begin
-      if ((QWord(1) shl Index) and FBitBoards[i] and FBitBoards[j]) > 0 then
-        case i of
-          1: Result := PieceType(bptPawn, j = 7);
-          2: Result := PieceType(bptRook, j = 7);
-          3: Result := PieceType(bptKnight, j = 7);
-          4: Result := PieceType(bptBishop, j = 7);
-          5: Result := PieceType(bptQueen, j = 7);
-          6: Result := PieceType(bptKing, j = 7);
-        end;
+      for j := 7 to 8 do
+      begin
+        if ((QWord(1) shl Index) and FBitBoards[j]) > 0 then
+          case i of
+            1: Result := PieceType(bptPawn, j = 7);
+            2: Result := PieceType(bptRook, j = 7);
+            3: Result := PieceType(bptKnight, j = 7);
+            4: Result := PieceType(bptBishop, j = 7);
+            5: Result := PieceType(bptQueen, j = 7);
+            6: Result := PieceType(bptKing, j = 7);
+          end;
+      end;
     end;
   end;
 end;
