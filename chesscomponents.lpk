@@ -11,7 +11,7 @@
         <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="19">
+    <Files Count="20">
       <Item1>
         <Filename Value="board.pas"/>
         <HasRegisterProc Value="True"/>
@@ -97,8 +97,12 @@
       </Item18>
       <Item19>
         <Filename Value="src/notationtoken.pas"/>
-        <UnitName Value="notationtoken"/>
+        <UnitName Value="NotationToken"/>
       </Item19>
+      <Item20>
+        <Filename Value="src/geom2dtools.pas"/>
+        <UnitName Value="geom2dtools"/>
+      </Item20>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>
