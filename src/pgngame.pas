@@ -7,7 +7,8 @@ unit PGNGame;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position, Pieces, fgl, NotationToken
+  Classes, SysUtils, FileUtil, RegExpr, Game, MoveList, Position,
+  Pieces, fgl, NotationToken
   {$IFDEF Logging}
   , Ply
   {$ENDIF}  ;
@@ -280,20 +281,74 @@ end;
 function TPGNGame.GetPGNNotation: string;
 var
   Token: TNotationToken;
+  Temp: TGameNotation;
+  z, sp, VarLevel: integer;
+  s: string;
+  SpaceNeeded: boolean;
 begin
-  for Token in GetGameNotation do
+  Varlevel := 0;
+  Result := '';
+  s := '';
+  z := 0;
+  Temp := GetGameNotation;
+  for Token in Temp do
   begin
+    SpaceNeeded := True;
     case Token.GetKind of
-    tkMove: ;//Result := Result + Token.Value;
-    tkMoveNumber: ;
-    tkBeginLine: ;
-    tkEndLine: ;
-    tkComment: ;
-    tkNAG: ;
-    tkResult: ;
+      tkMove: s := s + Token.Text;
+      tkMoveNumber: s := s + Token.Text;
+      tkBeginLine:
+      begin
+        if VarLevel > 0 then
+          s := s + '(';
+        SpaceNeeded := False;
+        Inc(VarLevel);
+      end;
+      tkEndLine:
+      begin
+        if VarLevel > 0 then
+          s := s + ')';
+        Dec(VarLevel);
+      end;
+      tkComment: s := s + '{' + Token.Text + '}';
+      tkNAG: s := s + '$' + IntToStr(Token.NAG);
+      tkResult: s := s + Token.Text;
+    end;
+    if SpaceNeeded then
+    begin
+      s := s + ' ';
+      SpaceNeeded := False;
     end;
   end;
-  Result := '';
+  while Pos(' ', s) > 0 do
+  begin
+    sp := Pos(' ', s);
+    if z + sp > 80 then
+    begin
+      if Result[Length(Result)] = ' ' then
+        Delete(Result, Length(Result), 1);
+      Result := Result + #10;
+      z := 0;
+      if sp > 80 then
+      begin
+        // string is longer than 80 characters, i. e. it is a very long comment
+        // but pgn specification allows only 80 characters in a line
+        // We will cut the string after every 80 characters like required
+        while sp > 80 do
+        begin
+          Result := Result + Copy(s, 1, 80) + #10;
+          Delete(s, 80, 1);
+          sp := sp - 80;
+        end;
+      end;
+    end;
+    Result := Result + Copy(s, 1, sp);
+    Delete(s, 1, sp);
+    Inc(z, sp);
+  end;
+  if Result[Length(Result)] = ' ' then
+    Delete(Result, Length(Result), 1);
+  Temp.Free;
 end;
 
 end.
