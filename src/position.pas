@@ -678,7 +678,6 @@ begin
 end;
 
 function TStandardPosition.IsAttacked(Index: integer; ByWhite: boolean): boolean;
-
 begin
   if ByWhite then
   begin
@@ -1339,9 +1338,10 @@ begin
       end;
   end;
   // Get all possible moves to Dest
-  FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
+    FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
   // We need to test the found moves with more information
-  FilterMoveList(FoundMoves, ptEmpty, StartingFile, StartingRank);
+  if FoundMoves.Count > 1 then
+    FilterMoveList(FoundMoves, ptEmpty, StartingFile, StartingRank);
   Result := FoundMoves.Count = 1;
   if Result then
     ResultMove := FoundMoves.Items[0].Copy;
@@ -1362,7 +1362,10 @@ begin
   Result := ValidateMove(Dummy, Squares[AMove.Start], AMove.Dest,
     AMove.Start mod 8 + 1, 8 - AMove.Start div 8);
   if Dummy <> nil then
+  begin
+    Result := Result and Dummy.Equals(AMove);
     Dummy.Free;
+  end;
 end;
 
 function TStandardPosition.ToFEN: string;
