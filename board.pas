@@ -65,6 +65,26 @@ type
     property Style: TBorderStyles read FStyle write SetStyle;
   end;
 
+  { TBoardGrid }
+
+  TBoardGrid = class(TPersistent)
+  private
+    FColor: TColor;
+    FOnChange: TNotifyEvent;
+    FWidth: word;
+    procedure Changed;
+    procedure SetColor(AValue: TColor);
+    procedure SetWidth(AValue: word);
+  public
+    procedure Assign(Source: TPersistent); override;
+    constructor Create;
+    destructor Destroy; override;
+  published
+    property Color: TColor read FColor write SetColor default clBlack;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property Width: word read FWidth write SetWidth default 0;
+  end;
+
   TMovePlayedEvent = procedure(AMove: TMove) of object;
   // GUI should ask the user for the desired piece, otherwise we throw an Exception
   TPromotionEvent = procedure(var PromotionPiece: TPieceType) of object;
@@ -87,6 +107,7 @@ type
     FCountOfFiles: byte;
     FCountOfRanks: byte;
     FCurrentPosition: TPosition;
+    FGrid: TBoardGrid;
     FHighlightStyle: THighlightStyle;
     FOnHighLightSquare: THighlightSquareEvent;
     FPieceDirectory: string;
@@ -99,10 +120,12 @@ type
     ImagesAreLoaded: boolean;
     InnerBoard: TRect;
     procedure FBorderChange(Sender: TObject);
+    procedure FGridChange(Sender: TObject);
     function GetSizePerSquare: integer;
     procedure SetBlackSquareColor(AValue: TColor);
     procedure SetBorder(AValue: TBorder);
     procedure SetCurrentPosition(AValue: TPosition);
+    procedure SetGrid(AValue: TBoardGrid);
     procedure SetPieceDirectory(AValue: string);
     procedure SetReversed(AValue: boolean);
     procedure SetWhiteSquareColor(AValue: TColor);
@@ -126,6 +149,7 @@ type
     property BlackSquareColor: TColor read FBlackSquareColor
       write SetBlackSquareColor default clBlack;
     property Border: TBorder read FBorder write SetBorder;
+    property Grid: TBoardGrid read FGrid write SetGrid;
     property HighlightStyle: THighlightStyle read FHighlightStyle
       write FHighlightStyle default hsNone;
     property OnHighLightSquare: THighlightSquareEvent
@@ -155,6 +179,51 @@ procedure Register;
 begin
   {$I board_icon.lrs}
   RegisterComponents('Chess', [TBoard]);
+end;
+
+{ TBoardGrid }
+
+procedure TBoardGrid.Changed;
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
+procedure TBoardGrid.SetColor(AValue: TColor);
+begin
+  if FColor = AValue then
+    Exit;
+  FColor := AValue;
+  Changed;
+end;
+
+procedure TBoardGrid.SetWidth(AValue: word);
+begin
+  if FWidth = AValue then
+    Exit;
+  FWidth := AValue;
+  Changed;
+end;
+
+procedure TBoardGrid.Assign(Source: TPersistent);
+begin
+  if Source is TBoardGrid then
+  begin
+    FColor := (Source as TBoardGrid).Color;
+    FWidth := (Source as TBoardGrid).Width;
+    Changed;
+  end;
+end;
+
+constructor TBoardGrid.Create;
+begin
+  FColor := clBlack;
+  FWidth := 0;
+end;
+
+destructor TBoardGrid.Destroy;
+begin
+  inherited Destroy;
 end;
 
 { TBorder }
@@ -249,12 +318,16 @@ begin
   Invalidate;
 end;
 
+procedure TBoard.FGridChange(Sender: TObject);
+begin
+  Invalidate;
+end;
+
 function TBoard.GetSizePerSquare: integer;
 begin
- (* Result := Min(InnerBoard.Bottom - InnerBoard.Top, InnerBoard.Right -
-    InnerBoard.Left) div 8;     *)
-  Result := Min((InnerBoard.Bottom - InnerBoard.Top) div FCountOfRanks,
-    (InnerBoard.Right - InnerBoard.Left) div FCountOfFiles);
+  Result := Min((InnerBoard.Bottom - InnerBoard.Top - (FCountOfRanks + 1) *
+    FGrid.Width) div FCountOfRanks, (InnerBoard.Right - InnerBoard.Left -
+    (FCountOfFiles + 1) * FGrid.Width) div FCountOfFiles);
 end;
 
 procedure TBoard.SetBorder(AValue: TBorder);
@@ -272,6 +345,14 @@ begin
   FCurrentPosition := AValue;
   FCountOfFiles := FCurrentPosition.CountOfFiles;
   FCountOfRanks := FCurrentPosition.CountOfRanks;
+  Invalidate;
+end;
+
+procedure TBoard.SetGrid(AValue: TBoardGrid);
+begin
+  if FGrid = AValue then
+    Exit;
+  FGrid.Assign(AValue);
   Invalidate;
 end;
 
@@ -355,8 +436,8 @@ begin
   if Button = mbLeft then
   begin
     ClickedDown := True;
-    ClickedFile := (X - InnerBoard.Left) div SizePerSquare;
-    ClickedRank := (Y - InnerBoard.Top) div SizePerSquare;
+    ClickedFile := (X - InnerBoard.Left) div (SizePerSquare + FGrid.Width);
+    ClickedRank := (Y - InnerBoard.Top) div (SizePerSquare + FGrid.Width);
   end;
 end;
 
@@ -378,8 +459,8 @@ begin
   inherited MouseUp(Button, Shift, X, Y);
   if ClickedDown then
   begin
-    f := (X - InnerBoard.Left) div SizePerSquare;
-    r := (Y - InnerBoard.Top) div SizePerSquare;
+    f := (X - InnerBoard.Left) div (SizePerSquare + FGrid.Width);
+    r := (Y - InnerBoard.Top) div (SizePerSquare + FGrid.Width);
     if (ClickedFile in [0..7]) and (ClickedRank in [0..7]) and
       (f in [0..7]) and (r in [0..7]) then
     begin
@@ -422,7 +503,6 @@ var
   TextStyle: TTextStyle;
   IsMoving: boolean;
   Temp, Filtered: TMoveList;
-  TempCanvas: TCanvas;
   Move: TMove;
   TempBitmap: TBitmap;
   Source: TRect;
@@ -440,11 +520,14 @@ begin
     Dec(InnerBoard.Bottom, Border.Size);
   // Let's make it a square
   InnerBoard := InnerBoard.TopLeft + Rect(0, 0, FCountOfFiles *
-    SizePerSquare, FCountOfRanks * SizePerSquare);
+    SizePerSquare + FGrid.Width * (FCountOfFiles + 1), FCountOfRanks *
+    SizePerSquare + FGrid.Width * (FCountOfRanks + 1));
   Canvas.Brush.Color := Border.Background;
   Canvas.FillRect(0, 0, Width, Height);
   d := SizePerSquare;
   // draw the 64 squares
+  Canvas.Brush.Color := FGrid.Color;
+  Canvas.FillRect(InnerBoard);
   for i := 0 to FCountOfFiles - 1 do
     for j := 0 to FCountOfRanks - 1 do
     begin
@@ -452,7 +535,8 @@ begin
         Canvas.Brush.Color := FWhiteSquareColor
       else
         Canvas.Brush.Color := FBlackSquareColor;
-      Canvas.FillRect(InnerBoard.TopLeft + Point(i * d, j * d) + Rect(0, 0, d, d));
+      Canvas.FillRect(InnerBoard.TopLeft + Point(
+        (i + 1) * FGrid.Width + i * d, (j + 1) * FGrid.Width + j * d) + Rect(0, 0, d, d));
     end;
   // Draw Border
   if Border.Size > 0 then
@@ -479,38 +563,41 @@ begin
     if bsTop in Border.Style then
     begin
       for i := 0 to FCountOfFiles - 1 do
-        Canvas.TextRect(Point(InnerBoard.Left + i * d, 0) +
+        Canvas.TextRect(Point(InnerBoard.Left + i * d + (i + 1) * FGrid.Width, 0) +
           Rect(0, 0, d, Border.Size), 0, 0, Chr(c1 + s * i), TextStyle);
     end;
     if bsBottom in Border.Style then
     begin
       for i := 0 to FCountOfFiles - 1 do
-        Canvas.TextRect(Point(InnerBoard.Left + i * d, InnerBoard.Bottom) +
-          Rect(0, 0, d, Border.Size), 0, 0, Chr(c1 + s * i), TextStyle);
+        Canvas.TextRect(Point(InnerBoard.Left + i * d + (i + 1) *
+          FGrid.Width, InnerBoard.Bottom) + Rect(0, 0, d, Border.Size),
+          0, 0, Chr(c1 + s * i), TextStyle);
     end;
     if bsLeft in Border.Style then
     begin
       for i := 0 to FCountOfRanks - 1 do
-        Canvas.TextRect(Point(0, InnerBoard.Top + i * d) +
+        Canvas.TextRect(Point(0, InnerBoard.Top + i * d + (i + 1) * FGrid.Width) +
           Rect(0, 0, Border.Size, d), 0, 0, Chr(c2 - s * i), TextStyle);
     end;
     if bsRight in Border.Style then
     begin
       for i := 0 to FCountOfRanks - 1 do
-        Canvas.TextRect(Point(InnerBoard.Right, InnerBoard.Top + i * d) +
-          Rect(0, 0, Border.Size, d), 0, 0, Chr(c2 - s * i), TextStyle);
+        Canvas.TextRect(Point(InnerBoard.Right, InnerBoard.Top + i *
+          d + (i + 1) * FGrid.Width) + Rect(0, 0, Border.Size, d),
+          0, 0, Chr(c2 - s * i), TextStyle);
     end;
   end;
   // in design-time we need to exit here
   if not Assigned(FCurrentPosition) then
     Exit;
   // draw custom highlighting
+  // This seems to be too slow in Windows, but in gtk2 it's fine
   if ClickedDown then
   begin
     if Assigned(FOnHighLightSquare) then
     begin
       if FHighlightStyle = hsAll then
-      begin                     // Reversed Board??
+      begin
         Temp := FCurrentPosition.GetAllLegalMoves;
         if not FReversed then
           Filtered := Temp.Filter(ClickedFile + ClickedRank * 8)
@@ -521,11 +608,17 @@ begin
         for Move in Filtered do
         begin
           if not FReversed then
-            Source := InnerBoard.TopLeft + Point(
-              (Move.Dest8x8.RFile - 1) * d, (8 - Move.Dest8x8.RRank) * d) + Rect(0, 0, d, d)
+          begin
+            f := Move.Dest8x8.RFile - 1;
+            r := 8 - Move.Dest8x8.RRank;
+          end
           else
-            Source := InnerBoard.TopLeft + Point(
-              (8 - Move.Dest8x8.RFile) * d, (Move.Dest8x8.RRank - 1) * d) + Rect(0, 0, d, d);
+          begin
+            f := (8 - Move.Dest8x8.RFile);
+            r := (Move.Dest8x8.RRank - 1);
+          end;
+          Source := InnerBoard.TopLeft + Point((f + 1) * FGrid.Width + f *
+            d, (r + 1) * FGrid.Width + r * d) + Rect(0, 0, d, d);
           TempBitmap.Canvas.CopyRect(Rect(0, 0, d, d), Self.Canvas, Source);
           FOnHighLightSquare(TempBitmap.Canvas, Rect(0, 0, d, d),
             Move.Dest mod 2 = (Move.Dest div 8) mod 2);
@@ -582,8 +675,9 @@ begin
           t := j;
         end
         else
-          Canvas.CopyRect(InnerBoard.TopLeft + Point(f * d, r * d) + Rect(0, 0, d, d),
-            PieceImages[k][j].Canvas, Rect(0, 0, d, d));
+          Canvas.CopyRect(InnerBoard.TopLeft + Point(
+            (f + 1) * FGrid.Width + f * d, (r + 1) * FGrid.Width + r * d) +
+            Rect(0, 0, d, d), PieceImages[k][j].Canvas, Rect(0, 0, d, d));
       end;
     end;
     if IsMoving then
@@ -605,6 +699,8 @@ begin
   // FCurrentPosition := TStandardPosition.Create;
   FCountOfFiles := 8;
   FCountOfRanks := 8;
+  FGrid := TBoardGrid.Create;
+  FGrid.OnChange := @FGridChange;
   FHighlightStyle := hsNone;
   FReversed := False;
   FWhiteSquareColor := clWhite;
@@ -623,6 +719,7 @@ begin
         PieceImages[i][j].Free;
   FCurrentPosition.Free;
   FBorder.Free;
+  FGrid.Free;
   inherited Destroy;
 end;
 
