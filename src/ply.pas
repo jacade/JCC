@@ -62,14 +62,14 @@ type
     property NonStandardGlyph: TNAG read FNonStandardGlyph write FNonStandardGlyph;
   end;
 
-  TPlyTree = specialize TTree<TPly>;
-  TPlyTreeNode = TPlyTree.TTreeNodeType;
+  TPlyTreeNode = specialize TTree<TPly>.TTreeNodeType;
   TPlyTreeNodeList = TPlyTreeNode.TTreeNodeList;
   TPlyTreeNodeStack = specialize TStack<TPlyTreeNode>;
 
-  { TPlyTreeHelper }
+  { TPlyTree }
 
-  TPlyTreeHelper = class helper for TPlyTree
+  TPlyTree = class(specialize TTree<TPly>)
+  public
     // Counts the nodes in the tree
     function Count: word;
     // Returns the parent node of a given node
@@ -77,6 +77,9 @@ type
     // Returns the path in the tree to the given node
     function GetPathTo(const APlyTreeNode: TPlyTreeNode): TPlyTreeNodeList;
   end;
+
+
+
 
 function NAGToStr(const ANAG: TNAG): string;
 
@@ -125,9 +128,9 @@ begin
   end;
 end;
 
-{ TPlyTreeHelper }
+{ TPlyTree }
 
-function TPlyTreeHelper.Count: word;
+function TPlyTree.Count: word;
 
   function RecursiveCount(CurrentNode: TPlyTreeNode): word;
   var
@@ -147,7 +150,7 @@ begin
   Result := RecursiveCount(Self.Root);
 end;
 
-function TPlyTreeHelper.GetParentOf(const APlyTreeNode: TPlyTreeNode): TPlyTreeNode;
+function TPlyTree.GetParentOf(const APlyTreeNode: TPlyTreeNode): TPlyTreeNode;
 
   function RecursiveSearch(CurrentRoot: TPlyTreeNode): TPlyTreeNode;
   var
@@ -176,7 +179,7 @@ begin
   Result := RecursiveSearch(Self.Root);
 end;
 
-function TPlyTreeHelper.GetPathTo(const APlyTreeNode: TPlyTreeNode): TPlyTreeNodeList;
+function TPlyTree.GetPathTo(const APlyTreeNode: TPlyTreeNode): TPlyTreeNodeList;
 
   function RecursiveSearch(CurrentRoot: TPlyTreeNode;
     CurrentPath: TPlyTreeNodeList): boolean;

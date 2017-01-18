@@ -92,11 +92,8 @@ type
 
   { TMoveList }
 
-  TMoveList = specialize TFPGObjectList<TMove>;
-
-  { TMoveListHelper }
-
-  TMoveListHelper = class helper for TMoveList
+  TMoveList = class(specialize TFPGObjectList<TMove>)
+  public
     // Note: Elements are fully copied
     procedure AddList(AnotherMoveList: TMoveList);
     function Filter(Start: Byte; Dest: Byte = 255; PromoPiece: TPieceType = ptEmpty): TMoveList;
@@ -342,32 +339,32 @@ begin
   Result := Result or ((Obj is TMove) and ((Obj as TMove).FData = Self.FData));
 end;
 
-{ TMoveListHelper }
+{ TMoveList }
 
-procedure TMoveListHelper.AddList(AnotherMoveList: TMoveList);
+procedure TMoveList.AddList(AnotherMoveList: TMoveList);
 var
-  Move: TMove;
+  AMove: TMove;
 begin
-  for Move in AnotherMoveList do
-    Add(Move);
+  for AMove in AnotherMoveList do
+    Add(AMove);
 end;
 
-function TMoveListHelper.Filter(Start: Byte; Dest: Byte; PromoPiece: TPieceType
+function TMoveList.Filter(Start: Byte; Dest: Byte; PromoPiece: TPieceType
   ): TMoveList;
 var
   NoFilterDest, NoFilterPromoPiece: Boolean;
-  Move: TMove;
+  AMove: TMove;
 begin
   NoFilterDest := Dest = 255;
   NoFilterPromoPiece:= PromoPiece = ptEmpty;
   Result := TMoveList.Create(False);
-  for Move in Self do
-    if (Start = Move.Start) and (NoFilterDest or (Dest = Move.Dest)) and
-      (NoFilterPromoPiece or (PromoPiece = Move.PromotionPiece)) then
-        Result.Add(Move);
+  for AMove in Self do
+    if (Start = AMove.Start) and (NoFilterDest or (Dest = AMove.Dest)) and
+      (NoFilterPromoPiece or (PromoPiece = AMove.PromotionPiece)) then
+        Result.Add(AMove);
 end;
 
-function TMoveListHelper.ToStringList: TStringList;
+function TMoveList.ToStringList: TStringList;
 var
   i: integer;
 begin
