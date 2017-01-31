@@ -341,6 +341,7 @@ begin
     Delete(Result, Length(Result), 1);
   Temp.Free;
 
+  Result := #10 + Result;
   // Write tags last
   for j := FAdditionalTags.Count - 1 downto 0 do
   begin
