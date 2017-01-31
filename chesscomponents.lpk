@@ -11,7 +11,7 @@
         <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="20">
+    <Files Count="21">
       <Item1>
         <Filename Value="board.pas"/>
         <HasRegisterProc Value="True"/>
@@ -101,8 +101,12 @@
       </Item19>
       <Item20>
         <Filename Value="src/geom2dtools.pas"/>
-        <UnitName Value="geom2dtools"/>
+        <UnitName Value="Geom2DTools"/>
       </Item20>
+      <Item21>
+        <Filename Value="src/database.pas"/>
+        <UnitName Value="database"/>
+      </Item21>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>
