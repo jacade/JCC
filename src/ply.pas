@@ -62,13 +62,14 @@ type
     property NonStandardGlyph: TNAG read FNonStandardGlyph write FNonStandardGlyph;
   end;
 
-  TPlyTreeNode = specialize TTree<TPly>.TTreeNodeType;
+  TCustomPlyTree = specialize TTree<TPly>;
+  TPlyTreeNode = TCustomPlyTree.TTreeNodeType;
   TPlyTreeNodeList = TPlyTreeNode.TTreeNodeList;
   TPlyTreeNodeStack = specialize TStack<TPlyTreeNode>;
 
   { TPlyTree }
 
-  TPlyTree = class(specialize TTree<TPly>)
+  TPlyTree = class(TCustomPlyTree)
   public
     // Counts the nodes in the tree
     function Count: word;
@@ -77,9 +78,6 @@ type
     // Returns the path in the tree to the given node
     function GetPathTo(const APlyTreeNode: TPlyTreeNode): TPlyTreeNodeList;
   end;
-
-
-
 
 function NAGToStr(const ANAG: TNAG): string;
 
