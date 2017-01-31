@@ -39,7 +39,7 @@ type
     FMoveNumber: string;
     FText: string;
     FNAG: TNAG;
-    FResult: string;
+    FResult: TGameResult;
     FTokenKind: TTokenKind;
   public
     function GetKind: TTokenKind; virtual; abstract;
@@ -49,7 +49,7 @@ type
     property MoveNumber: string read FMoveNumber write FMoveNumber;
     property Text: string read FText write FText;
     property NAG: TNAG read FNAG write FNAG;
-    property Result: string read FResult write FResult;
+    property Result: TGameResult read FResult write FResult;
   end;
 
   TGameNotation = specialize TFPGObjectList<TNotationToken>;
@@ -104,7 +104,7 @@ type
 
   TResultToken = class(TNotationToken)
   public
-    constructor Create(const AResult: string);
+    constructor Create(const AResult: TGameResult);
     function GetKind: TTokenKind; override;
   end;
 
@@ -190,10 +190,10 @@ end;
 
 { TResultToken }
 
-constructor TResultToken.Create(const AResult: string);
+constructor TResultToken.Create(const AResult: TGameResult);
 begin
   FResult := AResult;
-  FText := AResult;
+  FText := GameResultToStr(AResult);
 end;
 
 function TResultToken.GetKind: TTokenKind;

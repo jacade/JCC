@@ -441,7 +441,7 @@ begin
     Varlevel := 0;
     RecursiveCreateNotation(FPlyTree.Root, FInitialPosition as TStandardPosition);
   end;
-  Notation.Add(TResultToken.Create(GameResultToStr(GameResult)));
+  Notation.Add(TResultToken.Create(GameResult));
   Result := Notation;
 end;
 
