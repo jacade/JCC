@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, LResources, Forms, Controls, Graphics, Dialogs,
-  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken, MoveList;
+  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken, MoveList, Position;
 
 type
 
@@ -69,6 +69,7 @@ type
     CurrentToken: TNotationToken;
     CurrentPosition: integer;
     FLineStyles: TLineStyleList;
+    FMoveToStrOptions: TMoveToStrOptions;
     FOnClickMove: TClickMoveToken;
     FOnMouseOverToken: TMouseOverTokenEvent;
     TokenLookup: array of TTokenPosition;
@@ -88,6 +89,8 @@ type
     procedure SetTextFromGame(const AGame: TGame);
   public
     property LineStyles: TLineStyleList read FLineStyles;
+    // TODO: Use published properties instead ??
+    property MoveToStrOptions: TMoveToStrOptions read FMoveToStrOptions write FMoveToStrOptions;
   published
     property Align;
     property Alignment;
@@ -335,7 +338,7 @@ var
 begin
   AtStartOfLine := False;
   CurrentGameNotation.Free;
-  CurrentGameNotation := AGame.GetGameNotation;
+  CurrentGameNotation := AGame.GetGameNotation(FMoveToStrOptions);
   Start := 0;
   CommentaryIndent := 0;
   LineIndent := 0;

@@ -45,6 +45,23 @@ type
   // Example: psNone: e8Q, psEqualSign: e8=Q, psBrackets: e8(Q), psSlash: e8/Q
   TPromotionSymbol = (psNone, psEqualSign, psBrackets, psSlash);
 
+  { TMoveToStrOptions }
+
+  TMoveToStrOptions = class
+  private
+    FCaptureSymbol: TCaptureSymbol;
+    FPieceLetters: TChessPieceLetters;
+    FPromotionSymbol: TPromotionSymbol;
+    FShowEnPassantSuffix: Boolean;
+    FShowPawnLetter: boolean;
+  public
+    property CaptureSymbol: TCaptureSymbol read FCaptureSymbol write FCaptureSymbol;
+    property PieceLetters: TChessPieceLetters read FPieceLetters write FPieceLetters;
+    property PromotionSymbol: TPromotionSymbol read FPromotionSymbol write FPromotionSymbol;
+    property ShowEnPassantSuffix: Boolean read FShowEnPassantSuffix write FShowEnPassantSuffix;
+    property ShowPawnLetter: boolean read FShowPawnLetter write FShowPawnLetter;
+  end;
+
   EInvalidFEN = class(Exception);
 
   { TPosition }
@@ -66,6 +83,7 @@ type
     // Copies important values from Source to Self
     procedure Copy(Source: TPosition); virtual;
     function GetAllLegalMoves: TMoveList; virtual; abstract;
+    function MoveToStr(AMove: TMove; MoveToStrOptions: TMoveToStrOptions): string; virtual; abstract;
     procedure PlayMove(AMove: TMove); virtual; abstract;
     procedure SetupInitialPosition; virtual; abstract;
     function ValidateMove(AMove: TMove): boolean; virtual; abstract;
@@ -146,13 +164,7 @@ type
     function IsStaleMate: boolean;
     function IsValid: boolean;
     // This uses the english piece letters
-    function MoveToSAN(AMove: TMove; ShowPawnLetter: boolean = False;
-      ShowEnPassantSuffix: boolean = False; CaptureSymbol: TCaptureSymbol = csx;
-      PromotionSymbol: TPromotionSymbol = psNone): string;
-    function MoveToSAN(AMove: TMove; PieceLetters: TChessPieceLetters;
-      ShowPawnLetter: boolean = False; ShowEnPassantSuffix: boolean = False;
-      CaptureSymbol: TCaptureSymbol = csx;
-      PromotionSymbol: TPromotionSymbol = psNone): string;
+    function MoveToStr(AMove: TMove; MoveToStrOptions: TMoveToStrOptions): string; override;
     procedure PlayMove(AMove: TMove); override;
     procedure SetupInitialPosition; override;
     // If true, the converted move can be found in ResultMove
@@ -1108,45 +1120,36 @@ begin
   Result := Result and not IsIllegalCheck;
 end;
 
-function TStandardPosition.MoveToSAN(AMove: TMove; ShowPawnLetter: boolean;
-  ShowEnPassantSuffix: boolean; CaptureSymbol: TCaptureSymbol;
-  PromotionSymbol: TPromotionSymbol): string;
-begin
-  Result := MoveToSAN(AMove, PieceLetters_EN, ShowPawnLetter,
-    ShowEnPassantSuffix, CaptureSymbol, PromotionSymbol);
-end;
-
-function TStandardPosition.MoveToSAN(AMove: TMove; PieceLetters: TChessPieceLetters;
-  ShowPawnLetter: boolean; ShowEnPassantSuffix: boolean;
-  CaptureSymbol: TCaptureSymbol; PromotionSymbol: TPromotionSymbol): string;
+function TStandardPosition.MoveToStr(AMove: TMove;
+  MoveToStrOptions: TMoveToStrOptions): string;
 
   function PieceToStr(Piece: TPieceType): string;
   begin
     case Piece of
       ptWPawn:
       begin
-        if ShowPawnLetter then
-          Result := PieceLetters[1]
+        if MoveToStrOptions.ShowPawnLetter then
+          Result := MoveToStrOptions.PieceLetters[1]
         else
           Result := '';
       end;
-      ptWKnight: Result := PieceLetters[2];
-      ptWBishop: Result := PieceLetters[3];
-      ptWRook: Result := PieceLetters[4];
-      ptWQueen: Result := PieceLetters[5];
-      ptWKing: Result := PieceLetters[6];
+      ptWKnight: Result := MoveToStrOptions.PieceLetters[2];
+      ptWBishop: Result := MoveToStrOptions.PieceLetters[3];
+      ptWRook: Result := MoveToStrOptions.PieceLetters[4];
+      ptWQueen: Result := MoveToStrOptions.PieceLetters[5];
+      ptWKing: Result := MoveToStrOptions.PieceLetters[6];
       ptBPawn:
       begin
-        if ShowPawnLetter then
-          Result := PieceLetters[7]
+        if MoveToStrOptions.ShowPawnLetter then
+          Result := MoveToStrOptions.PieceLetters[7]
         else
           Result := '';
       end;
-      ptBKnight: Result := PieceLetters[8];
-      ptBBishop: Result := PieceLetters[9];
-      ptBRook: Result := PieceLetters[10];
-      ptBQueen: Result := PieceLetters[11];
-      ptBKing: Result := PieceLetters[12];
+      ptBKnight: Result := MoveToStrOptions.PieceLetters[8];
+      ptBBishop: Result := MoveToStrOptions.PieceLetters[9];
+      ptBRook: Result := MoveToStrOptions.PieceLetters[10];
+      ptBQueen: Result := MoveToStrOptions.PieceLetters[11];
+      ptBKing: Result := MoveToStrOptions.PieceLetters[12];
     end;
 
   end;
@@ -1242,7 +1245,7 @@ begin
     begin
       if (Piece in [ptWPawn, ptBPawn]) and (Length(Result) = 0) then
         Result := Result + TAlgebraicSquare(AMove.Start8x8).RFile;
-      case CaptureSymbol of
+      case MoveToStrOptions.CaptureSymbol of
         csNone: ;// Do nothing
         csColon: Result := Result + ':';
         csColonSuffix: AppendColon := True;
@@ -1254,7 +1257,7 @@ begin
     if AppendColon then
       Result := Result + ':';
     // Optionally add 'e.p.' if it is an en passant move
-    if ShowEnPassantSuffix and (Piece in [ptWPawn, ptBPawn]) and
+    if MoveToStrOptions.ShowEnPassantSuffix and (Piece in [ptWPawn, ptBPawn]) and
       (SquareToBitBoard(AMove.Dest8x8) = FEnPassant) then
     begin
       Result := Result + 'e.p.';
@@ -1262,7 +1265,7 @@ begin
     // Check for promotion
     if AMove.PromotionPiece <> ptEmpty then
     begin
-      case PromotionSymbol of
+      case MoveToStrOptions.PromotionSymbol of
         psNone: Result := Result + PieceToStr(AMove.PromotionPiece);
         psEqualSign: Result := Result + '=' + PieceToStr(AMove.PromotionPiece);
         psBrackets: Result := Result + '(' + PieceToStr(AMove.PromotionPiece) + ')';
@@ -1286,14 +1289,14 @@ end;
 procedure TStandardPosition.PlayMove(AMove: TMove);
 begin
   SilentPlayMove(AMove);
-  Changed;
-  if IsMate then
+(*  Changed;
+   if IsMate then
     if WhitesTurn then
       BlackWins
     else
       WhiteWins;
-  if IsStaleMate then
-    Draw;
+ if IsStaleMate then
+    Draw;    *)
 end;
 
 procedure TStandardPosition.SetupInitialPosition;
@@ -1338,7 +1341,7 @@ begin
       end;
   end;
   // Get all possible moves to Dest
-    FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
+  FoundMoves := GenerateLegalMovesToSquare(MovingPiece, Dest);
   // We need to test the found moves with more information
   if FoundMoves.Count > 1 then
     FilterMoveList(FoundMoves, ptEmpty, StartingFile, StartingRank);

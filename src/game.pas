@@ -64,7 +64,7 @@ type
     constructor Create(const AInitialPosition: TPosition); virtual; abstract;
     procedure Clear;
     destructor Destroy; override;
-    function GetGameNotation: TGameNotation; virtual; abstract;
+    function GetGameNotation(MoveToStrOptions: TMoveToStrOptions): TGameNotation; virtual; abstract;
     // This returns the last tree node of in the main line of CurrentPlyNode
     function GetLastPlyNodeInCurrentVariation: TPlyTreeNode;
     // Setups position before last move on board
@@ -97,7 +97,7 @@ type
   public
     constructor Create; override;
     constructor Create(const AInitialPosition: TPosition); override;
-    function GetGameNotation: TGameNotation; override;
+    function GetGameNotation(MoveToStrOptions: TMoveToStrOptions): TGameNotation; override;
   public
     property GameResult: TGameResult read FGameResult write SetGameResult;
   end;
@@ -353,16 +353,17 @@ begin
   FGameResult := AValue;
 end;
 
-function TStandardGame.GetGameNotation: TGameNotation;
+function TStandardGame.GetGameNotation(MoveToStrOptions: TMoveToStrOptions
+  ): TGameNotation;
 var
   VarLevel: word;
   Notation: TGameNotation;
   NeedsMoveNumber: boolean;
 
   procedure RecursiveCreateNotation(CurrentRoot: TPlyTreeNode;
-    StartPos: TStandardPosition);
+    StartPos: TPosition);
   var
-    TempPos: TStandardPosition;
+    TempPos: TPosition;
 
     procedure AddPlyToNotation(const APly: TPly);
     begin
@@ -381,7 +382,7 @@ var
       end;
       if APly.NonStandardGlyph > 0 then
         Notation.Add(TNAGToken.Create(APly.NonStandardGlyph, NAGToStr(APly.NonStandardGlyph)));
-      Notation.Add(TMoveToken.Create(APly.Move, TempPos.MoveToSAN(APly.Move)));
+      Notation.Add(TMoveToken.Create(APly.Move, TempPos.MoveToStr(APly.Move, MoveToStrOptions)));
       if APly.MoveAssessment > 0 then
         Notation.Add(TNAGToken.Create(APly.MoveAssessment, NAGToStr(APly.MoveAssessment)));
       if APly.PositionalAssessment > 0 then
