@@ -77,13 +77,10 @@ end;
 
 function TPGNGame.PGNToMove(const APGNMove: string): TMove;
 var
-  Move: TMove;
   Piece, PromoPiece: TPieceType;
   AFile, ARank: byte;
   Dest: TSquare8x8;
   s: string;
-  Temp: TMoveList;
-  NotValid: boolean;
 begin
   // NOTE: This is very strict and only works with pgn export format
   // However this should be sufficient in most of the cases
@@ -173,24 +170,6 @@ begin
       raise Exception.Create(APGNMove + ' is no valid move.');
     end;
     Result.PromotionPiece := PromoPiece;
-    // Get all moves which match the extracted information
-    //Temp := (FCurrentPosition as TStandardPosition).FilterLegalMoves(Piece,
-    //  Start, Dest, PromoPiece);
-    //case Temp.Count of
-    //  0: begin
-    //    (FCurrentPosition as TStandardPosition).PrintBoards;
-    //        raise Exception.Create(APGNMove + ' is no valid move.');
-    //  end;
-    //  1: Result := temp.Items[0];
-    //  else // we need to extract more information from s
-    //    for Move in Temp do
-    //    begin
-    //      if ((AFile > 0) and (Move.Start8x8.RFile = AFile)) or
-    //        ((ARank > 0) and (Move.Start8x8.RRank = ARank)) then
-    //        Result := Move;
-    //    end;
-    //end;
-    //Temp.Free;
   end;
   //if Result = nil then
   //  raise Exception.Create(APGNMove + ' is no valid move.');
@@ -282,15 +261,24 @@ function TPGNGame.GetPGNNotation: string;
 var
   Token: TNotationToken;
   Temp: TGameNotation;
-  z, sp, VarLevel: integer;
+  z, sp, VarLevel, j: integer;
   s: string;
   SpaceNeeded: boolean;
+  Tag: TPGNTag;
+  MTSO: TMoveToStrOptions;
 begin
-  Varlevel := 0;
+  Varlevel := -1;
   Result := '';
   s := '';
   z := 0;
-  Temp := GetGameNotation;
+  MTSO := TMoveToStrOptions.Create;
+  MTSO.PieceLetters := PieceLetters_EN;
+  MTSO.CaptureSymbol := csx;
+  MTSO.PromotionSymbol := psEqualSign;
+  MTSO.ShowEnPassantSuffix := False;
+  MTSo.ShowPawnLetter := False;
+  Temp := GetGameNotation(MTSO);
+  MTSO.Free;
   for Token in Temp do
   begin
     SpaceNeeded := True;
@@ -299,10 +287,10 @@ begin
       tkMoveNumber: s := s + Token.Text;
       tkBeginLine:
       begin
+        Inc(VarLevel);
         if VarLevel > 0 then
           s := s + '(';
         SpaceNeeded := False;
-        Inc(VarLevel);
       end;
       tkEndLine:
       begin
@@ -312,7 +300,10 @@ begin
       end;
       tkComment: s := s + '{' + Token.Text + '}';
       tkNAG: s := s + '$' + IntToStr(Token.NAG);
-      tkResult: s := s + Token.Text;
+      tkResult: case Token.Result of
+          grNone, grWhiteWins, grBlackWins: s := s + Token.Text;
+          grDraw: s := s + '1/2-1/2';
+        end;
     end;
     if SpaceNeeded then
     begin
@@ -349,6 +340,20 @@ begin
   if Result[Length(Result)] = ' ' then
     Delete(Result, Length(Result), 1);
   Temp.Free;
+
+  // Write tags last
+  for j := FAdditionalTags.Count - 1 downto 0 do
+  begin
+    Tag := FAdditionalTags[j]^;
+    Result := '[' + Tag.Name + ' "' + Tag.Value + '"]'#10 + Result;
+  end;
+  Result := '[Result "' + FResult + '"]'#10 + Result;
+  Result := '[Black "' + FBlack + '"]'#10 + Result;
+  Result := '[White "' + FWhite + '"]'#10 + Result;
+  Result := '[Round "' + FRound + '"]'#10 + Result;
+  Result := '[Date "' + FDate + '"]'#10 + Result;
+  Result := '[Site "' + FSite + '"]'#10 + Result;
+  Result := '[Event "' + FEvent + '"]'#10 + Result;
 end;
 
 end.

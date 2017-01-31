@@ -1,5 +1,5 @@
 object Form1: TForm1
-  Left = 314
+  Left = 312
   Height = 699
   Top = 0
   Width = 742
@@ -115,7 +115,7 @@ object Form1: TForm1
     Height = 25
     Top = 472
     Width = 136
-    Caption = 'Load PGN'
+    Caption = 'Load PGN..'
     OnClick = Button3Click
     TabOrder = 8
   end
@@ -220,9 +220,22 @@ object Form1: TForm1
       'White'
     )
   end
+  object Button4: TButton
+    Left = 624
+    Height = 25
+    Top = 472
+    Width = 112
+    Caption = 'Save PGN..'
+    OnClick = Button4Click
+    TabOrder = 11
+  end
   object OpenDialog1: TOpenDialog
     Filter = 'Portable Game Notation (*.pgn)|*.pgn'
-    left = 640
-    top = 472
+    left = 368
+    top = 480
+  end
+  object SaveDialog1: TSaveDialog
+    left = 440
+    top = 480
   end
 end

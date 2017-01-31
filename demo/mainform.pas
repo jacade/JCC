@@ -42,11 +42,13 @@ type
     btInitial: TButton;
     btLast: TButton;
     Button3: TButton;
+    Button4: TButton;
     ComboBox1: TComboBox;
     Label1: TLabel;
     Label2: TLabel;
     NotationMemo1: TNotationMemo;
     OpenDialog1: TOpenDialog;
+    SaveDialog1: TSaveDialog;
     StringGrid1: TStringGrid;
     procedure Board1HighLightSquare(const SquareCanvas: TCanvas;
       const VisibleRect: TRect; IsWhite: boolean);
@@ -61,6 +63,7 @@ type
     procedure btBackwardClick(Sender: TObject);
     procedure btForwardClick(Sender: TObject);
     procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure NotationMemo1Enter(Sender: TObject);
@@ -90,40 +93,9 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
-  j: integer;
-  k: byte;
-  Q: QWord;
   FEN: string;
-  MainLineStyle, SubLineStyle: TLineStyle;
+  MTSO: TMoveToStrOptions;
 begin
-  {$IFDEF Logging}
-  ET := TEpikTimer.Create(nil);
-  ET.Start;
-  k := 0;
-  //for i in ValidSquares do
-  //begin
-  //  Q := SquareToBitBoard(i);
-  //  // Q := Ranks[i];
-  //  // WriteLN;
-  //  WriteLn(BitBoardToStr(Q), '  ', SquareToString(i), '  ', IsBitSet(Q, k),
-  //    ' ', NumberOfLeadingZeroes(Q), ' ', NumberOfTrailingZeroes(Q));
-  //  Inc(k);
-  //end;
-  //WriteLn('***************** DIAGONALEN *****************');
-  //for i := 1 to 15 do
-  //  WriteLn(BitBoardToStr(ReverseBitBoard( Diagonals[i])));
-  //WriteLn('***************** ANTI-DIAGONALEN *****************');
-  //for i := 1 to 15 do
-  //  WriteLn(BitBoardToStr(AntiDiagonals[i]));
-  //WriteLn('***************** Springerzüge ********************');
-  //for i := 0 to 63 do
-  //  WriteLn(BitBoardToStr(KnightMoves[i]));
-  // WriteLn('***************** Königzüge ***********************');
-  //for i := 0 to 63 do
-  //   WriteLn(BitBoardToStr(KingMoves[i]));
-  WriteLn(BitBoardToStr(BlackSquares), 'SCHWARZ');
-  WriteLn(BitBoardToStr(WhiteSquares), 'WEIß');
-  {$ENDIF}
   PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
   btForward.Enabled := False;
@@ -172,6 +144,13 @@ begin
     NeedsNewLine := True;
     LineIndent := 25;
   end;
+  MTSO := TMoveToStrOptions.Create;
+  MTSO.PieceLetters := PieceLetters_DE;
+  MTSO.ShowPawnLetter := False;
+  MTSO.ShowEnPassantSuffix := False;
+  MTSO.PromotionSymbol := psNone;
+  MTSO.CaptureSymbol := csx;
+  NotationMemo1.MoveToStrOptions:=MTSO;
   SelStart := 0;
   SelLength := 0;
 end;
@@ -183,6 +162,7 @@ begin
   {$ENDIF}
   FreeAndNil(MyGame);
   PGNDatabase.Free;
+  NotationMemo1.MoveToStrOptions.Free;
 end;
 
 procedure TForm1.NotationMemo1Enter(Sender: TObject);
@@ -235,7 +215,7 @@ procedure TForm1.StringGrid1SelectCell(Sender: TObject; aCol, aRow: integer;
 begin
   if aRow > 0 then
   begin
-    MyPGNGame := PGNDatabase.Items[StrToInt(StringGrid1.Cells[7, aRow]) - 1];
+    MyPGNGame := PGNDatabase.Items[StrToInt(StringGrid1.Cells[7, aRow]) - 1] as TPGNGame;
     WriteLn(MyPGNGame.GetPGNNotation); // DEBUG
     NotationMemo1.SetTextFromGame(MyPGNGame);
     MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
@@ -299,7 +279,7 @@ begin
     sum := 0;
     for i := 0 to PGNDatabase.Count - 1 do
     begin
-      Temp := PGNDatabase.Items[i];
+      Temp := PGNDatabase.Items[i] as TPGNGame;
       StringGrid1.InsertRowWithValues(StringGrid1.RowCount,
         [Temp.White, Temp.Black, Temp.Date, Temp.Event, Temp.Site,
         Temp.Round, GameResultToStr(Temp.GameResult), IntToStr(i + 1)]);
@@ -314,6 +294,14 @@ begin
   WriteLn(Trunc(Zuege / Zeit), ' Züge pro Sekunde');
   WriteLn(((ET.Elapsed - a)));
   {$ENDIF}
+end;
+
+procedure TForm1.Button4Click(Sender: TObject);
+begin
+  if (PGNDatabase.Count > 0) and SaveDialog1.Execute then
+  begin
+    PGNDatabase.SaveToFile(SaveDialog1.FileName);
+  end;
 end;
 
 procedure TForm1.Board1MovePlayed(AMove: TMove);
@@ -396,9 +384,9 @@ begin
   SquareCanvas.Pen.Color := clBlue;
   SquareCanvas.Pen.Width := 6;
   SquareCanvas.MoveTo(0, 0);
-  SquareCanvas.LineTo(SquareCanvas.Width-1, 0);
-  SquareCanvas.LineTo(SquareCanvas.Width-1, SquareCanvas.Height-1);
-  SquareCanvas.LineTo(0, SquareCanvas.Height-1);
+  SquareCanvas.LineTo(SquareCanvas.Width - 1, 0);
+  SquareCanvas.LineTo(SquareCanvas.Width - 1, SquareCanvas.Height - 1);
+  SquareCanvas.LineTo(0, SquareCanvas.Height - 1);
   SquareCanvas.LineTo(0, 0);
   //SquareCanvas.FillRect(VisibleRect);
 end;

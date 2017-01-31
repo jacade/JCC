@@ -21,23 +21,22 @@ unit PGNdbase;
 
 interface
 
-// {$DEFINE LOGGING}
 uses
-  Classes, SysUtils, FileUtil, fgl, Game, PGNGame, Position, Ply, NotationToken;
+  Classes, SysUtils, FileUtil, fgl, strutils, Game, PGNGame, Position, Ply,
+  NotationToken, Database;
 
 const
   TabCharacters = [#9, #11];
   ContinuationCharacters = ['A'..'Z', 'a'..'z', '0'..'9', '-', '=', '+', '#', ':'];
 
 type
-  TPGNDatabase = specialize TFPGObjectList<TPGNGame>;
 
-  { TPGNDatabaseHelper }
+  { TPGNDatabase }
 
-  TPGNDatabaseHelper = class helper for TPGNDatabase
+  TPGNDatabase = class(TDatabase)
   public
-    procedure LoadFromFile(const APGNFile: string);
-    procedure SaveToFile(const APGNFile: string);
+    procedure LoadFromStream(const AStream: TStream); override;
+    procedure SaveToStream(const AStream: TStream); override;
   end;
 
 function StrToRating(const s: string): integer;
@@ -52,38 +51,42 @@ begin
     Result := StrToInt(s);
 end;
 
-{ TPGNDatabaseHelper }
+{ TPGNDatabase }
 
-function ComparePGNGames(const Item1, Item2: TPGNGame): Integer;
+function ComparePGNGames(const Item1, Item2: TGame): integer;
 var
   s1, s2: string;
+  pgn1, pgn2: TPGNGame;
 begin
-  Result := CompareStr(StringReplace(Item1.Date, '?', '0', [rfReplaceAll]), StringReplace(Item2.Date, '?', '0', [rfReplaceAll]));
+  pgn1 := Item1 as TPGNGame;
+  pgn2 := Item2 as TPGNGame;
+  Result := CompareStr(StringReplace(pgn1.Date, '?', '0', [rfReplaceAll]),
+    StringReplace(pgn2.Date, '?', '0', [rfReplaceAll]));
   if Result = 0 then
   begin
-    Result := CompareStr(Item1.Event, Item2.Event);
+    Result := CompareStr(pgn1.Event, pgn2.Event);
     if Result = 0 then
     begin
-      Result := CompareStr(Item1.Site, Item2.Site);
+      Result := CompareStr(pgn1.Site, pgn2.Site);
       if Result = 0 then
       begin
-        s1 := StringReplace(Item1.Round, '-', '0', [rfReplaceAll]);
+        s1 := StringReplace(pgn1.Round, '-', '0', [rfReplaceAll]);
         s1 := StringReplace(s1, '?', '/', [rfReplaceAll]);
-        s2 := StringReplace(Item2.Round, '-', '0', [rfReplaceAll]);
+        s2 := StringReplace(pgn2.Round, '-', '0', [rfReplaceAll]);
         s2 := StringReplace(s2, '?', '/', [rfReplaceAll]);
         Result := CompareStr(s1, s2);
         if Result = 0 then
         begin
-          Result := CompareStr(Item1.White, Item2.White);
+          Result := CompareStr(pgn1.White, pgn2.White);
           if Result = 0 then
           begin
-            Result := CompareStr(Item1.Black, Item2.Black);
+            Result := CompareStr(pgn1.Black, pgn2.Black);
             if Result = 0 then
             begin
-              Result := CompareStr(Item1.Result, Item2.Result);
+              Result := CompareStr(pgn1.Result, pgn2.Result);
               if Result = 0 then
               begin
-                Result := CompareStr(Item1.GetPGNNotation, Item2.GetPGNNotation);
+                Result := CompareStr(pgn1.GetPGNNotation, pgn2.GetPGNNotation);
               end;
             end;
           end;
@@ -93,27 +96,12 @@ begin
   end;
 end;
 
-procedure TPGNDatabaseHelper.LoadFromFile(const APGNFile: string);
+procedure TPGNDatabase.LoadFromStream(const AStream: TStream);
 var
-  F: Text;
   s: string;
-  AlreadyRead, Index: word;
+  Index: longint;
   c: char;
   VariationLevel: word;
-
-  function getChar(i: word): char;
-  begin
-    if i > AlreadyRead + Length(s) then
-    begin
-      Inc(AlreadyRead, Length(s));
-      ReadLn(F, s);
-      {$IFDEF Logging}
-      WriteLn('Gelesen: ', s);
-      {$ENDIF}
-      s := s + #10;
-    end;
-    Result := s[i - AlreadyRead];
-  end;
 
   function ReadStringToken: string;
   begin
@@ -121,7 +109,7 @@ var
     Inc(Index);
     //if Index > Len then
     //  raise EPGNImportException.Create('Unexpected end of string');
-    c := getChar(Index);
+    c := s[Index];
     while not (c = '"') do
     begin
       if c = #10 then
@@ -133,7 +121,7 @@ var
       if c = '\' then
       begin
         Inc(Index);
-        c := getChar(Index);
+        c := s[Index];
         if not ((c = '\') or (c = '"')) then
           raise EPGNImportException.Create('Found "' + c +
             '", but expected "\" or """ after "\"');
@@ -142,7 +130,7 @@ var
       Inc(Index);
       //if Index > Len then
       //  raise EPGNImportException.Create('Unexpected end of string');
-      c := getChar(Index);
+      c := s[Index];
     end;
   end;
 
@@ -157,7 +145,7 @@ var
         Inc(Index);
         //if Index > Len then
         //  raise EPGNImportException.Create('Unexpected end of string');
-        c := getChar(Index);
+        c := s[Index];
       end;
     end;
 
@@ -170,7 +158,7 @@ var
       Inc(Index);
       //if Index > Len then
       //  raise EPGNImportException.Create('Unexpected end of string');
-      c := getChar(Index);
+      c := s[Index];
       if c in ['A'..'Z', 'a'..'z', '0'..'9', '_'] then
       begin
         Result.Name := ExtractTagName;
@@ -192,42 +180,25 @@ var
       Inc(Index);
       //if Index > Len then
       //  raise EPGNImportException.Create('Unexpected end of string');
-      c := getChar(Index);
+      c := s[Index];
     until Found;
   end;
 
   function ExtractComment: string;
   begin
-    Result := '';
     Inc(Index);
     //if Index > Len then
     //  raise EPGNImportException.Create('Unexpected end of string');
     // There are two different comment types
     if c = ';' then
     begin
-      c := getChar(Index);
-      while not (c = #10) do
-      begin
-        Result := Result + c;
-        Inc(Index);
-        c := getChar(Index);
-      end;
+      Result := ExtractSubstr(s, Index, [#10]);
     end
     else
     begin
-      c := getChar(Index);
-      while not (c = '}') do
-      begin
-        // TODO Check for an existing space
-        if c = #10 then
-          Result := Result + ' '
-        else
-          Result := Result + c;
-        Inc(Index);
-        //if Index > Len then
-        //  raise EPGNImportException.Create('Unexpected end of string');
-        c := getChar(Index);
-      end;
+      Result := ExtractSubstr(s, Index, ['}']);
+      Result := ReplaceStr(Result, #10, ' ');
+      Result := ReplaceStr(Result, #13, '');
     end;
   end;
 
@@ -235,12 +206,12 @@ var
   begin
     Result := '';
     Inc(Index);
-    c := getChar(Index);
+    c := s[Index];
     while (c in ['0'..'9']) do
     begin
       Result := Result + c;
       Inc(Index);
-      c := getChar(Index);
+      c := s[Index];
     end;
   end;
 
@@ -251,7 +222,7 @@ var
     begin
       Result := Result + c;
       Inc(Index);
-      c := getChar(Index);
+      c := s[Index];
     end;
   end;
 
@@ -263,13 +234,13 @@ var
     begin
       Result := Result + c;
       Inc(Index);
-      c := getChar(Index);
+      c := s[Index];
     end;
     // Now we have to skip to the first non-period character and we have to skip spaces
     while ((c = '.') or (c = ' ')) do
     begin
       Inc(Index);
-      c := getChar(Index);
+      c := s[Index];
     end;
   end;
 
@@ -280,7 +251,7 @@ var
     begin
       Result := Result + c;
       Inc(Index);
-      c := getChar(Index);
+      c := s[Index];
     end;
   end;
 
@@ -290,6 +261,8 @@ var
   Tag: TPGNTag;
   PGNMove, Comment: string;
   VariationPlies: TPlyTreeNodeStack;
+  Gesamt, Parsen: extended;
+  Len: QWord;
 
   procedure ExtractLine;
   var
@@ -298,16 +271,13 @@ var
     GameResult: string;
   begin
     EndOfLine := False;
-    while (not EndOfLine) and (not EndOfGame) {and (not EOF(F))} do
+    while (not EndOfLine) and (not EndOfGame) and (Index < Len) do
     begin
-      c := getChar(Index);
+      c := s[Index];
       case c of
         '[':
         begin
           Tag := ExtractTag;
-        {$IFDEF LOGGING}
-          Writeln('Found Tag: ', Tag.Name, ' ', Tag.Value);
-        {$ENDIF LOGGING}
           case Lowercase(Tag.Name) of
             // Seven Tag Roster
             'event': TempPGNGame.Event := Tag.Value;
@@ -324,22 +294,19 @@ var
         '%':
         begin
           // Check if we are at the beginning of a line
-          if Index - AlreadyRead = 1 then
+          if s[Index - 1] = #10 then
           begin
             // Skip to the next line
             while not (c = #10) do
             begin
               Inc(Index);
-              c := getChar(Index);
+              c := s[Index];
             end;
           end;
         end;
         '{', ';':
         begin
           Comment := ExtractComment;
-          {$IFDEF Logging}
-          WriteLn('Found Comment: ', Comment);
-          {$ENDIF}
           if (not NewVariation) and (TempPGNGame.PlyTree.Count > 1) then
           begin
             TempPGNGame.SetCommentAfterCurrentPly(Comment);
@@ -349,9 +316,6 @@ var
         '$':
         begin
           NAG := StrToInt(ExtractNAG);
-          {$IFDEF Logging}
-          WriteLn('Found NAG: ', NAG);
-          {$ENDIF}
           if NAG in MoveAssessments then
             TempPGNGame.CurrentPlyNode.Data.MoveAssessment := NAG
           else
@@ -369,12 +333,9 @@ var
           //if Index = Len then
           //  raise EPGNImportException.Create('Unexpected end of string');
           // Peek to decide whether this is a move number or a game result
-          if (c = '*') or (getChar(Index + 1) in ['-', '/']) then
+          if (c = '*') or (s[Index + 1] in ['-', '/']) then
           begin
             GameResult := ExtractGameResult;
-            {$IFDEF LOGGING}
-            WriteLn('Found Game result: ', GameResult);
-            {$ENDIF LOGGING}
             case GameResult of
               '1-0': TempPGNGame.GameResult := grWhiteWins;
               '0-1': TempPGNGame.GameResult := grBlackWins;
@@ -387,25 +348,18 @@ var
             while (c <> #10) do
             begin
               Inc(Index);
-              c := getChar(Index);
+              c := s[Index];
             end;
-            getChar(Index + 1);
+            Inc(Index);
           end
           else
           begin
-        {$IFDEF LOGGING}
-            WriteLn('Found Move Number: ', ExtractMoveNumber);
-        {$ELSE}
             ExtractMoveNumber;
-        {$ENDIF LOGGING}
           end;
         end;
         'A'..'Z', 'a'..'z': // this could only be a move
         begin
           PGNMove := ExtractMove;
-        {$IFDEF LOGGING}
-          WriteLn('Found Move: ', PGNMove);
-        {$ENDIF LOGGING}
           NAG := 0;
           if Pos('!!', PGNMove) > 0 then
           begin
@@ -442,7 +396,7 @@ var
             NAG := 2;
             System.Delete(PGNMove, Pos('?', PGNMove), 1);
           end;
-
+          // *********************
           if NewVariation then
           begin
             VariationPlies.Push(TempPGNGame.CurrentPlyNode);
@@ -461,9 +415,6 @@ var
         '(':
         begin
           Inc(VariationLevel);
-          {$IFDEF Logging}
-          WriteLn('Current Variation Level: ', VariationLevel);
-          {$ENDIF}
           Inc(Index);
           NewVariation := True;
           ExtractLine;
@@ -473,9 +424,6 @@ var
           if VariationLevel = 0 then
             raise EPGNImportException.Create('Found invalid ")"');
           Dec(VariationLevel);
-          {$IFDEF Logging}
-          WriteLn('Current Variation Level: ', VariationLevel);
-          {$ENDIF}
           Inc(Index);
           EndOfLine := True;
           TempPGNGame.GoToPositionAfterPlyNode(VariationPlies.Top);
@@ -484,46 +432,39 @@ var
         else
           Inc(Index);
       end;
-      {$IFDEF LOGGING}
-      WriteLn('Current Index: ', Index);
-      {$ENDIF LOGGING}
     end;
 
   end;
 
 var
   temp: TStandardPosition;
+  g: integer = 0;
+  i: integer;
 begin
-  if not FileExists(APGNFile) then
-    raise Exception.Create('File does not exist');
-  AssignFile(F, APGNFile);
-  Reset(F);
+  // if not FileExists(APGNFile) then
+  //  raise Exception.Create('File does not exist');
+  Index := 1;
   s := '';
   Comment := '';
   VariationPlies := TPlyTreeNodeStack.Create;
   // TODO: in case we find a FEN tag, we need to handle this
   temp := TStandardPosition.Create(TStandardPosition.InitialFEN);
-  while not EOF(F) do
+  Len := AStream.Size;
+  SetLength(s, Len);
+  AStream.ReadBuffer(s[1], Len);
+  while Index < Len do
   begin
     EndOfGame := False;
     NewVariation := False;
     TempPGNGame := TPGNGame.Create(temp);
-    AlreadyRead := 0;
-    Index := 1;
     VariationLevel := 0;
     ExtractLine;
     if EndOfGame then
     begin
-      {$IFDEF LOGGING}
-      WriteLn('Added game');
-      {$ENDIF LOGGING}
       Add(TempPGNGame);
     end
     else
     begin
-      {$IFDEF LOGGING}
-      WriteLn('Dismissed game');
-      {$ENDIF LOGGING}
       TempPGNGame.Free;
     end;
   end;
@@ -531,41 +472,18 @@ begin
   VariationPlies.Free;
 end;
 
-procedure TPGNDatabaseHelper.SaveToFile(const APGNFile: string);
+procedure TPGNDatabase.SaveToStream(const AStream: TStream);
 var
   PGNGame: TPGNGame;
-  F: Text;
-  Temp: TPGNTag;
-  i: Integer;
+  i: integer;
+  s: string;
 begin
-  AssignFile(F, APGNFile);
-  Rewrite(F);
-  try
-    Self.Sort(@ComparePGNGames);
-    for PGNGame in Self do
-    begin
-      // Write tag roster
-      WriteLn(F, '[Event "' + PGNGame.Event + '"]');
-      WriteLn(F, '[Site "' + PGNGame.Site + '"]');
-      WriteLn(F, '[Date "' + PGNGame.Date + '"]');
-      WriteLn(F, '[Round "' + PGNGame.Round + '"]');
-      WriteLn(F, '[White "' + PGNGame.White + '"]');
-      WriteLn(F, '[Black "' + PGNGame.Black + '"]');
-      WriteLn(F, '[Result "' + PGNGame.Result + '"]');
-      // Write any additional tags
-      for i := 0 to PGNGame.CountAdditionalTags - 1 do
-      begin
-        Temp := PGNGame.AdditionalTags[i]^;
-        WriteLn(F, '[' + Temp.Name + ' "' + Temp.Value + '"]');
-      end;
-      // Write move section
-      WriteLn(F);
-      WriteLn(F, PGNGame.GetPGNNotation);
-      WriteLn(F);
-    end;
-
-  finally
-    CloseFile(F);
+  Self.Sort(@ComparePGNGames);
+  for i := 0 to Count - 1 do
+  begin
+    PGNGame := TPGNGame(Items[i]);
+    s := PGNGame.GetPGNNotation + #10#10;
+    AStream.WriteBuffer(s[1], Length(s));
   end;
 end;
 
