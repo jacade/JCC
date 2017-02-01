@@ -1,5 +1,5 @@
 { JCC (Jan's Chess Componenents) - This file contains classes to save and handle plies
-  Copyright (C) 2016  Jan Dette
+  Copyright (C) 2016-2017  Jan Dette
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

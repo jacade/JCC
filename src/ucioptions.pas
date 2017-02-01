@@ -1,5 +1,5 @@
 { JCC (Jan's Chess Componenents) - This file contains classes to handle options given by chess engines
-  Copyright (C) 2016  Jan Dette
+  Copyright (C) 2016-2017  Jan Dette
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,7 +13,9 @@
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-}unit UCIOptions;
+}
+
+unit UCIOptions;
 
 {$mode objfpc}{$H+}
 
