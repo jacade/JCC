@@ -261,7 +261,6 @@ var
   Tag: TPGNTag;
   PGNMove, Comment: string;
   VariationPlies: TPlyTreeNodeStack;
-  Gesamt, Parsen: extended;
   Len: QWord;
 
   procedure ExtractLine;
@@ -288,7 +287,17 @@ var
             'black': TempPGNGame.Black := Tag.Value;
             'result': TempPGNGame.Result := Tag.Value;
             else
+            begin
+              if LowerCase(Tag.Name) = 'fen' then
+              begin
+                // by spec we also would need to look for a setup tag
+                // but I think that a FEN tag should sufficient
+                // see also www.talkchess.com/forum/viewtopic.php?topic_view=threads&p=648572&t=58262
+                TStandardPosition(TempPGNGame.InitialPosition).FromFEN(Tag.Value);
+                TStandardPosition(TempPGNGame.CurrentPosition).FromFEN(Tag.Value);
+              end;
               TempPGNGame.AddAdditionalTag(Tag);
+            end;
           end;
         end;
         '%':
@@ -433,13 +442,8 @@ var
           Inc(Index);
       end;
     end;
-
   end;
 
-var
-  temp: TStandardPosition;
-  g: integer = 0;
-  i: integer;
 begin
   // if not FileExists(APGNFile) then
   //  raise Exception.Create('File does not exist');
@@ -447,8 +451,6 @@ begin
   s := '';
   Comment := '';
   VariationPlies := TPlyTreeNodeStack.Create;
-  // TODO: in case we find a FEN tag, we need to handle this
-  temp := TStandardPosition.Create(TStandardPosition.InitialFEN);
   Len := AStream.Size;
   SetLength(s, Len);
   AStream.ReadBuffer(s[1], Len);
@@ -456,7 +458,9 @@ begin
   begin
     EndOfGame := False;
     NewVariation := False;
-    TempPGNGame := TPGNGame.Create(temp);
+    TempPGNGame := TPGNGame.Create(TStandardPosition.Create);
+    TempPGNGame.InitialPosition.SetupInitialPosition;
+    TempPGNGame.CurrentPosition.SetupInitialPosition;
     VariationLevel := 0;
     ExtractLine;
     if EndOfGame then
@@ -468,7 +472,6 @@ begin
       TempPGNGame.Free;
     end;
   end;
-  temp.Free;
   VariationPlies.Free;
 end;
 

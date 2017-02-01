@@ -217,6 +217,7 @@ begin
   if FPlyTree.Count > 0 then
     raise Exception.Create('Game already began, cannot change initial position');
   FInitialPosition := AValue;
+  FCurrentPosition.Copy(FInitialPosition);
 end;
 
 procedure TGame.AddMove(AMove: TMove);
@@ -342,8 +343,9 @@ end;
 constructor TStandardGame.Create(const AInitialPosition: TPosition);
 begin
   Create;
-  FInitialPosition.Copy(AInitialPosition);
-  FCurrentPosition.Copy(AInitialPosition);
+  FInitialPosition.Free;
+  FInitialPosition := AInitialPosition;
+  FCurrentPosition.Copy(FInitialPosition);
 end;
 
 procedure TStandardGame.SetGameResult(AValue: TGameResult);

@@ -112,7 +112,8 @@ begin
   FEN := 'rnk5/pp1b2P1/3QQ3/8/8/8/8/K w - - 0 1';
   (Board1.CurrentPosition as TStandardPosition).FromFEN(FEN);
   // (Board1.CurrentPosition as TStandardPosition).PrintBoards;
-  MyGame := TStandardGame.Create(Board1.CurrentPosition);
+  MyGame := TStandardGame.Create;
+  MyGame.InitialPosition.Copy(Board1.CurrentPosition);
 
   with NotationMemo1.AddLineStyle^ do
   begin
