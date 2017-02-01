@@ -23,7 +23,8 @@ interface
 
 uses
   Classes, SysUtils, LResources, Forms, Controls, Graphics, Dialogs,
-  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken, MoveList, Position;
+  RichMemo, Game, StdCtrls, RichMemoUtils, fgl, LazUTF8, NotationToken,
+  MoveList, Position;
 
 type
 
@@ -90,7 +91,8 @@ type
   public
     property LineStyles: TLineStyleList read FLineStyles;
     // TODO: Use published properties instead ??
-    property MoveToStrOptions: TMoveToStrOptions read FMoveToStrOptions write FMoveToStrOptions;
+    property MoveToStrOptions: TMoveToStrOptions
+      read FMoveToStrOptions write FMoveToStrOptions;
   published
     property Align;
     property Alignment;
@@ -290,6 +292,7 @@ begin
   CurrentGameNotation := TGameNotation.Create(True);
   CurrentToken := nil;
   FLineStyles := TLineStyleList.Create;
+  FMoveToStrOptions := TMoveToStrOptions.Create;
 end;
 
 destructor TNotationMemo.Destroy;
@@ -298,6 +301,7 @@ var
 begin
   for Style in FLineStyles do
     Dispose(Style);
+  FMoveToStrOptions.Free;
   FLineStyles.Free;
   CurrentGameNotation.Free;
   inherited Destroy;

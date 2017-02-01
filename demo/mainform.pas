@@ -94,7 +94,6 @@ implementation
 procedure TForm1.FormCreate(Sender: TObject);
 var
   FEN: string;
-  MTSO: TMoveToStrOptions;
 begin
   PGNDatabase := TPGNDatabase.Create(True);
   btBackward.Enabled := False;
@@ -145,13 +144,14 @@ begin
     NeedsNewLine := True;
     LineIndent := 25;
   end;
-  MTSO := TMoveToStrOptions.Create;
-  MTSO.PieceLetters := PieceLetters_DE;
-  MTSO.ShowPawnLetter := False;
-  MTSO.ShowEnPassantSuffix := False;
-  MTSO.PromotionSymbol := psNone;
-  MTSO.CaptureSymbol := csx;
-  NotationMemo1.MoveToStrOptions:=MTSO;
+  with NotationMemo1.MoveToStrOptions do
+  begin
+    PieceLetters := PieceLetters_Figurine;
+    ShowPawnLetter := True;
+    ShowEnPassantSuffix := False;
+    PromotionSymbol := psNone;
+    CaptureSymbol := csx;
+  end;
   SelStart := 0;
   SelLength := 0;
 end;
@@ -163,7 +163,6 @@ begin
   {$ENDIF}
   FreeAndNil(MyGame);
   PGNDatabase.Free;
-  NotationMemo1.MoveToStrOptions.Free;
 end;
 
 procedure TForm1.NotationMemo1Enter(Sender: TObject);
@@ -217,7 +216,7 @@ begin
   if aRow > 0 then
   begin
     MyPGNGame := PGNDatabase.Items[StrToInt(StringGrid1.Cells[7, aRow]) - 1] as TPGNGame;
-    WriteLn(MyPGNGame.GetPGNNotation); // DEBUG
+   // WriteLn(MyPGNGame.GetPGNNotation); // DEBUG
     NotationMemo1.SetTextFromGame(MyPGNGame);
     MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
     (Board1.CurrentPosition as TStandardPosition).FromFEN(
