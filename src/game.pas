@@ -22,7 +22,7 @@ unit Game;
 interface
 
 uses
-  Classes, SysUtils, MoveList, Position, Ply, fgl, NotationToken, EpikTimer;
+  Classes, SysUtils, MoveList, Position, Ply, NotationToken;
 
 type
   // TODO: These have to be moved somewhere else

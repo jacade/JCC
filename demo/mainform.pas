@@ -68,7 +68,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure NotationMemo1Enter(Sender: TObject);
     procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
-    procedure NotationMemo1ClickMove(Sender: TObject; AMove: TMove; Pos, Len: integer);
+    procedure NotationMemo1ClickMove(Sender: TObject; AMove: TMove);
     procedure NotationMemo1SelectionChange(Sender: TObject);
     procedure StringGrid1SelectCell(Sender: TObject; aCol, aRow: integer;
       var CanSelect: boolean);
@@ -181,24 +181,10 @@ begin
     NotationMemo1.Cursor := crDefault;
 end;
 
-procedure TForm1.NotationMemo1ClickMove(Sender: TObject; AMove: TMove;
-  Pos, Len: integer);
-var
-  Params: TFontParams;
+procedure TForm1.NotationMemo1ClickMove(Sender: TObject; AMove: TMove);
 begin
-  if SelLength > 0 then
-  begin
-    NotationMemo1.GetTextAttributes(SelStart, Params);
-    Params.BkColor := clWhite;
-    NotationMemo1.SetTextAttributes(SelStart, SelLength, Params);
-  end;
-  SelStart := Pos;
-  SelLength := Len;
-  NotationMemo1.GetTextAttributes(Pos, Params);
-  Params.BkColor := clSkyBlue;
-  Params.HasBkClr := True;
   MyPGNGame.GoToPositionAfterMove(AMove);
-  NotationMemo1.SetTextAttributes(Pos, Len, Params);
+  NotationMemo1.HighlightMove(AMove);
   Board1.CurrentPosition.Copy(MyPGNGame.CurrentPosition);
   Board1.Invalidate;
 end;
@@ -343,6 +329,7 @@ begin
     AMove.Free;
   Board1.CurrentPosition.Copy(MyGame.CurrentPosition);
   NotationMemo1.SetTextFromGame(MyGame);
+  NotationMemo1.HighlightMove(MyGame.CurrentPlyNode.Data.Move);
   UpdateButtons;
 end;
 

@@ -59,22 +59,25 @@ type
   // Note: Token might be nil, if mouse is over a space char or an empty area
   TMouseOverTokenEvent = procedure(Sender: TObject; Token: TNotationToken) of object;
 
-  TClickMoveToken = procedure(Sender: TObject; AMove: TMove;
-    Pos, Len: integer) of object;
+  TClickMoveToken = procedure(Sender: TObject; AMove: TMove) of object;
 
   { TNotationMemo }
 
   TNotationMemo = class(TCustomRichMemo)
   private
     CurrentGameNotation: TGameNotation;
+    CurrentHighlightedMove: TMove;
     CurrentToken: TNotationToken;
     CurrentPosition: integer;
     FLineStyles: TLineStyleList;
+    FHighlightMoveColor: TColor;
     FMoveToStrOptions: TMoveToStrOptions;
     FOnClickMove: TClickMoveToken;
     FOnMouseOverToken: TMouseOverTokenEvent;
+    HighlightedMoveStart, HighlightedMoveLength: integer;
     TokenLookup: array of TTokenPosition;
     function IndexOfTokenAtPos(const Pos: integer): integer;
+    procedure SetHighlightMoveColor(AValue: TColor);
     procedure SetOnClickMove(AValue: TClickMoveToken);
     procedure SetOnMouseOverToken(AValue: TMouseOverTokenEvent);
   protected
@@ -85,12 +88,12 @@ type
     procedure ClearLineStyles;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure HighlightMove(const AMove: TMove);
     procedure InsertNotation(const TextUTF8: string; ANotationStyle: TNotationStyle;
       InsPos: integer = -1);
     procedure SetTextFromGame(const AGame: TGame);
   public
     property LineStyles: TLineStyleList read FLineStyles;
-    // TODO: Use published properties instead ??
     property MoveToStrOptions: TMoveToStrOptions
       read FMoveToStrOptions write FMoveToStrOptions;
   published
@@ -108,6 +111,8 @@ type
     property Enabled;
     property Font;
     property HideSelection;
+    property HighlightMoveColor: TColor read FHighlightMoveColor
+      write SetHighlightMoveColor default clSkyBlue;
     property Lines;
     property OnChange;
     property OnClick;
@@ -178,6 +183,15 @@ begin
   Result := -1;
 end;
 
+procedure TNotationMemo.SetHighlightMoveColor(AValue: TColor);
+begin
+  if FHighlightMoveColor = AValue then
+    Exit;
+  FHighlightMoveColor := AValue;
+  if Assigned(CurrentHighlightedMove) then
+    Self.HighlightMove(CurrentHighlightedMove);
+end;
+
 procedure TNotationMemo.SetOnClickMove(AValue: TClickMoveToken);
 begin
   if FOnClickMove = AValue then
@@ -194,7 +208,7 @@ end;
 
 procedure TNotationMemo.Click;
 var
-  Index, i, Pos, Len: longint;
+  Index, i: longint;
 begin
   inherited Click;
   if Assigned(FOnClickMove) then
@@ -206,19 +220,7 @@ begin
         begin
           if Assigned(FOnClickMove) then
           begin
-            // Check if there is a previous move number token
-            Index := CurrentGameNotation.IndexOf(CurrentToken);
-            if CurrentGameNotation.Items[Index - 1].GetKind = tkMoveNumber then
-            begin
-              Pos := TokenLookup[Index - 1].Start;
-              Len := TokenLookup[Index - 1].UTF8Length + TokenLookup[Index].UTF8Length;
-            end
-            else
-            begin
-              Pos := CurrentPosition;
-              Len := TokenLookup[Index].UTF8Length;
-            end;
-            FOnClickMove(Self, CurrentToken.Move, Pos, Len);
+            FOnClickMove(Self, CurrentToken.Move);
           end;
         end;
         tkMoveNumber: // Find next move token
@@ -228,9 +230,7 @@ begin
             for i := Index to CurrentGameNotation.Count - 1 do
               if CurrentGameNotation.Items[i].GetKind = tkMove then
               begin
-                FOnClickMove(Self, CurrentGameNotation.Items[i].Move,
-                  CurrentPosition, TokenLookup[i].UTF8Length +
-                  TokenLookup[Index].UTF8Length);
+                FOnClickMove(Self, CurrentGameNotation.Items[i].Move);
                 Exit;
               end;
           end;
@@ -293,6 +293,7 @@ begin
   CurrentToken := nil;
   FLineStyles := TLineStyleList.Create;
   FMoveToStrOptions := TMoveToStrOptions.Create;
+  FHighlightMoveColor := clSkyBlue;
 end;
 
 destructor TNotationMemo.Destroy;
@@ -305,6 +306,43 @@ begin
   FLineStyles.Free;
   CurrentGameNotation.Free;
   inherited Destroy;
+end;
+
+procedure TNotationMemo.HighlightMove(const AMove: TMove);
+var
+  i: integer;
+  Params: TFontParams;
+begin
+  InitFontParams(Params);
+  for i := 0 to CurrentGameNotation.Count - 1 do
+  begin
+    if CurrentGameNotation.Items[i].Move = AMove then
+    begin
+      if HighlightedMoveLength > 0 then
+      begin
+        GetTextAttributes(HighlightedMoveStart, Params);
+        Params.BkColor := clWhite;
+        SetTextAttributes(HighlightedMoveStart, HighlightedMoveLength, Params);
+      end;
+      // Check if there is a previous move number token
+      if CurrentGameNotation.Items[i - 1].GetKind = tkMoveNumber then
+      begin
+        HighlightedMoveStart := TokenLookup[i - 1].Start;
+        HighlightedMoveLength :=
+          TokenLookup[i - 1].UTF8Length + TokenLookup[i].UTF8Length;
+      end
+      else
+      begin
+        HighlightedMoveStart := TokenLookup[i].Start;
+        HighlightedMoveLength := TokenLookup[i].UTF8Length;
+      end;
+      GetTextAttributes(HighlightedMoveStart, Params);
+      Params.BkColor := FHighlightMoveColor;
+      Params.HasBkClr := True;
+      SetTextAttributes(HighlightedMoveStart, HighlightedMoveLength, Params);
+      Break;
+    end;
+  end;
 end;
 
 procedure TNotationMemo.InsertNotation(const TextUTF8: string;
