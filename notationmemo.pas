@@ -60,6 +60,7 @@ type
   TMouseOverTokenEvent = procedure(Sender: TObject; Token: TNotationToken) of object;
 
   TClickMoveToken = procedure(Sender: TObject; AMove: TMove) of object;
+  TClickCommentToken = procedure(Sender: TObject; var CommentText: string) of object;
 
   { TNotationMemo }
 
@@ -72,12 +73,14 @@ type
     FLineStyles: TLineStyleList;
     FHighlightMoveColor: TColor;
     FMoveToStrOptions: TMoveToStrOptions;
+    FOnClickComment: TClickCommentToken;
     FOnClickMove: TClickMoveToken;
     FOnMouseOverToken: TMouseOverTokenEvent;
     HighlightedMoveStart, HighlightedMoveLength: integer;
     TokenLookup: array of TTokenPosition;
     function IndexOfTokenAtPos(const Pos: integer): integer;
     procedure SetHighlightMoveColor(AValue: TColor);
+    procedure SetOnClickComment(AValue: TClickCommentToken);
     procedure SetOnClickMove(AValue: TClickMoveToken);
     procedure SetOnMouseOverToken(AValue: TMouseOverTokenEvent);
   protected
@@ -117,6 +120,8 @@ type
     property OnChange;
     property OnClick;
     property OnClickMove: TClickMoveToken read FOnClickMove write SetOnClickMove;
+    property OnClickComment: TClickCommentToken
+      read FOnClickComment write SetOnClickComment;
     property OnContextPopup;
     property OnDblClick;
     property OnDragDrop;
@@ -192,6 +197,13 @@ begin
     Self.HighlightMove(CurrentHighlightedMove);
 end;
 
+procedure TNotationMemo.SetOnClickComment(AValue: TClickCommentToken);
+begin
+  if FOnClickComment = AValue then
+    Exit;
+  FOnClickComment := AValue;
+end;
+
 procedure TNotationMemo.SetOnClickMove(AValue: TClickMoveToken);
 begin
   if FOnClickMove = AValue then
@@ -209,6 +221,7 @@ end;
 procedure TNotationMemo.Click;
 var
   Index, i: longint;
+  s: string;
 begin
   inherited Click;
   if Assigned(FOnClickMove) then
@@ -236,7 +249,16 @@ begin
           end;
         tkBeginLine: ;
         tkEndLine: ;
-        tkComment: ;
+        tkComment:
+        begin
+          if Assigned(FOnClickComment) then
+          begin
+            s := CurrentToken.Comment;
+            FOnClickComment(Self, s);
+            CurrentToken.Comment := s;
+            CurrentToken.Text := s;
+          end;
+        end;
         tkNAG: ;
         tkResult: ;
       end;

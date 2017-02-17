@@ -198,8 +198,9 @@ end;
 function CreateMove(AStart, ADest: TSquare8x8; APromotionPiece: TPieceType
   ): TMove;
 begin
-  Result.Start8x8:=AStart;
-  Result.Dest8x8:=ADest;
+  Result := TMove.Create(0,0);
+  Result.Start8x8 := AStart;
+  Result.Dest8x8 := ADest;
   Result.PromotionPiece := APromotionPiece;
 end;
 

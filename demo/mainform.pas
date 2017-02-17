@@ -46,6 +46,8 @@ type
     ComboBox1: TComboBox;
     Label1: TLabel;
     Label2: TLabel;
+    Label3: TLabel;
+    Memo1: TMemo;
     NotationMemo1: TNotationMemo;
     OpenDialog1: TOpenDialog;
     SaveDialog1: TSaveDialog;
@@ -69,6 +71,7 @@ type
     procedure NotationMemo1Enter(Sender: TObject);
     procedure NotationMemo1MouseOverToken(Sender: TObject; Token: TNotationToken);
     procedure NotationMemo1ClickMove(Sender: TObject; AMove: TMove);
+    procedure NotationMemo1ClickComment(Sender: TObject; var CommentText: string);
     procedure NotationMemo1SelectionChange(Sender: TObject);
     procedure StringGrid1SelectCell(Sender: TObject; aCol, aRow: integer;
       var CanSelect: boolean);
@@ -100,7 +103,11 @@ begin
   btForward.Enabled := False;
   btInitial.Enabled := False;
   btLast.Enabled := False;
+  {$IFDEF WINDOWS}
+  Board.PieceDirectory := '..\Pieces\'
+  {$ELSE}
   Board1.PieceDirectory := '../Pieces/';
+  {$ENDIF}
   Board1.CurrentPosition := TStandardPosition.Create;
   // Board1.CurrentPosition.SetupInitialPosition;
   // FEN := '8/8/4p1p1/2p4p/p1PpkP1P/Pr2rRK1/1P1R2P1/8 w - - 0 42';
@@ -146,9 +153,9 @@ begin
   end;
   with NotationMemo1.MoveToStrOptions do
   begin
-    PieceLetters := PieceLetters_Figurine;
+    PieceLetters := PieceLetters_DE;
     ShowPawnLetter := True;
-    ShowEnPassantSuffix := False;
+    ShowEnPassantSuffix := True;
     PromotionSymbol := psNone;
     CaptureSymbol := csx;
   end;
@@ -189,6 +196,12 @@ begin
   Board1.Invalidate;
 end;
 
+procedure TForm1.NotationMemo1ClickComment(Sender: TObject;
+  var CommentText: string);
+begin
+  Memo1.Text := CommentText;
+end;
+
 procedure TForm1.NotationMemo1SelectionChange(Sender: TObject);
 begin
   // Don't allow any selection
@@ -202,7 +215,7 @@ begin
   if aRow > 0 then
   begin
     MyPGNGame := PGNDatabase.Items[StrToInt(StringGrid1.Cells[7, aRow]) - 1] as TPGNGame;
-   // WriteLn(MyPGNGame.GetPGNNotation); // DEBUG
+    // WriteLn(MyPGNGame.GetPGNNotation); // DEBUG
     NotationMemo1.SetTextFromGame(MyPGNGame);
     MyPGNGame.GoToPositionAfterPlyNode(MyPGNGame.PlyTree.Root);
     (Board1.CurrentPosition as TStandardPosition).FromFEN(

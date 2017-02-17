@@ -1,14 +1,14 @@
 object Form1: TForm1
-  Left = 309
+  Left = 255
   Height = 699
-  Top = 0
-  Width = 742
+  Top = 152
+  Width = 1063
   Caption = 'Demo'
   ClientHeight = 699
-  ClientWidth = 742
+  ClientWidth = 1063
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.2.0'
   object Board1: TBoard
     Left = 0
     Height = 472
@@ -132,12 +132,12 @@ object Form1: TForm1
     Height = 400
     Top = 0
     Width = 262
-    Anchors = [akTop, akLeft, akRight]
     Font.Height = -13
     Font.Name = 'Sans'
     HideSelection = True
     HighlightMoveColor = clFuchsia
     OnClickMove = NotationMemo1ClickMove
+    OnClickComment = NotationMemo1ClickComment
     OnEnter = NotationMemo1Enter
     OnMouseOverToken = NotationMemo1MouseOverToken
     OnSelectionChange = NotationMemo1SelectionChange
@@ -150,7 +150,7 @@ object Form1: TForm1
     Left = 0
     Height = 172
     Top = 527
-    Width = 742
+    Width = 1063
     Align = alBottom
     AutoFillColumns = True
     ColCount = 8
@@ -159,42 +159,42 @@ object Form1: TForm1
       item
         Title.Alignment = taCenter
         Title.Caption = 'White'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Black'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Date'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Event'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Site'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Round'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Result'
-        Width = 92
+        Width = 132
       end    
       item
         Title.Alignment = taCenter
         Title.Caption = 'Nr.'
-        Width = 96
+        Width = 137
       end>
     FixedCols = 0
     MouseWheelOption = mwGrid
@@ -205,14 +205,14 @@ object Form1: TForm1
     TitleFont.Style = [fsBold]
     OnSelectCell = StringGrid1SelectCell
     ColWidths = (
-      92
-      92
-      92
-      92
-      92
-      92
-      92
-      96
+      132
+      132
+      132
+      132
+      132
+      132
+      132
+      137
     )
     Cells = (
       1
@@ -229,6 +229,22 @@ object Form1: TForm1
     Caption = 'Save PGN..'
     OnClick = Button4Click
     TabOrder = 11
+  end
+  object Memo1: TMemo
+    Left = 744
+    Height = 90
+    Top = 408
+    Width = 286
+    Enabled = False
+    TabOrder = 12
+  end
+  object Label3: TLabel
+    Left = 744
+    Height = 14
+    Top = 392
+    Width = 63
+    Caption = 'Comment:'
+    ParentColor = False
   end
   object OpenDialog1: TOpenDialog
     Filter = 'Portable Game Notation (*.pgn)|*.pgn'
