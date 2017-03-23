@@ -593,8 +593,8 @@ begin
   else
   begin
     K := FBitBoards[6] and FBitBoards[8];
-    R := (FBitBoards[2] or FBitBoards[5]) or FBitBoards[7];
-    B := (FBitBoards[4] or FBitBoards[5]) or FBitBoards[7];
+    R := (FBitBoards[2] or FBitBoards[5]) and FBitBoards[7];
+    B := (FBitBoards[4] or FBitBoards[5]) and FBitBoards[7];
     Blockers := FBitBoards[8];
   end;
   Occupied := FBitBoards[7] and FBitBoards[8];
