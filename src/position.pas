@@ -586,8 +586,8 @@ begin
   if FWhitesTurn then
   begin
     K := FBitBoards[6] and FBitBoards[7];
-    R := (FBitBoards[2] or FBitBoards[5]) or FBitBoards[8];
-    B := (FBitBoards[4] or FBitBoards[5]) or FBitBoards[8];
+    R := (FBitBoards[2] or FBitBoards[5]) and FBitBoards[8];
+    B := (FBitBoards[4] or FBitBoards[5]) and FBitBoards[8];
     Blockers := FBitBoards[7];
   end
   else
