@@ -2,13 +2,13 @@
   This source is only used to compile and install the package.
  }
 
-unit ChessComponents;
+unit JCC;
 
 interface
 
 uses
   Board, EngineView, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, 
-  BitBoard, NotationMemo, NotationToken, Geom2DTools, database, 
+  BitBoard, NotationMemo, NotationToken, Geom2DTools, Database, 
   LazarusPackageIntf;
 
 implementation
@@ -22,5 +22,5 @@ begin
 end;
 
 initialization
-  RegisterPackage('ChessComponents', @Register);
+  RegisterPackage('JCC', @Register);
 end.
