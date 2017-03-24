@@ -11,6 +11,7 @@
         <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
+    <Version Minor="1"/>
     <Files Count="21">
       <Item1>
         <Filename Value="board.pas"/>
