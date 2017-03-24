@@ -35,6 +35,8 @@ type
     procedure SaveToStream(const AStream: TStream); virtual; abstract;
   end;
 
+  TDatabaseList = specialize TFPGObjectList<TDatabase>;
+
 implementation
 
 { TDatabase }
