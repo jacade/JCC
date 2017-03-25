@@ -35,8 +35,8 @@ const
   COUNT_OF_IMAGE_SIZES = (MAX_IMAGE_SIZE - MIN_IMAGE_SIZE) div STEP_IMAGE_SIZE + 1;
 
 type
-
-  TBorderStyles = set of (bsBottom, bsLeft, bsRight, bsTop);
+  TBorderStyle = (bsBottom, bsLeft, bsRight, bsTop);
+  TBorderStyles = set of TBorderStyle;
 
   { TBorder }
 
