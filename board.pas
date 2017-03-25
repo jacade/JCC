@@ -114,6 +114,7 @@ type
     FReversed: boolean;
     FOnMovePlayed: TMovePlayedEvent;
     FOnPromotion: TPromotionEvent;
+    FViewOnly: boolean;
     FWhiteSquareColor, FBlackSquareColor: TColor; // Colors for White and Black Squares
     PieceImages: array[1..COUNT_OF_IMAGE_SIZES] of array[1..12] of
     TPortableNetworkGraphic;
@@ -124,6 +125,8 @@ type
     function GetSizePerSquare: integer;
     procedure SetBlackSquareColor(AValue: TColor);
     procedure SetBorder(AValue: TBorder);
+    procedure SetCountOfFiles(AValue: byte);
+    procedure SetCountOfRanks(AValue: byte);
     procedure SetCurrentPosition(AValue: TPosition);
     procedure SetGrid(AValue: TBoardGrid);
     procedure SetPieceDirectory(AValue: string);
@@ -138,8 +141,6 @@ type
     procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
-    property CountOfFiles: byte read FCountOfFiles;
-    property CountOfRanks: byte read FCountOfRanks;
     property CurrentPosition: TPosition read FCurrentPosition write SetCurrentPosition;
     destructor Destroy; override;
     // Length of an edge of a single square
@@ -148,6 +149,8 @@ type
     property Align;
     property BlackSquareColor: TColor read FBlackSquareColor
       write SetBlackSquareColor default clBlack;
+    property CountOfFiles: byte read FCountOfFiles write SetCountOfFiles;
+    property CountOfRanks: byte read FCountOfRanks write SetCountOfRanks;
     property Border: TBorder read FBorder write SetBorder;
     property Grid: TBoardGrid read FGrid write SetGrid;
     property HighlightStyle: THighlightStyle read FHighlightStyle
@@ -167,6 +170,8 @@ type
     property OnPromotion: TPromotionEvent read FOnPromotion write FOnPromotion;
     property PieceDirectory: string read FPieceDirectory write SetPieceDirectory;
     property Reversed: boolean read FReversed write SetReversed default False;
+    // Similiar to readonly, no moves will be accepted
+    property ViewOnly: boolean read FViewOnly write FViewOnly default False;
     property WhiteSquareColor: TColor read FWhiteSquareColor
       write SetWhiteSquareColor default clWhite;
   end;
@@ -338,6 +343,22 @@ begin
   Invalidate;
 end;
 
+procedure TBoard.SetCountOfFiles(AValue: byte);
+begin
+  if FCountOfFiles = AValue then
+    Exit;
+  FCountOfFiles := AValue;
+  Invalidate;
+end;
+
+procedure TBoard.SetCountOfRanks(AValue: byte);
+begin
+  if FCountOfRanks = AValue then
+    Exit;
+  FCountOfRanks := AValue;
+  Invalidate;
+end;
+
 procedure TBoard.SetCurrentPosition(AValue: TPosition);
 begin
   if FCurrentPosition = AValue then
@@ -457,22 +478,24 @@ var
   PromoPiece: TPieceType;
 begin
   inherited MouseUp(Button, Shift, X, Y);
-  if ClickedDown then
+  if Assigned(FCurrentPosition) and ClickedDown and not ViewOnly then
   begin
     f := (X - InnerBoard.Left) div (SizePerSquare + FGrid.Width);
     r := (Y - InnerBoard.Top) div (SizePerSquare + FGrid.Width);
-    if (ClickedFile in [0..7]) and (ClickedRank in [0..7]) and
-      (f in [0..7]) and (r in [0..7]) then
+    if (ClickedFile in [0..FCountOfFiles - 1]) and (ClickedRank in
+      [0..FCountOfRanks - 1]) and (f in [0..FCountOfFiles - 1]) and
+      (r in [0..FCountOfRanks - 1]) then
     begin
       if Reversed then
       begin
-        Start := 8 * (7 - ClickedRank) + (7 - ClickedFile);
-        Dest := 8 * (7 - r) + (7 - f);
+        Start := FCountOfFiles * (FCountOfRanks - 1 - ClickedRank) +
+          (FCountOfFiles - 1 - ClickedFile);
+        Dest := FCountOfFiles * (FCountOfRanks - 1 - r) + (FCountOfFiles - 1 - f);
       end
       else
       begin
-        Start := 8 * ClickedRank + ClickedFile;
-        Dest := 8 * r + f;
+        Start := FCountOfFiles * ClickedRank + ClickedFile;
+        Dest := FCountOfFiles * r + f;
       end;
       // Check for Promotion and request the user to choose a piece
       PromoPiece := ptEmpty;
@@ -551,13 +574,13 @@ begin
     if FReversed then
     begin
       c1 := 104;
-      c2 := 49;
+      c2 := 1;
       s := -1;
     end
     else
     begin
       c1 := 97;
-      c2 := 56;
+      c2 := FCountOfRanks;
       s := 1;
     end;
     if bsTop in Border.Style then
@@ -577,14 +600,14 @@ begin
     begin
       for i := 0 to FCountOfRanks - 1 do
         Canvas.TextRect(Point(0, InnerBoard.Top + i * d + (i + 1) * FGrid.Width) +
-          Rect(0, 0, Border.Size, d), 0, 0, Chr(c2 - s * i), TextStyle);
+          Rect(0, 0, Border.Size, d), 0, 0, IntToStr(c2 - s * i), TextStyle);
     end;
     if bsRight in Border.Style then
     begin
       for i := 0 to FCountOfRanks - 1 do
         Canvas.TextRect(Point(InnerBoard.Right, InnerBoard.Top + i *
           d + (i + 1) * FGrid.Width) + Rect(0, 0, Border.Size, d),
-          0, 0, Chr(c2 - s * i), TextStyle);
+          0, 0, IntToStr(c2 - s * i), TextStyle);
     end;
   end;
   // in design-time we need to exit here
@@ -592,7 +615,7 @@ begin
     Exit;
   // draw custom highlighting
   // This seems to be too slow in Windows, but in gtk2 it's fine
-  if ClickedDown then
+  if not ViewOnly and ClickedDown then
   begin
     if Assigned(FOnHighLightSquare) then
     begin
@@ -617,8 +640,8 @@ begin
             f := (8 - Move.Dest8x8.RFile);
             r := (Move.Dest8x8.RRank - 1);
           end;
-          Source := InnerBoard.TopLeft + Point((f + 1) * FGrid.Width + f *
-            d, (r + 1) * FGrid.Width + r * d) + Rect(0, 0, d, d);
+          Source := InnerBoard.TopLeft + Point((f + 1) * FGrid.Width +
+            f * d, (r + 1) * FGrid.Width + r * d) + Rect(0, 0, d, d);
           TempBitmap.Canvas.CopyRect(Rect(0, 0, d, d), Self.Canvas, Source);
           FOnHighLightSquare(TempBitmap.Canvas, Rect(0, 0, d, d),
             Move.Dest mod 2 = (Move.Dest div 8) mod 2);
@@ -641,7 +664,7 @@ begin
     else
       k := (d - MIN_IMAGE_SIZE) div STEP_IMAGE_SIZE + 1;
     IsMoving := False;
-    for i := 0 to 63 do
+    for i := 0 to FCountOfFiles * FCountOfRanks - 1 do
     begin
       case FCurrentPosition.Squares[i] of
         ptBBishop: j := 1;
@@ -661,12 +684,12 @@ begin
       end;
       if j > 0 then
       begin
-        r := i div 8;
-        f := i mod 8;
+        r := i div CountOfFiles;
+        f := i mod CountOfFiles;
         if FReversed then
         begin
-          f := 7 - f;
-          r := 7 - r;
+          f := CountOfFiles - 1 - f;
+          r := CountOfRanks - 1 - r;
         end;
         if ClickedDown and (f = ClickedFile) and (r = ClickedRank) and
           (IsWhite(FCurrentPosition.Squares[i]) = FCurrentPosition.WhitesTurn) then
@@ -703,6 +726,7 @@ begin
   FGrid.OnChange := @FGridChange;
   FHighlightStyle := hsNone;
   FReversed := False;
+  FViewOnly := False;
   FWhiteSquareColor := clWhite;
   ImagesAreLoaded := False;
   with GetControlClassDefaultSize do
@@ -717,7 +741,8 @@ begin
     for i := 1 to COUNT_OF_IMAGE_SIZES do
       for j := 1 to 12 do
         PieceImages[i][j].Free;
-  FCurrentPosition.Free;
+  if Assigned(FCurrentPosition) then
+    FCurrentPosition.Free;
   FBorder.Free;
   FGrid.Free;
   inherited Destroy;
