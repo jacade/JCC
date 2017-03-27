@@ -414,6 +414,7 @@ begin
   begin
     Style.CommentaryStyle.Color := clBlack;
     Style.CommentaryStyle.Style := [];
+    Style.LineIndent := 0;
     Style.MoveStyle.Color := clBlack;
     Style.MoveStyle.Style := [];
     Style.NAGStyle.Color := clBlack;
@@ -473,7 +474,7 @@ begin
           if Style.CommentaryNewLine then
             Dec(CommentaryIndent, Style.CommentaryIndent);
           Dec(LineIndent, Style.LineIndent);
-          if VarLevel <= FLineStyles.Count then
+          if (FLineStyles.Count > 0) and (VarLevel <= FLineStyles.Count) then
             Style := FLineStyles.Items[VarLevel - 1]^;
         end;
         BeginParagraph;
