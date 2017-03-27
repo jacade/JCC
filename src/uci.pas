@@ -21,7 +21,7 @@ unit UCI;
 
 {$mode objfpc}{$H+}
 
-{$DEFINE Logging}
+//{$DEFINE Logging}
 
 interface
 
@@ -42,14 +42,14 @@ type
     Depth: integer;          // search depth in plies
     SelDepth: integer;       // selective search depth in plies
     Time: integer;           // the time searched in ms
-    Nodes: DWord;          // x nodes searched
+    Nodes: DWord;            // x nodes searched
     PV: TStringList;         // the best line found
     MultiPV: integer;        // this for the multi pv mode
     Score: TScore;
     CurrMove: string;        // currently searching this move
     CurrMoveNumber: integer; // currently searching move number x
     HashFull: integer;       // the hash is x permill full
-    NPS: DWord;            // x nodes per second searched
+    NPS: DWord;              // x nodes per second searched
     TBHits: integer;         // x positions where found in the endgame table bases
     SBHits: integer;         // x positions where found in the shredder endgame databases
     CPULoad: integer;        // the cpu usage of the engine is x permill
@@ -58,12 +58,18 @@ type
     CurrLine: TStringList;   // this is the current line the engine is calculating
   end;
 
+  TInfoMaskElement = (imDepth, imSelDepth, imTime, imNodes, imPV,
+    imMultiPV, imScore, imCP, imMate, imLowerBound, imUpperBound, imCurrMove,
+    imCurrMoveNumber, imHashFull, imNPS, imTBHits, imSBHits, imCPULoad,
+    imStr, imRefutation, imCurrLine);
+  TInfoMask = set of TInfoMaskElement;
+
   TStatus = (stChecking, stError, stOk);
 
   // These are the commands the Engine could send and that have to be handled by the GUI
   TOnBestMove = procedure(Sender: TObject; BestMove, Ponder: TMove) of object;
   TOnCopyProtection = procedure(Sender: TObject; Status: TStatus) of object;
-  TOnInfo = procedure(Sender: TObject; Info: TInfo) of object;
+  TOnInfo = procedure(Sender: TObject; Info: TInfo; InfoMask: TInfoMask) of object;
   TOnQuit = TNotifyEvent;
   TOnReadyOk = TNotifyEvent;
   TOnRegistration = procedure(Sender: TObject; Status: TStatus) of object;
@@ -313,6 +319,7 @@ const
     'refutation', 'currline');
 var
   Info: TInfo;
+  InfoMask: TInfoMask;
   temp: TStringArray;
   i: integer;
   st: string;
@@ -326,8 +333,10 @@ begin
   // Delete 'info' from beginning
   Delete(st, 1, 4);
   temp := GetValuesOfKeys(st, Tokens);
+  InfoMask := [];
   for i := 0 to 20 do
     if Length(temp[i]) > 0 then
+    begin
       case i of
         0: Info.Depth := StrToInt(temp[0]);
         1: Info.SelDepth := StrToInt(temp[1]);
@@ -350,7 +359,9 @@ begin
         19: Info.Refutation := Split(temp[19], ' ');
         20: Info.CurrLine := Split(temp[20], ' ');
       end;
-  FOnInfo(Self, Info);
+      InfoMask := InfoMask + [TInfoMaskElement(i)];
+    end;
+  FOnInfo(Self, Info, InfoMask);
 end;
 
 procedure TUCIEngine.ParseOption(const s: string);
