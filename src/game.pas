@@ -70,7 +70,7 @@ type
     // Setups position before last move on board
     procedure GoOneMoveBackward;
     // Setups position after next move on board
-    procedure GoOneMoveForward;
+    procedure GoOneMoveForward(const Index: Integer);
     procedure GoToPositionAfterMove(const AMove: TMove);
     // Setups position after the given tree node
     procedure GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
@@ -283,9 +283,9 @@ begin
   GoToPositionAfterPlyNode(FPlyTree.GetParentOf(FCurrentPlyNode));
 end;
 
-procedure TGame.GoOneMoveForward;
+procedure TGame.GoOneMoveForward(const Index: Integer);
 begin
-  GoToPositionAfterPlyNode(FCurrentPlyNode.Children.Items[0]);
+  GoToPositionAfterPlyNode(FCurrentPlyNode.Children.Items[Index]);
 end;
 
 procedure TGame.GoToPositionAfterMove(const AMove: TMove);
