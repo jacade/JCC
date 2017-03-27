@@ -82,7 +82,7 @@ type
     FOnBestMove: TOnBestMove;
     FOnCopyProtection: TOnCopyProtection;
     FOnInfo: TOnInfo;
-    FOptions: TFPList;
+    FOptions: TOptionList;
     FOnQuit: TOnQuit;
     FOnReadyOk: TOnReadyOk;
     FOnRegistration: TOnRegistration;
@@ -90,7 +90,6 @@ type
     TOnCopyProtection: TOnCopyProtection;
     UCIOk: boolean;
     procedure GetLine;
-    function GetOption(index: integer): TOption;
     procedure ParseBestMove(const s: string);
     procedure ParseCopyProtection(const s: string);
     procedure ParseID(const s: string);
@@ -121,7 +120,7 @@ type
     property Author: string read FAuthor;
     property EngineName: string read FName;
     property Hash: integer read FHash;
-    property Options[Index: integer]: TOption read GetOption;
+    property Options: TOptionList read FOptions;
   published
     property Debug: boolean read FDebug write SetDebug default False;
     property OnBestMove: TOnBestMove read FOnBestMove write FOnBestMove;
@@ -187,11 +186,6 @@ begin
   for i := l to Output.Count - 1 do
     WriteLn('OUTPUT: ', Output.Strings[i]);
   {$ENDIF}
-end;
-
-function TUCIEngine.GetOption(index: integer): TOption;
-begin
-  Result := TOption(FOptions.Items[Index]);
 end;
 
 procedure TUCIEngine.ParseBestMove(const s: string);
@@ -530,6 +524,7 @@ end;
 
 destructor TUCIEngine.Destroy;
 begin
+  FreeAndNil(FOptions);
   FreeAndNil(Timer);
   FreeAndNil(Output);
   FreeAndNil(FEngine);
@@ -595,7 +590,7 @@ end;
 
 procedure TUCIEngine.Init;
 begin
-  FOptions := TFPList.Create;
+  FOptions := TOptionList.Create;
   FEngine.Execute;
   GetLine;
   SendStr('uci');

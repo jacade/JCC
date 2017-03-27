@@ -22,7 +22,7 @@ unit UCIOptions;
 interface
 
 uses
-  Classes, SysUtils, StrTools;
+  Classes, SysUtils, StrTools, fgl;
 
 type
 
@@ -37,6 +37,8 @@ type
     function Typ: TType; virtual; abstract;
     property Name: string read FName;
   end;
+
+  TOptionList = specialize TFPGObjectList<TOption>;
 
   { TButtonOption }
 
