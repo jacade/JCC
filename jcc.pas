@@ -9,7 +9,7 @@ interface
 uses
   Board, EngineView, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, 
   BitBoard, NotationMemo, NotationToken, Geom2DTools, Database, 
-  LazarusPackageIntf;
+  VisualUCIEngine, LazarusPackageIntf;
 
 implementation
 
@@ -19,6 +19,7 @@ begin
   RegisterUnit('EngineView', @EngineView.Register);
   RegisterUnit('ChessClock', @ChessClock.Register);
   RegisterUnit('NotationMemo', @NotationMemo.Register);
+  RegisterUnit('VisualUCIEngine', @VisualUCIEngine.Register);
 end;
 
 initialization
