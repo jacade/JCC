@@ -7,16 +7,15 @@ unit JCC;
 interface
 
 uses
-  Board, EngineView, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, 
-  BitBoard, NotationMemo, NotationToken, Geom2DTools, Database, 
-  VisualUCIEngine, LazarusPackageIntf;
+  Board, ChessClock, StrTools, Game, Ply, PGNdbase, PGNGame, BitBoard, 
+  NotationMemo, NotationToken, Geom2DTools, Database, VisualUCIEngine, 
+  LazarusPackageIntf;
 
 implementation
 
 procedure Register;
 begin
   RegisterUnit('Board', @Board.Register);
-  RegisterUnit('EngineView', @EngineView.Register);
   RegisterUnit('ChessClock', @ChessClock.Register);
   RegisterUnit('NotationMemo', @NotationMemo.Register);
   RegisterUnit('VisualUCIEngine', @VisualUCIEngine.Register);
