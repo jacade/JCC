@@ -21,7 +21,7 @@ unit UCI;
 
 {$mode objfpc}{$H+}
 
-//{$DEFINE Logging}
+{$DEFINE Logging}
 
 interface
 
@@ -42,14 +42,14 @@ type
     Depth: integer;          // search depth in plies
     SelDepth: integer;       // selective search depth in plies
     Time: integer;           // the time searched in ms
-    Nodes: integer;          // x nodes searched
+    Nodes: DWord;          // x nodes searched
     PV: TStringList;         // the best line found
     MultiPV: integer;        // this for the multi pv mode
     Score: TScore;
     CurrMove: string;        // currently searching this move
     CurrMoveNumber: integer; // currently searching move number x
     HashFull: integer;       // the hash is x permill full
-    NPS: integer;            // x nodes per second searched
+    NPS: DWord;            // x nodes per second searched
     TBHits: integer;         // x positions where found in the endgame table bases
     SBHits: integer;         // x positions where found in the shredder endgame databases
     CPULoad: integer;        // the cpu usage of the engine is x permill
@@ -102,6 +102,7 @@ type
     procedure SetProcessName(AValue: string);
     procedure WaitForToken(const Text: string; Interval: integer = 100);
   public
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure ApplyOption(Option: TOption);
     procedure Go(searchmoves: TStringList = nil; ponder: boolean = False;
@@ -133,15 +134,7 @@ type
     property ProcessName: string read FPocessName write SetProcessName;
   end;
 
-//procedure Register;
-
 implementation
-
-//procedure Register;
-//begin
-//  {$I uci_icon.lrs}
-//  RegisterComponents('Chess', [TUCIEngine]);
-//end;
 
 { TUCIEngine }
 
@@ -339,7 +332,7 @@ begin
         0: Info.Depth := StrToInt(temp[0]);
         1: Info.SelDepth := StrToInt(temp[1]);
         2: Info.Time := StrToInt(temp[2]);
-        3: Info.Nodes := StrToInt(temp[3]);
+        3: Info.Nodes := StrToDWord(temp[3]);
         4: Info.PV := Split(temp[4], ' ');
         5: Info.MultiPV := StrToInt(temp[5]);
         7: Info.Score.CP := StrToInt(temp[7]);
@@ -349,7 +342,7 @@ begin
         11: Info.CurrMove := temp[11];
         12: Info.CurrMoveNumber := StrToInt(temp[12]);
         13: Info.HashFull := StrToInt(temp[13]);
-        14: Info.NPS := StrToInt(temp[14]);
+        14: Info.NPS := StrToDWord(temp[14]);
         15: Info.TBHits := StrToInt(temp[15]);
         16: Info.SBHits := StrToInt(temp[16]);
         17: Info.CPULoad := StrToInt(temp[17]);
@@ -485,16 +478,6 @@ begin
   if FPocessName = AValue then
     Exit;
   FPocessName := AValue;
-  if Assigned(FEngine) then
-    FEngine.Free;
-  FEngine := TProcess.Create(Self);
-  FEngine.Executable := AValue;
-  FEngine.Options := [poUsePipes];
-  FDebug := False;
-  Output := TStringList.Create;
-  Timer := TTimer.Create(Self);
-  Timer.Interval := 100;
-  Timer.OnTimer := @TimerTimer;
 end;
 
 procedure TUCIEngine.WaitForToken(const Text: string; Interval: integer = 100);
@@ -522,8 +505,22 @@ begin
   until TokenFound;
 end;
 
+constructor TUCIEngine.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FDebug := False;
+  FOptions := TOptionList.Create;
+  Output := TStringList.Create;
+  Timer := TTimer.Create(Self);
+  Timer := TTimer.Create(Self);
+  Timer.Interval := 100;
+  Timer.Enabled := False;
+  Timer.OnTimer := @TimerTimer;
+end;
+
 destructor TUCIEngine.Destroy;
 begin
+  Quit;
   FreeAndNil(FOptions);
   FreeAndNil(Timer);
   FreeAndNil(Output);
@@ -590,7 +587,12 @@ end;
 
 procedure TUCIEngine.Init;
 begin
-  FOptions := TOptionList.Create;
+  if Assigned(FEngine) then
+    FEngine.Free;
+  FEngine := TProcess.Create(Self);
+  FEngine.Executable := self.ProcessName;
+  FEngine.Options := [poUsePipes];
+  FOptions.Clear;
   FEngine.Execute;
   GetLine;
   SendStr('uci');
@@ -616,9 +618,6 @@ var
 begin
   Timer.Enabled := False;
   SendStr('quit');
-  for i := 0 to FOptions.Count - 1 do
-    Options[i].Free;
-  FreeAndNil(FOptions);
   if Assigned(FOnQuit) then
     FOnQuit(Self);
 end;
