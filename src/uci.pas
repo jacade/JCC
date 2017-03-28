@@ -567,11 +567,14 @@ end;
 
 destructor TUCIEngine.Destroy;
 begin
-  Quit;
+  if Assigned(FEngine) then
+  begin
+    Quit;
+    FreeAndNil(FEngine);
+  end;
   FreeAndNil(FOptions);
   FreeAndNil(Timer);
   FreeAndNil(Output);
-  FreeAndNil(FEngine);
   inherited Destroy;
 end;
 
