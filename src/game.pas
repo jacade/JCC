@@ -22,7 +22,7 @@ unit Game;
 interface
 
 uses
-  Classes, SysUtils, MoveList, Position, Ply, NotationToken;
+  Classes, SysUtils, gvector, MoveList, Position, Ply, NotationToken;
 
 type
   // TODO: These have to be moved somewhere else
@@ -64,13 +64,15 @@ type
     constructor Create(const AInitialPosition: TPosition); virtual; abstract;
     procedure Clear;
     destructor Destroy; override;
-    function GetGameNotation(MoveToStrOptions: TMoveToStrOptions): TGameNotation; virtual; abstract;
+    function GetGameNotation(MoveToStrOptions: TMoveToStrOptions): TGameNotation;
+      virtual; abstract;
     // This returns the last tree node of in the main line of CurrentPlyNode
     function GetLastPlyNodeInCurrentVariation: TPlyTreeNode;
+    function GetMovesToCurrentPosition: TMoveList;
     // Setups position before last move on board
     procedure GoOneMoveBackward;
     // Setups position after next move on board
-    procedure GoOneMoveForward(const Index: Integer);
+    procedure GoOneMoveForward(const Index: integer);
     procedure GoToPositionAfterMove(const AMove: TMove);
     // Setups position after the given tree node
     procedure GoToPositionAfterPlyNode(const APlyTreeNode: TPlyTreeNode);
@@ -97,7 +99,8 @@ type
   public
     constructor Create; override;
     constructor Create(const AInitialPosition: TPosition); override;
-    function GetGameNotation(MoveToStrOptions: TMoveToStrOptions): TGameNotation; override;
+    function GetGameNotation(MoveToStrOptions: TMoveToStrOptions): TGameNotation;
+      override;
   public
     property GameResult: TGameResult read FGameResult write SetGameResult;
   end;
@@ -186,7 +189,7 @@ var
 
   function Search(const Root: TPlyTreeNode): boolean;
   var
-    i: Integer;
+    i: integer;
   begin
     Result := False;
     if Assigned(Root) then
@@ -278,12 +281,28 @@ begin
   end;
 end;
 
+function TGame.GetMovesToCurrentPosition: TMoveList;
+var
+  Temp: TPlyTreeNodeList;
+  Node: TPlyTreeNode;
+begin
+  Temp := FPlyTree.GetPathTo(CurrentPlyNode);
+  if Temp.Size > 0 then
+  begin
+    Result := TMoveList.Create;
+    for Node in Temp do
+      if Node.Data <> nil then
+        Result.Add(Node.Data.Move.Copy);
+  end;
+  Temp.Free;
+end;
+
 procedure TGame.GoOneMoveBackward;
 begin
   GoToPositionAfterPlyNode(FPlyTree.GetParentOf(FCurrentPlyNode));
 end;
 
-procedure TGame.GoOneMoveForward(const Index: Integer);
+procedure TGame.GoOneMoveForward(const Index: integer);
 begin
   GoToPositionAfterPlyNode(FCurrentPlyNode.Children.Items[Index]);
 end;
@@ -299,7 +318,7 @@ var
   Node: TPlyTreeNode;
 begin
   Temp := FPlyTree.GetPathTo(APlyTreeNode);
-  if Temp = nil then
+  if Temp.Size = 0 then
     raise Exception.Create('The given node is not in the tree');
   FCurrentPosition.Copy(FInitialPosition);
   for Node in Temp do
@@ -355,15 +374,14 @@ begin
   FGameResult := AValue;
 end;
 
-function TStandardGame.GetGameNotation(MoveToStrOptions: TMoveToStrOptions
-  ): TGameNotation;
+function TStandardGame.GetGameNotation(MoveToStrOptions: TMoveToStrOptions):
+TGameNotation;
 var
   VarLevel: word;
   Notation: TGameNotation;
   NeedsMoveNumber: boolean;
 
-  procedure RecursiveCreateNotation(CurrentRoot: TPlyTreeNode;
-    StartPos: TPosition);
+  procedure RecursiveCreateNotation(CurrentRoot: TPlyTreeNode; StartPos: TPosition);
   var
     TempPos: TPosition;
 
@@ -383,12 +401,16 @@ var
         NeedsMoveNumber := False;
       end;
       if APly.NonStandardGlyph > 0 then
-        Notation.Add(TNAGToken.Create(APly.NonStandardGlyph, NAGToStr(APly.NonStandardGlyph)));
-      Notation.Add(TMoveToken.Create(APly.Move, TempPos.MoveToStr(APly.Move, MoveToStrOptions)));
+        Notation.Add(TNAGToken.Create(APly.NonStandardGlyph,
+          NAGToStr(APly.NonStandardGlyph)));
+      Notation.Add(TMoveToken.Create(APly.Move,
+        TempPos.MoveToStr(APly.Move, MoveToStrOptions)));
       if APly.MoveAssessment > 0 then
-        Notation.Add(TNAGToken.Create(APly.MoveAssessment, NAGToStr(APly.MoveAssessment)));
+        Notation.Add(TNAGToken.Create(APly.MoveAssessment,
+          NAGToStr(APly.MoveAssessment)));
       if APly.PositionalAssessment > 0 then
-        Notation.Add(TNAGToken.Create(APly.PositionalAssessment, NAGToStr(APly.PositionalAssessment)));
+        Notation.Add(TNAGToken.Create(APly.PositionalAssessment,
+          NAGToStr(APly.PositionalAssessment)));
       if Length(APly.CommentTextInBehind) > 0 then
       begin
         Notation.Add(TCommentToken.Create(APly.CommentTextInBehind));
