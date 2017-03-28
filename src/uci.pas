@@ -43,7 +43,7 @@ type
     SelDepth: integer;       // selective search depth in plies
     Time: integer;           // the time searched in ms
     Nodes: DWord;            // x nodes searched
-    PV: TStringList;         // the best line found
+    PV: TMoveList;           // the best line found
     MultiPV: integer;        // this for the multi pv mode
     Score: TScore;
     CurrMove: string;        // currently searching this move
@@ -54,8 +54,8 @@ type
     SBHits: integer;         // x positions where found in the shredder endgame databases
     CPULoad: integer;        // the cpu usage of the engine is x permill
     Str: string;             // any string str which will be displayed be the engine
-    Refutation: TStringList; // move <move1> is refuted by the line <move2> ... <movei>
-    CurrLine: TStringList;   // this is the current line the engine is calculating
+    Refutation: TMoveList;   // move <move1> is refuted by the line <move2> ... <movei>
+    CurrLine: TMoveList;     // this is the current line the engine is calculating
   end;
 
   TInfoMaskElement = (imDepth, imSelDepth, imTime, imNodes, imPV,
@@ -311,6 +311,43 @@ begin
 end;
 
 procedure TUCIEngine.ParseInfo(const s: string);
+
+  function StringsToMoveList(Strings: TStringList): TMoveList;
+  var
+    s: string;
+    Start, Dest: TAlgebraicSquare;
+    Piece: TPieceType;
+  begin
+    Result := TMoveList.Create;
+    for s in Strings do
+    begin
+      Start.RFile := s[1];
+      Start.RRank := s[2];
+      Dest.RFile := s[3];
+      Dest.RRank := s[4];
+      Piece := ptEmpty;
+      if Length(s) = 5 then
+      begin
+        if s[4] = '8' then
+          case s[5] of
+            'r': Piece := ptWRook;
+            'b': Piece := ptWBishop;
+            'n': Piece := ptWKnight;
+            'q': Piece := ptWQueen;
+          end
+        else
+          case s[5] of
+            'r': Piece := ptBRook;
+            'b': Piece := ptBBishop;
+            'n': Piece := ptBKnight;
+            'q': Piece := ptBQueen;
+          end;
+      end;
+      Result.Add(CreateMove(Start, Dest, Piece));
+    end;
+    Strings.Free;
+  end;
+
 const
   Tokens: array[1..21] of string =
     ('depth', 'seldepth', 'time', 'nodes', 'pv', 'multipv', 'score',
@@ -342,7 +379,7 @@ begin
         1: Info.SelDepth := StrToInt(temp[1]);
         2: Info.Time := StrToInt(temp[2]);
         3: Info.Nodes := StrToDWord(temp[3]);
-        4: Info.PV := Split(temp[4], ' ');
+        4: Info.PV := StringsToMoveList(Split(temp[4], ' '));
         5: Info.MultiPV := StrToInt(temp[5]);
         7: Info.Score.CP := StrToInt(temp[7]);
         8: Info.Score.Mate := StrToInt(temp[8]);
@@ -356,8 +393,8 @@ begin
         16: Info.SBHits := StrToInt(temp[16]);
         17: Info.CPULoad := StrToInt(temp[17]);
         18: Info.Str := temp[18];
-        19: Info.Refutation := Split(temp[19], ' ');
-        20: Info.CurrLine := Split(temp[20], ' ');
+        19: Info.Refutation := StringsToMoveList(Split(temp[19], ' '));
+        20: Info.CurrLine := StringsToMoveList(Split(temp[20], ' '));
       end;
       InfoMask := InfoMask + [TInfoMaskElement(i)];
     end;
