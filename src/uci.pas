@@ -26,8 +26,7 @@ unit UCI;
 interface
 
 uses
-  Classes, SysUtils, process, (*LResources,*) RegExpr, UCIOptions,
-  StrTools, MoveList, Pieces, ExtCtrls;
+  Classes, SysUtils, ExtCtrls, process, RegExpr, UCIOptions, StrTools, MoveList, Pieces;
 
 type
 
@@ -66,7 +65,7 @@ type
 
   TStatus = (stChecking, stError, stOk);
 
-  // These are the commands the Engine could send and that have to be handled by the GUI
+  // These are the commands the engine could send and that have to be handled by the GUI
   TOnBestMove = procedure(Sender: TObject; BestMove, Ponder: TMove) of object;
   TOnCopyProtection = procedure(Sender: TObject; Status: TStatus) of object;
   TOnInfo = procedure(Sender: TObject; Info: TInfo; InfoMask: TInfoMask) of object;
@@ -122,7 +121,7 @@ type
     procedure Quit;
     procedure SendIsReady;
     procedure SendRegistration(Later: boolean; AName, code: string);
-    procedure SetUpPosition(FEN: string = 'startpos'; Moves: TStringList = nil);
+    procedure SetUpPosition(FEN: string = 'startpos'; Moves: TMoveList = nil);
     procedure Stop;
     property Author: string read FAuthor;
     property EngineName: string read FName;
@@ -503,7 +502,7 @@ end;
 
 procedure TUCIEngine.SendStr(msg: string);
 begin
-  msg := msg + #10; // <-- unter Windows vllt. #10#13 ?
+  msg := msg + LineEnding;
   FEngine.Input.Write(msg[1], length(msg));
   {$IFDEF Logging}
   Write('INPUT: ', msg);
@@ -661,8 +660,6 @@ begin
 end;
 
 procedure TUCIEngine.Quit;
-var
-  i: integer;
 begin
   Timer.Enabled := False;
   SendStr('quit');
@@ -683,9 +680,9 @@ begin
     SendStr('register name ' + AName + ' code ' + code);
 end;
 
-procedure TUCIEngine.SetUpPosition(FEN: string = 'startpos'; Moves: TStringList = nil);
+procedure TUCIEngine.SetUpPosition(FEN: string; Moves: TMoveList);
 var
-  i: integer;
+  Move: TMove;
   msg: string;
 begin
   if FEN <> 'startpos' then
@@ -693,8 +690,17 @@ begin
   if Assigned(Moves) then
   begin
     msg := 'position ' + FEN + ' moves ';
-    for i := 0 to Moves.Count - 1 do
-      msg := msg + Moves.Strings[i] + ' ';
+    for Move in Moves do
+    begin
+      msg := msg + AlgebraicMoveToString(Move);
+      case Move.PromotionPiece of
+        ptWKnight, ptBKnight: msg := msg + 'n';
+        ptWBishop, ptBBishop: msg := msg + 'b';
+        ptWRook, ptBRook: msg := msg + 'r';
+        ptWQueen, ptBQueen: msg := msg + 'q';
+      end;
+      msg := msg + ' ';
+    end;
     SendStr(msg);
   end
   else
