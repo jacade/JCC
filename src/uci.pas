@@ -80,6 +80,7 @@ type
   private
     FEngine: TProcess;
     FDebug: boolean;
+    FisRunning: boolean;
     FName, FAuthor: string;
     FHash: integer;
     FPocessName: string;
@@ -87,7 +88,7 @@ type
     FOnBestMove: TOnBestMove;
     FOnCopyProtection: TOnCopyProtection;
     FOnInfo: TOnInfo;
-    FOptions: TOptionList;
+    FOptions: TUCIOptionList;
     FOnQuit: TOnQuit;
     FOnReadyOk: TOnReadyOk;
     FOnRegistration: TOnRegistration;
@@ -109,7 +110,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure ApplyOption(Option: TOption);
+    procedure ApplyOption(Option: TUCIOption);
     procedure Go(searchmoves: TStringList = nil; ponder: boolean = False;
       wtime: integer = 0; btime: integer = 0; winc: integer = 0;
       binc: integer = 0; movestogo: integer = -1; depth: integer = 0;
@@ -126,7 +127,8 @@ type
     property Author: string read FAuthor;
     property EngineName: string read FName;
     property Hash: integer read FHash;
-    property Options: TOptionList read FOptions;
+    property isRunning: boolean read FisRunning;
+    property Options: TUCIOptionList read FOptions;
   published
     property Debug: boolean read FDebug write SetDebug default False;
     property OnBestMove: TOnBestMove read FOnBestMove write FOnBestMove;
@@ -404,7 +406,7 @@ procedure TUCIEngine.ParseOption(const s: string);
 const
   Tokens: array[1..6] of string = ('name', 'type', 'default', 'min', 'max', 'var');
 var
-  Option: TOption;
+  Option: TUCIOption;
   st: string;
   temp: TStringArray;
 begin
@@ -413,11 +415,11 @@ begin
   Delete(st, 1, 6);
   temp := GetValuesOfKeys(st, Tokens);
   case temp[1] of
-    'check': Option := TCheckOption.Create(temp[0], temp[2]);
-    'spin': Option := TSpinOption.Create(temp[0], temp[2], temp[3], temp[4]);
-    'combo': Option := TComboOption.Create(temp[0], temp[2], temp[5]);
-    'button': Option := TButtonOption.Create(temp[0]);
-    'string': Option := TStringOption.Create(temp[0], temp[2]);
+    'check': Option := TCheckUCIOption.Create(temp[0], temp[2]);
+    'spin': Option := TSpinUCIOption.Create(temp[0], temp[2], temp[3], temp[4]);
+    'combo': Option := TComboUCIOption.Create(temp[0], temp[2], temp[5]);
+    'button': Option := TButtonUCiOption.Create(temp[0]);
+    'string': Option := TStringUCIOption.Create(temp[0], temp[2]);
   end;
   temp := nil;
   FOptions.Add(Option);
@@ -550,13 +552,14 @@ begin
       TokenFound := TokenFound or (s = Text);
     end;
   until TokenFound;
+  ParseOutput;
 end;
 
 constructor TUCIEngine.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FDebug := False;
-  FOptions := TOptionList.Create;
+  FOptions := TUCIOptionList.Create;
   Output := TStringList.Create;
   Timer := TTimer.Create(Self);
   Timer := TTimer.Create(Self);
@@ -569,7 +572,8 @@ destructor TUCIEngine.Destroy;
 begin
   if Assigned(FEngine) then
   begin
-    Quit;
+    if isRunning then
+      Quit;
     FreeAndNil(FEngine);
   end;
   FreeAndNil(FOptions);
@@ -578,19 +582,19 @@ begin
   inherited Destroy;
 end;
 
-procedure TUCIEngine.ApplyOption(Option: TOption);
+procedure TUCIEngine.ApplyOption(Option: TUCIOption);
 begin
   // TODO: Convert empty string '' in <empty> ?
   case Option.Typ of
     tpCheck: SendStr('setoption name ' + Option.Name + ' value ' +
-        BoolToStr((Option as TCheckOption).Value, 'true', 'false'));
+        BoolToStr((Option as TCheckUCIOption).Value, 'true', 'false'));
     tpSpin: SendStr('setoption name ' + Option.Name + ' value ' +
-        IntToStr((Option as TSpinOption).Value));
+        IntToStr((Option as TSpinUCIOption).Value));
     tpCombo: SendStr('setoption name ' + Option.Name + ' value ' +
-        (Option as TComboOption).Value);
+        (Option as TComboUCIOption).Value);
     tpButton: SendStr('setoption name ' + Option.Name);
     tpString: SendStr('setoption name ' + Option.Name + ' value ' +
-        (Option as TStringOption).Value);
+        (Option as TStringUCIOption).Value);
   end;
 end;
 
@@ -648,6 +652,7 @@ begin
   SendStr('uci');
   WaitForToken('uciok');
   Timer.Enabled := True;
+  FisRunning := True;
   //Sleep(1000);
 end;
 
@@ -665,6 +670,7 @@ end;
 procedure TUCIEngine.Quit;
 begin
   Timer.Enabled := False;
+  FisRunning := False;
   SendStr('quit');
   if Assigned(FOnQuit) then
     FOnQuit(Self);

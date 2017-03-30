@@ -28,9 +28,9 @@ type
 
   TType = (tpCheck, tpSpin, tpCombo, tpButton, tpString);
 
-  { TOption }
+  { TUCIOption }
 
-  TOption = class
+  TUCIOption = class
   protected
     FName: string;
   public
@@ -38,19 +38,19 @@ type
     property Name: string read FName;
   end;
 
-  TOptionList = specialize TFPGObjectList<TOption>;
+  TUCIOptionList = specialize TFPGObjectList<TUCIOption>;
 
-  { TButtonOption }
+  { TButtonUCiOption }
 
-  TButtonOption = class(TOption)
+  TButtonUCiOption = class(TUCIOption)
   public
     function Typ: TType; override;
     constructor Create(AName: string);
   end;
 
-  { TCheckOption }
+  { TCheckUCIOption }
 
-  TCheckOption = class(TOption)
+  TCheckUCIOption = class(TUCIOption)
   private
     FDefault, FValue: boolean;
   public
@@ -60,9 +60,9 @@ type
     property Value: boolean read FValue write FValue;
   end;
 
-  { TComboOption }
+  { TComboUCIOption }
 
-  TComboOption = class(TOption)
+  TComboUCIOption = class(TUCIOption)
   private
     FDefault, FValue: string;
     FVariables: TStringList;
@@ -75,9 +75,9 @@ type
     property Value: string read FValue write FValue;
   end;
 
-  { TSpinOption }
+  { TSpinUCIOption }
 
-  TSpinOption = class(TOption)
+  TSpinUCIOption = class(TUCIOption)
   private
     FDefault, FMax, FMin, FValue: integer;
   public
@@ -89,9 +89,9 @@ type
     property Value: integer read FValue write FValue;
   end;
 
-  { TStringOption }
+  { TStringUCIOption }
 
-  TStringOption = class(TOption)
+  TStringUCIOption = class(TUCIOption)
   private
     FDefault, FValue: string;
   public
@@ -103,9 +103,9 @@ type
 
 implementation
 
-{ TStringOption }
+{ TStringUCIOption }
 
-constructor TStringOption.Create(AName, AValue: string);
+constructor TStringUCIOption.Create(AName, AValue: string);
 begin
   FName := AName;
   if Length(AValue) = 0 then
@@ -115,14 +115,14 @@ begin
   FVAlue := FDefault;
 end;
 
-function TStringOption.Typ: TType;
+function TStringUCIOption.Typ: TType;
 begin
   Result := tpString;
 end;
 
-{ TSpinOption }
+{ TSpinUCIOption }
 
-constructor TSpinOption.Create(AName, AValue, AMin, AMax: string);
+constructor TSpinUCIOption.Create(AName, AValue, AMin, AMax: string);
 begin
   FName := AName;
   FDefault := StrToInt(AValue);
@@ -131,14 +131,14 @@ begin
   FMin := StrToInt(AMin);
 end;
 
-function TSpinOption.Typ: TType;
+function TSpinUCIOption.Typ: TType;
 begin
   Result := tpSpin;
 end;
 
-{ TComboOption }
+{ TComboUCIOption }
 
-constructor TComboOption.Create(AName, AValue, Vars: string);
+constructor TComboUCIOption.Create(AName, AValue, Vars: string);
 begin
   FName := AName;
   FVariables:= Split(Vars, ' ');
@@ -146,39 +146,39 @@ begin
   FValue := FDefault;
 end;
 
-destructor TComboOption.Destroy;
+destructor TComboUCIOption.Destroy;
 begin
   FVariables.Free;
   inherited Destroy;
 end;
 
-function TComboOption.Typ: TType;
+function TComboUCIOption.Typ: TType;
 begin
   Result := tpCombo;
 end;
 
-{ TCheckOption }
+{ TCheckUCIOption }
 
-constructor TCheckOption.Create(AName, AValue: string);
+constructor TCheckUCIOption.Create(AName, AValue: string);
 begin
   FName := AName;
   FDefault := AValue = 'true';
   FValue := FDefault;
 end;
 
-function TCheckOption.Typ: TType;
+function TCheckUCIOption.Typ: TType;
 begin
   Result := tpCheck;
 end;
 
-{ TButtonOption }
+{ TButtonUCiOption }
 
-function TButtonOption.Typ: TType;
+function TButtonUCiOption.Typ: TType;
 begin
   Result := tpButton;
 end;
 
-constructor TButtonOption.Create(AName: string);
+constructor TButtonUCiOption.Create(AName: string);
 begin
   FName := AName;
 end;
