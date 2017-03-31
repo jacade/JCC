@@ -157,9 +157,13 @@ type
       write FHighlightStyle default hsNone;
     property OnHighLightSquare: THighlightSquareEvent
       read FOnHighLightSquare write FOnHighLightSquare;
+    property OnKeyDown;
+    property OnKeyPress;
+    property OnKeyUp;
     // is invoked, when the user moves a piece
     property OnMovePlayed: TMovePlayedEvent read FOnMovePlayed write FOnMovePlayed;
     property OnMouseWheel;
+    property OnPromotion: TPromotionEvent read FOnPromotion write FOnPromotion;
     { Specifies the Directory where vectorial images for the pieces can be found.
       They have to be named
         [b | w][b | k | n | p | q | r].svg
@@ -167,7 +171,6 @@ type
         w, b for white or black
       and
         p, r, n, b, k, q for resp. pawn, rook, knight, bishop, king, queen }
-    property OnPromotion: TPromotionEvent read FOnPromotion write FOnPromotion;
     property PieceDirectory: string read FPieceDirectory write SetPieceDirectory;
     property Reversed: boolean read FReversed write SetReversed default False;
     // Similiar to readonly, no moves will be accepted
