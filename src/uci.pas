@@ -249,7 +249,9 @@ begin
       end
       else
         Moves[i] := CreateMove(Start, Dest);
-    end;
+    end
+    else
+      Moves[i] := nil;
   end;
   FOnBestMove(Self, Moves[1], Moves[2]);
 end;
