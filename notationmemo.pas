@@ -95,6 +95,7 @@ type
     procedure InsertNotation(const TextUTF8: string; ANotationStyle: TNotationStyle;
       InsPos: integer = -1);
     procedure SetTextFromGame(const AGame: TGame);
+    procedure UnhighlightMoves;
   public
     property LineStyles: TLineStyleList read FLineStyles;
     property MoveToStrOptions: TMoveToStrOptions
@@ -501,6 +502,20 @@ begin
       tkResult: InsertNotation(Token.Text, Style.MoveStyle);
     end;
   end;
+end;
+
+procedure TNotationMemo.UnhighlightMoves;
+var
+  Params: TFontParams;
+begin
+  if HighlightedMoveLength > 0 then
+  begin
+    GetTextAttributes(HighlightedMoveStart, Params);
+    Params.BkColor := clWhite;
+    SetTextAttributes(HighlightedMoveStart, HighlightedMoveLength, Params);
+  end;
+  HighlightedMoveLength := 0;
+  HighlightedMoveStart := 0;
 end;
 
 end.
