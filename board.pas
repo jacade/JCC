@@ -121,6 +121,7 @@ type
     ImagesAreLoaded: boolean;
     InnerBoard: TRect;
     procedure FBorderChange(Sender: TObject);
+    procedure FCurrentPositionChange(Sender: TObject);
     procedure FGridChange(Sender: TObject);
     function GetSizePerSquare: integer;
     procedure SetBlackSquareColor(AValue: TColor);
@@ -326,6 +327,11 @@ begin
   Invalidate;
 end;
 
+procedure TBoard.FCurrentPositionChange(Sender: TObject);
+begin
+  Invalidate;
+end;
+
 procedure TBoard.FGridChange(Sender: TObject);
 begin
   Invalidate;
@@ -369,6 +375,7 @@ begin
   FCurrentPosition := AValue;
   FCountOfFiles := FCurrentPosition.CountOfFiles;
   FCountOfRanks := FCurrentPosition.CountOfRanks;
+  FCurrentPosition.OnChange:=@FCurrentPositionChange;
   Invalidate;
 end;
 

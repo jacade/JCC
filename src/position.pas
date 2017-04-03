@@ -71,9 +71,11 @@ type
     FBlackWins: TNotifyEvent;
     FDraw: TNotifyEvent;
     FMoveNumber: integer;
+    FOnChange: TNotifyEvent;
     FWhitesTurn: boolean;
     FWhiteWins: TNotifyEvent;
     procedure BlackWins;
+    procedure Changed; virtual;
     procedure Draw;
     function GetCountOfFiles: byte; virtual; abstract;
     function GetCountOfRanks: byte; virtual; abstract;
@@ -92,6 +94,7 @@ type
     property CountOfRanks: byte read GetCountOfRanks;
     property MoveNumber: integer read FMoveNumber write FMoveNumber;
     property OnBlackWins: TNotifyEvent read FBlackWins write FBlackWins;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnDraw: TNotifyEvent read FDraw write FDraw;
     property OnWhiteWins: TNotifyEvent read FWhiteWins write FWhiteWins;
     property Squares[Index: integer]: TPieceType read GetSquares;
@@ -105,14 +108,12 @@ type
   private
   var      // Note: If Variables are added, they need to be added to Assign, too
     FCastlingAbility: TCastlingAbility;
-    FOnChange: TNotifyEvent;
     FPliesSinceLastPawnMoveOrCapture: integer; // Important for 50 move rule
     // BitBoards
     FEnPassant: TBitBoard;
     // 1. Pawns 2. Rooks 3. Knights 4. Bishops 5. Queens 6. Kings 7. White 8. Black
     FBitBoards: array[1..8] of TBitBoard;
 
-    procedure Changed;
     function AntiDiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
     function DiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
     function HorizontalAttacks(Index: integer; Occupied: TBitBoard): TBitBoard;
@@ -176,7 +177,6 @@ type
     property CastlingAbility: TCastlingAbility
       read FCastlingAbility write FCastlingAbility;
     property EnPassant: TBitBoard read FEnPassant write FEnPassant;
-    property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property PliesSinceLastPawnMoveOrCapture: integer
       read FPliesSinceLastPawnMoveOrCapture write FPliesSinceLastPawnMoveOrCapture;
   end;
@@ -216,6 +216,12 @@ begin
     FBlackWins(Self);
 end;
 
+procedure TPosition.Changed;
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
 procedure TPosition.Draw;
 begin
   if Assigned(FDraw) then
@@ -235,14 +241,6 @@ begin
 end;
 
 { TStandardPosition }
-
-procedure TStandardPosition.Changed;
-begin
-  //GenerateAttackMaps;
-  // GenerateLegalMoves;
-  if Assigned(FOnChange) then
-    FOnChange(Self);
-end;
 
 function TStandardPosition.AntiDiagonalAttacks(index: integer;
   Occupied: TBitBoard): TBitBoard;
@@ -652,6 +650,7 @@ begin
     for i := 1 to 8 do
       FBitBoards[i] := TStandardPosition(Source).FBitBoards[i];
   end;
+  Changed;
 end;
 
 function TStandardPosition.GetCountOfFiles: byte;
@@ -1289,8 +1288,8 @@ end;
 procedure TStandardPosition.PlayMove(AMove: TMove);
 begin
   SilentPlayMove(AMove);
-(*  Changed;
-   if IsMate then
+  Changed;
+(*   if IsMate then
     if WhitesTurn then
       BlackWins
     else
