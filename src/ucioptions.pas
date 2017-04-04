@@ -38,36 +38,41 @@ type
     property Name: string read FName;
   end;
 
-  TUCIOptionList = specialize TFPGObjectList<TUCIOption>;
+  { TUCIOptionList }
 
-  { TButtonUCiOption }
-
-  TButtonUCiOption = class(TUCIOption)
+  TUCIOptionList = class(specialize TFPGObjectList<TUCIOption>)
   public
-    function Typ: TType; override;
-    constructor Create(AName: string);
+    function GetUCIOptionByName(const UCIOptionName: string): TUCIOption;
   end;
 
-  { TCheckUCIOption }
+  { TUCIButtonOption }
 
-  TCheckUCIOption = class(TUCIOption)
+  TUCIButtonOption = class(TUCIOption)
+  public
+    function Typ: TType; override;
+    constructor Create(const AName: string);
+  end;
+
+  { TUCICheckOption }
+
+  TUCICheckOption = class(TUCIOption)
   private
     FDefault, FValue: boolean;
   public
-    constructor Create(AName, AValue: string);
+    constructor Create(const AName, AValue: string);
     function Typ: TType; override;
     property DefaultValue: boolean read FDefault;
     property Value: boolean read FValue write FValue;
   end;
 
-  { TComboUCIOption }
+  { TUCIComboOption }
 
-  TComboUCIOption = class(TUCIOption)
+  TUCIComboOption = class(TUCIOption)
   private
     FDefault, FValue: string;
     FVariables: TStringList;
   public
-    constructor Create(AName, AValue, Vars: string);
+    constructor Create(const AName, AValue, Vars: string);
     destructor Destroy; override;
     function Typ: TType; override;
     property DefaultValue: string read FDefault;
@@ -75,13 +80,13 @@ type
     property Value: string read FValue write FValue;
   end;
 
-  { TSpinUCIOption }
+  { TUCISpinOption }
 
-  TSpinUCIOption = class(TUCIOption)
+  TUCISpinOption = class(TUCIOption)
   private
     FDefault, FMax, FMin, FValue: integer;
   public
-    constructor Create(AName, AValue, AMin, AMax: string);
+    constructor Create(const AName, AValue, AMin, AMax: string);
     function Typ: TType; override;
     property DefaultValue: integer read FDefault;
     property Maximum: integer read FMax;
@@ -89,13 +94,13 @@ type
     property Value: integer read FValue write FValue;
   end;
 
-  { TStringUCIOption }
+  { TUCIStringOption }
 
-  TStringUCIOption = class(TUCIOption)
+  TUCIStringOption = class(TUCIOption)
   private
     FDefault, FValue: string;
   public
-    constructor Create(AName, AValue: string);
+    constructor Create(const AName, AValue: string);
     function Typ: TType; override;
     property DefaultValue: string read FDefault;
     property Value: string read FValue write FValue;
@@ -103,26 +108,36 @@ type
 
 implementation
 
-{ TStringUCIOption }
+{ TUCIOptionList }
 
-constructor TStringUCIOption.Create(AName, AValue: string);
+function TUCIOptionList.GetUCIOptionByName(const UCIOptionName: string): TUCIOption;
+begin
+  for Result in Self do
+    if Result.Name = UCIOptionName then
+      Exit;
+  Result := nil;
+end;
+
+{ TUCIStringOption }
+
+constructor TUCIStringOption.Create(const AName, AValue: string);
 begin
   FName := AName;
   if Length(AValue) = 0 then
-    FDefault:='<empty>'
+    FDefault := '<empty>'
   else
     FDefault := AValue;
   FVAlue := FDefault;
 end;
 
-function TStringUCIOption.Typ: TType;
+function TUCIStringOption.Typ: TType;
 begin
   Result := tpString;
 end;
 
-{ TSpinUCIOption }
+{ TUCISpinOption }
 
-constructor TSpinUCIOption.Create(AName, AValue, AMin, AMax: string);
+constructor TUCISpinOption.Create(const AName, AValue, AMin, AMax: string);
 begin
   FName := AName;
   FDefault := StrToInt(AValue);
@@ -131,54 +146,55 @@ begin
   FMin := StrToInt(AMin);
 end;
 
-function TSpinUCIOption.Typ: TType;
+function TUCISpinOption.Typ: TType;
 begin
   Result := tpSpin;
 end;
 
-{ TComboUCIOption }
+{ TUCIComboOption }
 
-constructor TComboUCIOption.Create(AName, AValue, Vars: string);
+constructor TUCIComboOption.Create(const AName, AValue, Vars: string);
 begin
   FName := AName;
-  FVariables:= Split(Vars, ' ');
+  FVariables := Split(Vars, ' ');
+
   FDefault := AValue;
   FValue := FDefault;
 end;
 
-destructor TComboUCIOption.Destroy;
+destructor TUCIComboOption.Destroy;
 begin
   FVariables.Free;
   inherited Destroy;
 end;
 
-function TComboUCIOption.Typ: TType;
+function TUCIComboOption.Typ: TType;
 begin
   Result := tpCombo;
 end;
 
-{ TCheckUCIOption }
+{ TUCICheckOption }
 
-constructor TCheckUCIOption.Create(AName, AValue: string);
+constructor TUCICheckOption.Create(const AName, AValue: string);
 begin
   FName := AName;
   FDefault := AValue = 'true';
   FValue := FDefault;
 end;
 
-function TCheckUCIOption.Typ: TType;
+function TUCICheckOption.Typ: TType;
 begin
   Result := tpCheck;
 end;
 
-{ TButtonUCiOption }
+{ TUCIButtonOption }
 
-function TButtonUCiOption.Typ: TType;
+function TUCIButtonOption.Typ: TType;
 begin
   Result := tpButton;
 end;
 
-constructor TButtonUCiOption.Create(AName: string);
+constructor TUCIButtonOption.Create(const AName: string);
 begin
   FName := AName;
 end;
