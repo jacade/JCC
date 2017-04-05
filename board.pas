@@ -375,7 +375,7 @@ begin
   FCurrentPosition := AValue;
   FCountOfFiles := FCurrentPosition.CountOfFiles;
   FCountOfRanks := FCurrentPosition.CountOfRanks;
-  FCurrentPosition.OnChange:=@FCurrentPositionChange;
+  FCurrentPosition.OnChange := @FCurrentPositionChange;
   Invalidate;
 end;
 
@@ -393,7 +393,6 @@ var
   c, t: char;
   i, j, k, l, m: integer;
 begin
-  ImagesAreLoaded := False;
   if (FPieceDirectory = AValue) or not DirectoryExists(AValue) then
     Exit;
   // good, directory exists
@@ -407,11 +406,11 @@ begin
       for t in ['b', 'k', 'n', 'q', 'p', 'r'] do
       begin
         if FileExists(AppendPathDelim(AValue) + IntToStr(k) + 'x' +
-          IntToStr(k) + '/' + c + t + '.png') then
+          IntToStr(k) + DirectorySeparator + c + t + '.png') then
         begin
           temp[l][i] := TPortableNetworkGraphic.Create;
           temp[l][i].LoadFromFile(AppendPathDelim(AValue) + IntToStr(k) +
-            'x' + IntToStr(k) + '/' + c + t + '.png');
+            'x' + IntToStr(k) + DirectorySeparator + c + t + '.png');
           Inc(i);
         end
         else
@@ -568,8 +567,8 @@ begin
         Canvas.Brush.Color := FWhiteSquareColor
       else
         Canvas.Brush.Color := FBlackSquareColor;
-      Canvas.FillRect(InnerBoard.TopLeft + Point(
-        (i + 1) * FGrid.Width + i * d, (j + 1) * FGrid.Width + j * d) + Rect(0, 0, d, d));
+      Canvas.FillRect(InnerBoard.TopLeft + Point((i + 1) *
+        FGrid.Width + i * d, (j + 1) * FGrid.Width + j * d) + Rect(0, 0, d, d));
     end;
   // Draw Border
   if Border.Size > 0 then
