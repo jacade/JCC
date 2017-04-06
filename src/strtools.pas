@@ -83,11 +83,15 @@ begin
       begin
         Token := j;
         TokenFound := True;
+        if Length(Result[Token]) > 0 then
+          Result[Token] := Result[Token] + ';';
       end;
     end;
     if not TokenFound then
       if Length(Result[Token]) = 0 then
         Result[Token] := s.Strings[i]
+      else if Result[Token][Length(Result[Token])] = ';' then
+        Result[Token] := Result[Token] + s.Strings[i]
       else
         Result[Token] := Result[Token] + ' ' + s.Strings[i];
   end;
