@@ -589,18 +589,10 @@ end;
 
 procedure TUCIEngine.ApplyOption(Option: TUCIOption);
 begin
-  // TODO: Convert empty string '' in <empty> ?
-  case Option.Typ of
-    tpCheck: SendStr('setoption name ' + Option.Name + ' value ' +
-        BoolToStr((Option as TUCICheckOption).Value, 'true', 'false'));
-    tpSpin: SendStr('setoption name ' + Option.Name + ' value ' +
-        IntToStr((Option as TUCISpinOption).Value));
-    tpCombo: SendStr('setoption name ' + Option.Name + ' value ' +
-        (Option as TUCIComboOption).Value);
-    tpButton: SendStr('setoption name ' + Option.Name);
-    tpString: SendStr('setoption name ' + Option.Name + ' value ' +
-        (Option as TUCIStringOption).Value);
-  end;
+  if Option.Typ = tpButton then
+    SendStr('setoption name ' + Option.Name)
+  else
+    SendStr('setoption name ' + Option.Name + ' value ' + Option.Value);
 end;
 
 procedure TUCIEngine.Go(searchmoves: TStringList; ponder: boolean;

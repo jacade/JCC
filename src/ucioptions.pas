@@ -33,9 +33,12 @@ type
   TUCIOption = class
   protected
     FName: string;
+    function GetValue: string; virtual; abstract;
+    procedure SetValue(const AValue: string); virtual; abstract;
   public
     function Typ: TType; virtual; abstract;
     property Name: string read FName;
+    property Value: string read GetValue write SetValue;
   end;
 
   { TUCIOptionList }
@@ -48,6 +51,9 @@ type
   { TUCIButtonOption }
 
   TUCIButtonOption = class(TUCIOption)
+  protected
+    function GetValue: string; override;
+    procedure SetValue(const AValue: string); override;
   public
     function Typ: TType; override;
     constructor Create(const AName: string);
@@ -58,11 +64,14 @@ type
   TUCICheckOption = class(TUCIOption)
   private
     FDefault, FValue: boolean;
+  protected
+    function GetValue: string; override;
+    procedure SetValue(const AValue: string); override;
   public
     constructor Create(const AName, AValue: string);
     function Typ: TType; override;
     property DefaultValue: boolean read FDefault;
-    property Value: boolean read FValue write FValue;
+    property ValueBool: Boolean read FValue write FValue;
   end;
 
   { TUCIComboOption }
@@ -71,13 +80,15 @@ type
   private
     FDefault, FValue: string;
     FVariables: TStringList;
+  protected
+    function GetValue: string; override;
+    procedure SetValue(const AValue: string); override;
   public
     constructor Create(const AName, AValue, Vars: string);
     destructor Destroy; override;
     function Typ: TType; override;
     property DefaultValue: string read FDefault;
     property Variables: TStringList read FVariables;
-    property Value: string read FValue write FValue;
   end;
 
   { TUCISpinOption }
@@ -85,13 +96,16 @@ type
   TUCISpinOption = class(TUCIOption)
   private
     FDefault, FMax, FMin, FValue: integer;
+  protected
+    function GetValue: string; override;
+    procedure SetValue(const AValue: string); override;
   public
     constructor Create(const AName, AValue, AMin, AMax: string);
     function Typ: TType; override;
     property DefaultValue: integer read FDefault;
     property Maximum: integer read FMax;
     property Minimum: integer read FMin;
-    property Value: integer read FValue write FValue;
+    property ValueInt: Integer read FValue write FValue;
   end;
 
   { TUCIStringOption }
@@ -99,11 +113,13 @@ type
   TUCIStringOption = class(TUCIOption)
   private
     FDefault, FValue: string;
+  protected
+    function GetValue: string; override;
+    procedure SetValue(const AValue: string); override;
   public
     constructor Create(const AName, AValue: string);
     function Typ: TType; override;
     property DefaultValue: string read FDefault;
-    property Value: string read FValue write FValue;
   end;
 
 implementation
@@ -119,6 +135,19 @@ begin
 end;
 
 { TUCIStringOption }
+
+function TUCIStringOption.GetValue: string;
+begin
+  Result := FValue;
+end;
+
+procedure TUCIStringOption.SetValue(const AValue: string);
+begin
+  if AValue = '' then
+    FValue := '<empty>'
+  else
+    FValue := AValue;
+end;
 
 constructor TUCIStringOption.Create(const AName, AValue: string);
 begin
@@ -137,6 +166,16 @@ end;
 
 { TUCISpinOption }
 
+function TUCISpinOption.GetValue: string;
+begin
+  Result := IntToStr(FValue);
+end;
+
+procedure TUCISpinOption.SetValue(const AValue: string);
+begin
+  FValue := StrToInt(AValue);
+end;
+
 constructor TUCISpinOption.Create(const AName, AValue, AMin, AMax: string);
 begin
   FName := AName;
@@ -153,10 +192,20 @@ end;
 
 { TUCIComboOption }
 
+function TUCIComboOption.GetValue: string;
+begin
+  Result := FValue;
+end;
+
+procedure TUCIComboOption.SetValue(const AValue: string);
+begin
+  FValue := AValue;
+end;
+
 constructor TUCIComboOption.Create(const AName, AValue, Vars: string);
 begin
   FName := AName;
-  FVariables := Split(Vars, ' ');
+  FVariables := Split(Vars, ';');
 
   FDefault := AValue;
   FValue := FDefault;
@@ -175,6 +224,16 @@ end;
 
 { TUCICheckOption }
 
+function TUCICheckOption.GetValue: string;
+begin
+  Result := BoolToStr(FValue, 'true', 'false');
+end;
+
+procedure TUCICheckOption.SetValue(const AValue: string);
+begin
+  FValue := StrToBool(AValue);
+end;
+
 constructor TUCICheckOption.Create(const AName, AValue: string);
 begin
   FName := AName;
@@ -188,6 +247,16 @@ begin
 end;
 
 { TUCIButtonOption }
+
+function TUCIButtonOption.GetValue: string;
+begin
+  Result := '';
+end;
+
+procedure TUCIButtonOption.SetValue(const AValue: string);
+begin
+
+end;
 
 function TUCIButtonOption.Typ: TType;
 begin
