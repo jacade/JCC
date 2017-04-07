@@ -110,6 +110,7 @@ type
     FGrid: TBoardGrid;
     FHighlightStyle: THighlightStyle;
     FOnHighLightSquare: THighlightSquareEvent;
+    FOnPositionChange: TNotifyEvent;
     FPieceDirectory: string;
     FReversed: boolean;
     FOnMovePlayed: TMovePlayedEvent;
@@ -156,6 +157,7 @@ type
     property Grid: TBoardGrid read FGrid write SetGrid;
     property HighlightStyle: THighlightStyle read FHighlightStyle
       write FHighlightStyle default hsNone;
+    property OnPositionChange: TNotifyEvent read FOnPositionChange write FOnPositionChange;
     property OnHighLightSquare: THighlightSquareEvent
       read FOnHighLightSquare write FOnHighLightSquare;
     property OnKeyDown;
@@ -329,6 +331,8 @@ end;
 
 procedure TBoard.FCurrentPositionChange(Sender: TObject);
 begin
+  if Assigned(FOnPositionChange) then
+    FOnPositionChange(Self);
   Invalidate;
 end;
 
