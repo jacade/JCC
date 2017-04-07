@@ -125,6 +125,7 @@ type
     procedure SendRegistration(Later: boolean; AName, code: string);
     procedure SetUpPosition(FEN: string = 'startpos'; Moves: TMoveList = nil);
     procedure Stop;
+    procedure WaitForReadyOk;
     property Author: string read FAuthor;
     property EngineName: string read FName;
     property Hash: integer read FHash;
@@ -367,7 +368,7 @@ var
   i: integer;
   st: string;
 begin
-  if not Assigned(FOnInfo) then
+  if not Assigned(FOnInfo) or not FisCalculating then
     Exit;
   Info.PV := nil;
   Info.CurrLine := nil;
@@ -717,8 +718,13 @@ end;
 
 procedure TUCIEngine.Stop;
 begin
-  SendStr('stop');
   FisCalculating := False;
+  SendStr('stop');
+end;
+
+procedure TUCIEngine.WaitForReadyOk;
+begin
+  WaitForToken('readyok');
 end;
 
 end.
