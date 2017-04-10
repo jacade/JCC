@@ -52,13 +52,15 @@ type
     FCaptureSymbol: TCaptureSymbol;
     FPieceLetters: TChessPieceLetters;
     FPromotionSymbol: TPromotionSymbol;
-    FShowEnPassantSuffix: Boolean;
+    FShowEnPassantSuffix: boolean;
     FShowPawnLetter: boolean;
   public
     property CaptureSymbol: TCaptureSymbol read FCaptureSymbol write FCaptureSymbol;
     property PieceLetters: TChessPieceLetters read FPieceLetters write FPieceLetters;
-    property PromotionSymbol: TPromotionSymbol read FPromotionSymbol write FPromotionSymbol;
-    property ShowEnPassantSuffix: Boolean read FShowEnPassantSuffix write FShowEnPassantSuffix;
+    property PromotionSymbol: TPromotionSymbol
+      read FPromotionSymbol write FPromotionSymbol;
+    property ShowEnPassantSuffix: boolean read FShowEnPassantSuffix
+      write FShowEnPassantSuffix;
     property ShowPawnLetter: boolean read FShowPawnLetter write FShowPawnLetter;
   end;
 
@@ -80,12 +82,14 @@ type
     function GetCountOfFiles: byte; virtual; abstract;
     function GetCountOfRanks: byte; virtual; abstract;
     function GetSquares(Index: integer): TPieceType; virtual; abstract;
+    procedure SetSquares(Index: integer; AValue: TPieceType); virtual; abstract;
     procedure WhiteWins;
   public
     // Copies important values from Source to Self
     procedure Copy(Source: TPosition); virtual;
     function GetAllLegalMoves: TMoveList; virtual; abstract;
-    function MoveToStr(AMove: TMove; MoveToStrOptions: TMoveToStrOptions): string; virtual; abstract;
+    function MoveToStr(AMove: TMove; MoveToStrOptions: TMoveToStrOptions): string;
+      virtual; abstract;
     procedure PlayMove(AMove: TMove); virtual; abstract;
     procedure SetupInitialPosition; virtual; abstract;
     function ValidateMove(AMove: TMove): boolean; virtual; abstract;
@@ -97,7 +101,7 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnDraw: TNotifyEvent read FDraw write FDraw;
     property OnWhiteWins: TNotifyEvent read FWhiteWins write FWhiteWins;
-    property Squares[Index: integer]: TPieceType read GetSquares;
+    property Squares[Index: integer]: TPieceType read GetSquares write SetSquares;
     property WhitesTurn: boolean read FWhitesTurn write FWhitesTurn;
   end;
 
@@ -116,7 +120,9 @@ type
 
     function AntiDiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
     function DiagonalAttacks(index: integer; Occupied: TBitBoard): TBitBoard;
+    function GetBitBoards(Index: integer): TBitBoard;
     function HorizontalAttacks(Index: integer; Occupied: TBitBoard): TBitBoard;
+    procedure SetBitBoards(Index: integer; AValue: TBitBoard);
     function VerticalAttacks(Index: integer; Occupied: TBitBoard): TBitBoard;
     function DiagonalAndAntiDiagonalAttacks(Index: integer;
       Occupied: TBitBoard): TBitBoard;
@@ -124,6 +130,8 @@ type
       Occupied: TBitBoard): TBitBoard;
     function PawnAttacks(Pawns, Occupied: TBitBoard;
       WhitePawns: boolean): TBitBoard;
+    function PawnAttackLeft(Pawns, Enenmy: TBitBoard; WhitePawns: boolean): TBitBoard;
+    function PawnAttackRight(Pawns, Enenmy: TBitBoard; WhitePawns: boolean): TBitBoard;
     function PawnForwards(Pawns, Occupied: TBitBoard;
       WhitePawns: boolean): TBitBoard;
     function PawnForwardTwo(Pawns, Occupied, StartRank: TBitBoard;
@@ -136,8 +144,6 @@ type
       StartFile: byte = 0; StartRank: byte = 0; DestSquare: byte = 255;
       APromotionPiece: TPieceType = ptEmpty);
     function GetPinnedPieces: TBitBoard;
-    // Checks if the side not to move is attacking the given square
-    function IsAttacked(Index: integer; ByWhite: boolean): boolean;
     function MayMove(Start, Dest: byte; Occupied: TBitBoard): boolean;
     procedure SilentFromFEN(const AFEN: string);
     // Plays the move without triggering Changed
@@ -147,6 +153,17 @@ type
     function GetCountOfFiles: byte; override;
     function GetCountOfRanks: byte; override;
     function GetSquares(Index: integer): TPieceType; override;
+    procedure SetSquares(Index: integer; AValue: TPieceType); override;
+  protected
+    function BishopMoves(Index: byte; Occupied: TBitBoard): TBitBoard; virtual;
+    function GetNewPosition: TStandardPosition; virtual;
+    function KingMoves(Index: byte; Occupied: TBitBoard;
+      IsWhiteKing: boolean): TBitBoard; virtual;
+    function KnightMoves(Index: byte; Occupied: TBitBoard): TBitBoard; virtual;
+    function QueenMoves(Index: byte; Occupied: TBitBoard): TBitBoard; virtual;
+    function RookMoves(Index: byte; Occupied: TBitBoard): TBitBoard; virtual;
+    function SinglePawnMoves(Index: byte; Enemy: TBitBoard;
+      WhitePawn: boolean): TBitBoard; virtual;
   public
   const
     InitialFEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -157,6 +174,9 @@ type
     procedure Copy(Source: TPosition); override;
     procedure FromFEN(const AFEN: string);
     function GetAllLegalMoves: TMoveList; override;
+    function GetAllPseudoLegalMoves: TMoveList;
+    // Checks if the side not to move is attacking the given square
+    function IsAttacked(Index: integer; ByWhite: boolean): boolean;
     // Checks if the side to move is check
     function IsCheck: boolean;
     // Checks if the side not to move is in check
@@ -165,7 +185,8 @@ type
     function IsStaleMate: boolean;
     function IsValid: boolean;
     // This uses the english piece letters
-    function MoveToStr(AMove: TMove; MoveToStrOptions: TMoveToStrOptions): string; override;
+    function MoveToStr(AMove: TMove; MoveToStrOptions: TMoveToStrOptions): string;
+      override;
     procedure PlayMove(AMove: TMove); override;
     procedure SetupInitialPosition; override;
     // If true, the converted move can be found in ResultMove
@@ -174,6 +195,8 @@ type
     function ValidateMove(AMove: TMove): boolean; override;
     function ToFEN: string;
   public
+    // 1. Pawns 2. Rooks 3. Knights 4. Bishops 5. Queens 6. Kings 7. White 8. Black
+    property BitBoards[Index: integer]: TBitBoard read GetBitBoards write SetBitBoards;
     property CastlingAbility: TCastlingAbility
       read FCastlingAbility write FCastlingAbility;
     property EnPassant: TBitBoard read FEnPassant write FEnPassant;
@@ -270,6 +293,11 @@ begin
   Result := Result and CurrentDiag;
 end;
 
+function TStandardPosition.GetBitBoards(Index: integer): TBitBoard;
+begin
+  Result := FBitBoards[Index];
+end;
+
 function TStandardPosition.HorizontalAttacks(Index: integer;
   Occupied: TBitBoard): TBitBoard;
 var
@@ -279,6 +307,11 @@ begin
   Result := (Occupied - 2 * Temp) xor ReverseBitBoard(ReverseBitBoard(Occupied) -
     2 * ReverseBitBoard(Temp));
   Result := Result and Ranks[8 - (Index div 8)];
+end;
+
+procedure TStandardPosition.SetBitBoards(Index: integer; AValue: TBitBoard);
+begin
+  FBitBoards[Index] := AValue;
 end;
 
 function TStandardPosition.VerticalAttacks(Index: integer;
@@ -319,6 +352,34 @@ begin
     Result := ((Pawns and not Files[8]) shl 9) or ((Pawns and not Files[1]) shl 7);
   end;
   Result := Result and Occupied;
+end;
+
+function TStandardPosition.PawnAttackLeft(Pawns, Enenmy: TBitBoard;
+  WhitePawns: boolean): TBitBoard;
+begin
+  if WhitePawns then
+  begin
+    Result := (Pawns and not Files[1]) shr 9;
+  end
+  else
+  begin
+    Result := (Pawns and not Files[8]) shl 9;
+  end;
+  Result := Result and Enenmy;
+end;
+
+function TStandardPosition.PawnAttackRight(Pawns, Enenmy: TBitBoard;
+  WhitePawns: boolean): TBitBoard;
+begin
+  if WhitePawns then
+  begin
+    Result := (Pawns and not Files[8]) shr 7;
+  end
+  else
+  begin
+    Result := (Pawns and not Files[1]) shl 7;
+  end;
+  Result := Result and Enenmy;
 end;
 
 function TStandardPosition.PawnForwards(Pawns, Occupied: TBitBoard;
@@ -380,7 +441,8 @@ begin
   if Attackers > 0 then // check if we are really in check
   begin
     // First look if the king can move
-    Moves := KingMoves[KingPos] and not OwnPiecePos;
+    Moves := KingMoves(KingPos, FBitBoards[7] or FBitBoards[8], FWhitesTurn) and
+      not OwnPiecePos;
     Temp := Moves;
     while Temp > 0 do
     begin
@@ -395,7 +457,7 @@ begin
       PinnedPieces := GetPinnedPieces;
       if GetAttackerPosition(Index, OwnPieces) and not (PinnedPieces or King) > 0 then
         Exit(True);
-      if (BasicPieceType(Squares[Index]) <> bptKnight) and (Attackers and Moves = 0) then
+      if (BasicPieceType(Squares[Index]) <> bptKnight) or (Attackers and Moves = 0) then
       begin
         // Attacker is not a knight or next to the king, so we can try to block the check
         Temp := InBetweens[KingPos, Index];
@@ -477,7 +539,8 @@ begin
     Starts := Starts and (Starts - 1);
   end;
   // Check moves for legality
-  Clone := TStandardPosition.Create;
+  // Clone := TStandardPosition.Create;
+  Clone := GetNewPosition;
   i := 0;
   while i < Result.Count do
   begin
@@ -522,24 +585,23 @@ begin
       end;
       bptKnight:
       begin
-        Starts := Pieces and KnightMoves[Index];
+        Starts := Pieces and KnightMoves(Index, Occupied);
       end;
       bptBishop:
       begin
-        Starts := Pieces and DiagonalAndAntiDiagonalAttacks(Index, Occupied);
+        Starts := Pieces and BishopMoves(Index, Occupied);
       end;
       bptRook:
       begin
-        Starts := Pieces and HorizontalAndVerticalAttacks(Index, Occupied);
+        Starts := Pieces and RookMoves(Index, Occupied);
       end;
       bptQueen:
       begin
-        Starts := Pieces and (DiagonalAndAntiDiagonalAttacks(Index, Occupied) or
-          HorizontalAndVerticalAttacks(Index, Occupied));
+        Starts := Pieces and QueenMoves(Index, Occupied);
       end;
       bptKing:
       begin
-        Starts := Pieces and KingMoves[Index];
+        Starts := Pieces and KingMoves(Index, Occupied, IsWhite(MovingPiece));
       end;
     end;
     Result := Result or Starts;
@@ -686,6 +748,125 @@ begin
       end;
     end;
   end;
+end;
+
+procedure TStandardPosition.SetSquares(Index: integer; AValue: TPieceType);
+var
+  Dest: QWord;
+  i: integer;
+begin
+  Dest := QWord(1) shl Index;
+  // Delete from all boards
+  for i := 1 to 8 do
+    FBitBoards[i] := FBitBoards[i] and not Dest;
+  case AValue of
+    ptWPawn:
+    begin
+      FBitBoards[1] := FBitBoards[1] or Dest;
+      FBitBoards[7] := FBitBoards[7] or Dest;
+    end;
+    ptWRook:
+    begin
+      FBitBoards[2] := FBitBoards[2] or Dest;
+      FBitBoards[7] := FBitBoards[7] or Dest;
+    end;
+    ptWKnight:
+    begin
+      FBitBoards[3] := FBitBoards[3] or Dest;
+      FBitBoards[7] := FBitBoards[7] or Dest;
+    end;
+    ptWBishop:
+    begin
+      FBitBoards[4] := FBitBoards[4] or Dest;
+      FBitBoards[7] := FBitBoards[7] or Dest;
+    end;
+    ptWQueen:
+    begin
+      FBitBoards[5] := FBitBoards[5] or Dest;
+      FBitBoards[7] := FBitBoards[7] or Dest;
+    end;
+    ptWKing:
+    begin
+      FBitBoards[6] := FBitBoards[6] or Dest;
+      FBitBoards[7] := FBitBoards[7] or Dest;
+    end;
+    ptBPawn:
+    begin
+      FBitBoards[1] := FBitBoards[1] or Dest;
+      FBitBoards[8] := FBitBoards[8] or Dest;
+    end;
+    ptBRook:
+    begin
+      FBitBoards[2] := FBitBoards[2] or Dest;
+      FBitBoards[8] := FBitBoards[8] or Dest;
+    end;
+    ptBKnight:
+    begin
+      FBitBoards[3] := FBitBoards[3] or Dest;
+      FBitBoards[8] := FBitBoards[8] or Dest;
+    end;
+    ptBBishop:
+    begin
+      FBitBoards[4] := FBitBoards[4] or Dest;
+      FBitBoards[8] := FBitBoards[8] or Dest;
+    end;
+    ptBQueen:
+    begin
+      FBitBoards[5] := FBitBoards[5] or Dest;
+      FBitBoards[8] := FBitBoards[8] or Dest;
+    end;
+    ptBKing:
+    begin
+      FBitBoards[6] := FBitBoards[6] or Dest;
+      FBitBoards[8] := FBitBoards[8] or Dest;
+    end;
+  end;
+end;
+
+function TStandardPosition.BishopMoves(Index: byte; Occupied: TBitBoard): TBitBoard;
+begin
+  Result := DiagonalAndAntiDiagonalAttacks(Index, Occupied);
+end;
+
+function TStandardPosition.GetNewPosition: TStandardPosition;
+begin
+  Result := TStandardPosition.Create;
+end;
+
+function TStandardPosition.KingMoves(Index: byte; Occupied: TBitBoard;
+  IsWhiteKing: boolean): TBitBoard;
+begin
+  Result := BitBoard.KingMoves[Index];
+end;
+
+function TStandardPosition.KnightMoves(Index: byte; Occupied: TBitBoard): TBitBoard;
+begin
+  Result := BitBoard.KnightMoves[Index];
+end;
+
+function TStandardPosition.QueenMoves(Index: byte; Occupied: TBitBoard): TBitBoard;
+begin
+  Result := DiagonalAndAntiDiagonalAttacks(Index, Occupied) or
+    HorizontalAndVerticalAttacks(Index, Occupied);
+end;
+
+function TStandardPosition.RookMoves(Index: byte; Occupied: TBitBoard): TBitBoard;
+begin
+  Result := HorizontalAndVerticalAttacks(Index, Occupied);
+end;
+
+function TStandardPosition.SinglePawnMoves(Index: byte; Enemy: TBitBoard;
+  WhitePawn: boolean): TBitBoard;
+begin
+  Result := PawnForwards(QWord(1) shl Index, FBitBoards[7] or
+    FBitBoards[8], WhitePawn) or PawnAttacks(QWord(1) shl Index, Enemy or
+    FEnPassant, WhitePawn);
+  if WhitePawn then
+    Result := Result or PawnForwardTwo(QWord(1) shl Index, FBitBoards[7] or
+      FBitBoards[8], Ranks[2], WhitePawn)
+  else
+    Result := Result or PawnForwardTwo(QWord(1) shl Index, FBitBoards[7] or
+      FBitBoards[8], Ranks[7], WhitePawn);
 end;
 
 function TStandardPosition.IsAttacked(Index: integer; ByWhite: boolean): boolean;
@@ -877,7 +1058,9 @@ begin
     FBitBoards[6] := (FBitBoards[6] and not Start) or Dest;
     FEnPassant := 0;
     // Kingside castling
-    if ((Dest > Start) and (Dest = Start shl 2)) then
+    if (((FWhitesTurn and (ctWKingside in FCastlingAbility)) or
+      (not FWhitesTurn and (ctBKingside in FCastlingAbility))) and
+      (Dest > Start) and (Dest = Start shl 2)) then
     begin
       FBitBoards[2] := (FBitBoards[2] or (Start shl 1)) and not (Start shl 3);
       if FWhitesTurn then
@@ -887,7 +1070,9 @@ begin
     end
     else
     // Queenside castling
-    if ((Dest < Start) and (Start = Dest shl 2)) then
+    if (((FWhitesTurn and (ctWQueenside in FCastlingAbility)) or
+      (not FWhitesTurn and (ctBQueenside in FCastlingAbility))) and
+      (Dest < Start) and (Start = Dest shl 2)) then
     begin
       FBitBoards[2] := (FBitBoards[2] or (Start shr 1)) and not (Start shr 4);
       if FWhitesTurn then
@@ -946,7 +1131,7 @@ begin
         Attackers := WhitePieces;
       end;
     end;
-    Result := (FBitBoards[7] and FBitBoards[8] and HasToBeEmpty) = 0;
+    Result := ((FBitBoards[7] or FBitBoards[8]) and HasToBeEmpty) = 0;
     for i in CantBeAttacked do
     begin
       Result := Result and (GetAttackerPosition(i, Attackers) = 0);
@@ -1007,56 +1192,172 @@ end;
 
 function TStandardPosition.GetAllLegalMoves: TMoveList;
 var
-  Temp: TBitBoard;
-  i, j: byte;
-  Move: TMove;
+  i: integer;
+  Clone: TStandardPosition;
 begin
-  Result := TMoveList.Create;
-  if WhitesTurn then
-    Temp := FBitBoards[7]
-  else
-    Temp := FBitBoards[8];
-  while Temp > 0 do
+  Result := GetAllPseudoLegalMoves;
+  Clone := GetNewPosition;
+  for i := Result.Count - 1 downto 0 do
   begin
-    i := NumberOfTrailingZeroes(Temp);
-    for j := 0 to 63 do
+    Clone.Copy(Self);
+    Clone.PlayMove(Result.Items[i]);
+    if Clone.IsIllegalCheck then
+      Result.Delete(i);
+  end;
+  Clone.Free;
+end;
+
+function TStandardPosition.GetAllPseudoLegalMoves: TMoveList;
+var
+  B, K, N, P, Q, R, Moves, Occupied, Own, Enemy: TBitBoard;
+  i, a: integer;
+  Piece: TPieceType;
+  OwnPieces: TPieceTypes;
+begin
+  Occupied := FBitBoards[7] or FBitBoards[8];
+  if FWhitesTurn then
+  begin
+    B := FBitBoards[4] and FBitBoards[7];
+    K := FBitBoards[6] and FBitBoards[7];
+    N := FBitBoards[3] and FBitBoards[7];
+    P := FBitBoards[1] and FBitBoards[7];
+    Q := FBitBoards[5] and FBitBoards[7];
+    R := FBitBoards[2] and FBitBoards[7];
+    Own := FBitBoards[7];
+    Enemy := FBitBoards[8];
+    OwnPieces := [ptWKnight, ptWBishop, ptWRook, ptWQueen];
+  end
+  else
+  begin
+    B := FBitBoards[4] and FBitBoards[8];
+    K := FBitBoards[6] and FBitBoards[8];
+    N := FBitBoards[3] and FBitBoards[8];
+    P := FBitBoards[1] and FBitBoards[8];
+    Q := FBitBoards[5] and FBitBoards[8];
+    R := FBitBoards[2] and FBitBoards[8];
+    Own := FBitBoards[8];
+    Enemy := FBitBoards[7];
+    OwnPieces := [ptBKnight, ptBBishop, ptBRook, ptBQueen];
+  end;
+  Result := TMoveList.Create;
+  // Bishop Moves
+  while B > 0 do
+  begin
+    i := NumberOfTrailingZeroes(B);
+    Moves := BishopMoves(i, Occupied) and not Own;
+    while Moves > 0 do
     begin
-      Move := TMove.Create(i, j);
-      if ValidateMove(Move) then
-      begin
-        if FWhitesTurn then
-        begin
-          // Pawn Promotion
-          if (j in Rank8) and (Squares[i] = ptWPawn) then
-          begin
-            Result.Add(TMove.Create(i, j, ptWQueen));
-            Result.Add(TMove.Create(i, j, ptWKnight));
-            Result.Add(TMove.Create(i, j, ptWBishop));
-            Result.Add(TMove.Create(i, j, ptWRook));
-            Move.Free;
-          end
-          else
-            Result.Add(Move);
-        end
-        else
-        begin
-          // Pawn Promotion
-          if (j in Rank1) and (Squares[i] = ptBPawn) then
-          begin
-            Result.Add(TMove.Create(i, j, ptBQueen));
-            Result.Add(TMove.Create(i, j, ptBKnight));
-            Result.Add(TMove.Create(i, j, ptBBishop));
-            Result.Add(TMove.Create(i, j, ptBRook));
-            Move.Free;
-          end
-          else
-            Result.Add(Move);
-        end;
-      end
-      else
-        Move.Free;
+      Result.Add(TMove.Create(i, NumberOfTrailingZeroes(Moves)));
+      Moves := Moves and (Moves - 1);
     end;
-    Temp := Temp and (Temp - 1);
+    B := B and (B - 1);
+  end;
+  // King Moves
+  while K > 0 do
+  begin
+    i := NumberOfTrailingZeroes(K);
+    Moves := KingMoves(i, Occupied, FWhitesTurn) and not Own;
+    while Moves > 0 do
+    begin
+      Result.Add(TMove.Create(i, NumberOfTrailingZeroes(Moves)));
+      Moves := Moves and (Moves - 1);
+    end;
+    K := K and (K - 1);
+  end;
+  if FWhitesTurn then
+  begin
+    if (ctWKingside in FCastlingAbility) and ValidateCastling(ctWKingside) then
+      Result.Add(TMove.Create(60, 62));
+    if (ctWQueenside in FCastlingAbility) and ValidateCastling(ctWQueenside) then
+      Result.Add(TMove.Create(60, 58));
+  end
+  else
+  begin
+    if (ctBKingside in FCastlingAbility) and ValidateCastling(ctBKingside) then
+      Result.Add(TMove.Create(4, 6));
+    if (ctBQueenside in FCastlingAbility) and ValidateCastling(ctBQueenside) then
+      Result.Add(TMove.Create(4, 2));
+  end;
+  // Knight Moves
+  while N > 0 do
+  begin
+    i := NumberOfTrailingZeroes(N);
+    Moves := KnightMoves(i, Occupied) and not Own;
+    while Moves > 0 do
+    begin
+      Result.Add(TMove.Create(i, NumberOfTrailingZeroes(Moves)));
+      Moves := Moves and (Moves - 1);
+    end;
+    N := N and (N - 1);
+  end;
+  // Pawn Moves
+  if FWhitesTurn then
+    a := 1
+  else
+    a := -1;
+  Moves := PawnForwards(P, Occupied, FWhitesTurn);
+  while Moves > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Moves);
+    if i in Rank8 + Rank1 then
+      for Piece in OwnPieces do
+        Result.Add(TMove.Create(i + a * 8, i, Piece))
+    else
+      Result.Add(TMove.Create(i + a * 8, i));
+    Moves := Moves and (Moves - 1);
+  end;
+  Moves := PawnForwardTwo(P, Occupied, Ranks[(9 - a * 5) div 2], FWhitesTurn);
+  while Moves > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Moves);
+    Result.Add(TMove.Create(i + a * 16, i));
+    Moves := Moves and (Moves - 1);
+  end;
+  Moves := PawnAttackLeft(P, Enemy or FEnPassant, FWhitesTurn);
+  while Moves > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Moves);
+    if i in Rank8 + Rank1 then
+      for Piece in OwnPieces do
+        Result.Add(TMove.Create(i + a * 9, i, Piece))
+    else
+      Result.Add(TMove.Create(i + a * 9, i));
+    Moves := Moves and (Moves - 1);
+  end;
+  Moves := PawnAttackRight(P, Enemy or FEnPassant, FWhitesTurn);
+  while Moves > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Moves);
+    if i in Rank8 + Rank1 then
+      for Piece in OwnPieces do
+        Result.Add(TMove.Create(i + a * 7, i, Piece))
+    else
+      Result.Add(TMove.Create(i + a * 7, i));
+    Moves := Moves and (Moves - 1);
+  end;
+  // Queen Moves
+  while Q > 0 do
+  begin
+    i := NumberOfTrailingZeroes(Q);
+    Moves := QueenMoves(i, Occupied) and not Own;
+    while Moves > 0 do
+    begin
+      Result.Add(TMove.Create(i, NumberOfTrailingZeroes(Moves)));
+      Moves := Moves and (Moves - 1);
+    end;
+    Q := Q and (Q - 1);
+  end;
+  // Rook Moves
+  while R > 0 do
+  begin
+    i := NumberOfTrailingZeroes(R);
+    Moves := RookMoves(i, Occupied) and not Own;
+    while Moves > 0 do
+    begin
+      Result.Add(TMove.Create(i, NumberOfTrailingZeroes(Moves)));
+      Moves := Moves and (Moves - 1);
+    end;
+    R := R and (R - 1);
   end;
 end;
 
@@ -1308,7 +1609,6 @@ function TStandardPosition.ValidateMove(var ResultMove: TMove;
 var
   FoundMoves: TMoveList;
 begin
-  // TODO special validation of castling
   case MovingPiece of
     ptWKing: if StartingFile = 5 then // e-file
       begin
@@ -1365,7 +1665,7 @@ begin
     AMove.Start mod 8 + 1, 8 - AMove.Start div 8);
   if Dummy <> nil then
   begin
-    Result := Result and Dummy.Equals(AMove);
+    Result := Result and (Dummy.Start = AMove.Start) and (Dummy.Dest = AMove.Dest);
     Dummy.Free;
   end;
 end;
